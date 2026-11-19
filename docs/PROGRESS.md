@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M4 done** (2026-11-19). Next: **M5** (playable app flow + touch controls + HUD).
+- **M0–M4 done**, **M5 implemented** (device check pending) (2026-11-19). Next: **M6** (ULTs & balance).
 
 ## M0 plan — Setup
 
@@ -95,18 +95,35 @@ Done when: Godot client joins a room; all cars interpolated (no prediction); pro
 Known issue: the "▼ name" tag of your car rendered far from the car on device → fix with the
 M5 HUD name tags.
 
+## M5 plan — Play
+
+Done when: touch controls, HUD, lobby, vehicle select, countdown, results; full race vs bots on device.
+
+- [x] Server: race position in snapshot flags bits 12–15 (ranking stays Go-only); fixtures regenerated.
+- [x] `src/app/App.tscn` (main scene) state machine; `Profile.gd` (name, token, blocks, settings);
+      screens in `src/app/screens/` (Ui kit with safe area, Home, Lobby, Select, Results, RaceHud);
+      `src/input/TouchControls.gd` + `InputSetup.gd`; `src/render/RaceView.gd`.
+- [x] Desktop screenshots `docs/screenshots/m5_{home,lobby,select,race}.png`; tests: touch
+      multi-touch, CarView placement (20 Godot tests).
+- [ ] On device: auto-played practice race screenshot `m5_device.png` (waiting: phone was
+      locked; a background retry loop launches when it's unlocked). Then tick M5.
+- Dev args for the app (desktop `-- …` or device `DEV_ARGS=…`): `--auto quick|practice`,
+  `--auto-nolock`, `--join quick|practice`, `--server <url>`, `--shot <png> --shot-delay <s>`.
+
+Deferred from M5 on purpose: settings screen (M9 with haptics/audio), Browse Rooms + report/
+block/kick UI (M11), countdown start boost + ULT logic (M6), prediction (M7: own car still
+interpolated ~100 ms behind → steering feels laggy until M7).
+
 ## Next steps
 
-1. M5 — Play: app state machine `src/app/App.gd` (Home → Lobby → Vehicle Select → Countdown →
-   Race → Results → Lobby), screens (Home with Quick Play / Practice / Create / Join code,
-   Lobby list + ready/settings/start, Select cards with 20 s timer + LOCK, Race HUD: position
-   (from server ranking events or results — never computed as a game rule on the client;
-   position display may use snapshot progress order as cosmetic only), lap, timer, ULT button
-   placeholder, minimap, name tags ≤ 4 nearest; Results table + Rematch/Leave),
-   `src/input/TouchControls.tscn` (two steer buttons ≥ 80 pt bottom-left, ULT bottom-right,
-   auto-accelerate on, safe area), settings stub; full race vs bots on the iPhone.
-   Check: is "position" a game rule? Plan §3.3: ranking is Go-only → add `pos` to snapshots or
-   a ranking event from the server (protocol change → bump fixtures) rather than computing it.
+1. Finish M5 device check (see above), tick M5.
+2. M6 — ULTs & balance (Go only): `internal/sim/effects.go` (spinout, slow, slide, boost, ghost,
+   CC immunity 1.5 s, max 1 hard CC / 4 s, slow cap 50 %, no self-hits, no ULTs in first 3 s),
+   `internal/abilities/` (one file per ULT, numbers in balance.json `ults`), projectiles/traps in
+   snapshots (protocol: proj/trap counts are already reserved, bump fixtures), catch-up (ULT
+   recharge by position, drafting, comeback boost, start boost), bot ULT heuristics, `cmd/balance`
+   → `docs/BALANCE_REPORT.md` within §2.9 targets; client: show ULT cooldown ring + effect
+   visuals (placeholder) and the effects bitmask in Physics mods for M7.
 
 ## Open questions
 

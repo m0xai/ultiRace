@@ -89,6 +89,11 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
    Try it yourself: `/Applications/Godot.app/Contents/MacOS/Godot --path godot res://src/render/MapViewer.tscn`
    (WASD/QE fly, right-drag look, keys 1/2/3 switch maps). Tell Claude anything about track
    shapes, widths, corners or the bridge you want changed.
+10. [ ] **Play a race on the phone (feel check, M5):** Home → Practice vs bots → READY → pick a car
+    → race with the two steer buttons. Known: your car reacts ~100 ms late until M7 adds
+    prediction. Tell Claude what feels off (button size/position, camera, speed, steering).
+    Install: `SERVER_URL=ws://<Mac IP>:8090 make ios-run` with the dev server running
+    (`go run ./cmd/server -addr 0.0.0.0:8090`).
 8. [ ] **Decide:** keep the iPhone 11 "low" graphics tier, or target only recent iPhones
    (you said high-end graphics matter more)? Until answered the plan stays as written.
 
