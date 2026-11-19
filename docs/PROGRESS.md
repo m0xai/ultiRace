@@ -144,12 +144,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 
 ## Next steps
 
-1. M10 — Game Center: blocked on the paid Apple Developer Program (Game Center capability,
-   App Store Connect leaderboards/achievements) → HUMAN_TODO. Prepare without it: server-side
-   `POST /api/auth/gamecenter` verification (check Apple's current
-   `fetchItems(forIdentityVerificationSignature:)` docs first; tests with self-signed certs),
-   `platform/GameServices.gd` interface with a guest fallback, plugin spike (GameCenterKit vs
-   godot-ios-plugins).
+1. M10 — Game Center: **server side done** (`internal/server/auth_gamecenter.go`,
+   `POST /api/auth/gamecenter`, env `APPLE_BUNDLE_ID`, tests). Client side BLOCKED on the paid
+   Apple Developer Program (HUMAN_TODO #15/#16): GameServices.gd + plugin spike (GameCenterKit vs
+   godot-ios-plugins vs migueldeicaza/GodotApplePlugins), leaderboards, achievements.
 2. M11 — public play & deploy: Room browser screen, report/block/kick UI, name filter in UI,
    Quick Play rule 3, AASA + `/r/{code}` landing page, `bans.json` + SIGHUP, `deploy/`
    (Dockerfile, compose.yaml, Caddyfile.snippet, DEPLOY.md with the exact commands for the human).

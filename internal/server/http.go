@@ -28,6 +28,7 @@ type Config struct {
 	IDSecret  string // keeps anonymous player IDs stable across restarts
 	DataDir   string // reports.jsonl lives here ("" = discard)
 	MaxRooms  int
+	BundleID  string // APPLE_BUNDLE_ID: enables Game Center verification
 }
 
 // Server owns the HTTP mux and the room manager.
@@ -44,6 +45,9 @@ type Server struct {
 	createLimit *limiter // room creations / quick plays per IP
 	apiLimit    *limiter // HTTP API calls per IP
 	msgLimit    *limiter // WebSocket messages per player
+
+	gc       *GCVerifier
+	sessions sessions
 }
 
 // New returns a Server. Rooms stop when ctx is cancelled.
@@ -72,7 +76,12 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Server, error) {
 	if cfg.MaxRooms > 0 {
 		mgr.MaxRooms = cfg.MaxRooms
 	}
+	var gc *GCVerifier
+	if cfg.BundleID != "" {
+		gc = &GCVerifier{BundleID: cfg.BundleID}
+	}
 	return &Server{
+		gc:  gc,
 		cfg: cfg, log: log, started: time.Now(),
 		Rooms: mgr, Dir: dir, MM: room.NewMatchmaker(mgr),
 		connLimit:   newLimiter(2, 20),
@@ -89,13 +98,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/rooms", s.handleRooms)
 	mux.HandleFunc("GET /api/stats", s.handleStats)
 	mux.HandleFunc("POST /api/quickplay", s.handleQuickPlay)
+	mux.HandleFunc("POST /api/auth/gamecenter", s.handleGameCenterAuth)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	return mux
 }
 
-// playerID derives a stable anonymous id from a session token (GAME_PLAN §3.7).
+// playerID derives a stable anonymous id (GAME_PLAN §3.7): from the verified Game Center
+// identity when the token came from /api/auth/gamecenter, otherwise from the guest token.
 func (s *Server) playerID(token string) string {
-	h := sha256.Sum256([]byte(s.cfg.IDSecret + "|" + token))
+	identity := token
+	if id, ok := s.sessions.identity(token); ok {
+		identity = id
+	}
+	h := sha256.Sum256([]byte(s.cfg.IDSecret + "|" + identity))
 	return "p" + hex.EncodeToString(h[:6])
 }
 

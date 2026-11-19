@@ -40,7 +40,8 @@ func main() {
 		os.Exit(2)
 	}
 	cfg := server.Config{Addr: *addr, TestMode: *test, TimeScale: *timeScale, SimLag: *simLag, SimJitter: *simJitter,
-		Version: version, IDSecret: os.Getenv("ID_SECRET"), DataDir: *dataDir, MaxRooms: *maxRooms}
+		Version: version, IDSecret: os.Getenv("ID_SECRET"), DataDir: *dataDir, MaxRooms: *maxRooms,
+		BundleID: os.Getenv("APPLE_BUNDLE_ID")}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

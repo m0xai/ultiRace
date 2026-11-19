@@ -4,6 +4,17 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ## Open
 
+### Blocking M10 (Game Center) and M13/M14 (TestFlight / App Store)
+
+15. [ ] **Join the paid Apple Developer Program** (99 USD/year): developer.apple.com → Account →
+    Enroll. Needed for Game Center, Associated Domains (room links), TestFlight and the App Store.
+    Then tell Claude the new **Team ID** (Membership details).
+16. [ ] After enrolling, in **App Store Connect** (appstoreconnect.apple.com → Apps → +): create the
+    app with bundle ID `com.flappus.ultirace`, enable **Game Center**, and create:
+    leaderboards `best_lap_sunny`, `best_lap_neon`, `best_lap_frosty` (time, low to high),
+    `weekly_wins` (integer, high to low, recurring weekly); achievements are listed in
+    `docs/DEPLOY.md` when M10 is unblocked.
+
 ### Blocking iOS export / device install (Step 2 preflight)
 
 00. [x] **Trust the developer on the iPhone** (done) (blocks app launch; install already works):
