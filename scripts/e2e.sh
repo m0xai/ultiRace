@@ -22,6 +22,25 @@ done
 echo "== 6 Go clients press Quick Play at once =="
 "$BIN/botclient" -url "ws://127.0.0.1:$PORT" -clients 6 -races 2 -stagger 10ms -timeout 3m
 
+echo "== 4 headless Godot clients Quick Play together (M4) =="
+GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
+"$GODOT" --headless --path "$REPO/godot" --import >/dev/null 2>&1 || true
+pids=()
+for n in A B C D; do
+  "$GODOT" --headless --path "$REPO/godot" res://src/testing/BotClient.tscn -- --server "ws://127.0.0.1:$PORT" --name "Godot $n" --mode quick --timeout 120 \
+    >"$REPO/build/logs/e2e_godot_$n.txt" 2>&1 &
+  pids+=($!)
+  sleep 0.2
+done
+fail=0
+for p in "${pids[@]}"; do wait "$p" || fail=1; done
+grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt || true
+rooms=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt | sed 's/.*room=\([A-Z]*\).*/\1/' | sort -u | wc -l | tr -d ' ')
+results=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt | wc -l | tr -d ' ')
+if [ "$fail" -ne 0 ] || [ "$results" -ne 4 ] || [ "$rooms" -ne 1 ]; then
+  echo "godot e2e failed: results=$results rooms=$rooms"; exit 1
+fi
+
 echo "== Practice race =="
 "$BIN/botclient" -url "ws://127.0.0.1:$PORT" -clients 1 -practice -races 1 -timeout 2m
 

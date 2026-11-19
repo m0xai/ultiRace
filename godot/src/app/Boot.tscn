@@ -45,3 +45,17 @@ theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
 theme_override_font_sizes/font_size = 24
 text = "v0.0.0"
 horizontal_alignment = 1
+
+[node name="Watch" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(420, 96)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 34
+text = "Watch practice race"
+
+[node name="Server" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.58, 0.65, 1)
+theme_override_font_sizes/font_size = 18
+text = "server"
+horizontal_alignment = 1

@@ -56,6 +56,16 @@ jobs:
       - name: Godot tests
         run: make test-godot GODOT=$HOME/godot-bin/godot
 
+      - name: E2E (server binary + Go and headless Godot clients)
+        run: GODOT=$HOME/godot-bin/godot make e2e
+
+      - name: Upload e2e logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: build/logs/
+
   ios:
     name: iOS export + compile (macOS, unsigned)
     runs-on: macos-latest

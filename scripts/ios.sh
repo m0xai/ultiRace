@@ -6,7 +6,9 @@
 #   archive        export + xcodebuild archive (TestFlight path, M13)
 #   compile-check  export + unsigned generic iOS build (CI)
 # Env: GODOT, TEAM_ID (default: preset / Xcode personal team), DEVICE_UDID (default: first paired iPhone),
-#      CONFIG (Release|Debug, default Release)
+#      CONFIG (Release|Debug, default Release),
+#      SERVER_URL (dev only, e.g. ws://192.168.178.32:8090): baked into res://dev_server.txt and adds
+#      NSLocalNetworkUsageDescription to the exported Info.plist. Never set for App Store builds.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,6 +25,7 @@ die() { echo "ios.sh: $*" >&2; exit 1; }
 
 do_export() {
   rm -rf "$OUT"; mkdir -p "$OUT"
+  if [ -n "${SERVER_URL:-}" ]; then printf '%s\n' "$SERVER_URL" > "$REPO/godot/dev_server.txt"; else rm -f "$REPO/godot/dev_server.txt"; fi
   "$GODOT" --headless --path "$REPO/godot" --import >"$LOG/godot_import.txt" 2>&1 || true
   "$GODOT" --headless --path "$REPO/godot" --export-release "iOS" "$XPROJ" >"$LOG/godot_export.txt" 2>&1 || true
   # Godot exits 0 on failed exports and may leave a half-written project behind.
@@ -31,6 +34,11 @@ do_export() {
      || grep -qE '^\s*\$(pbx|additional)_' "$XPROJ/project.pbxproj"; then
     grep -E 'ERROR' "$LOG/godot_export.txt" | head -5 >&2
     die "export failed, see $LOG/godot_export.txt"
+  fi
+  if [ -n "${SERVER_URL:-}" ]; then
+    local plist; plist=$(find "$OUT" -maxdepth 2 -name '*-Info.plist' | head -1)
+    plutil -replace NSLocalNetworkUsageDescription -string "Connect to a development game server on your local network." "$plist"
+    echo "dev build: server $SERVER_URL"
   fi
   echo "exported $XPROJ"
 }

@@ -27,3 +27,6 @@
 
 # gdUnit4 reports
 /godot/reports/
+
+# dev-only server URL baked into device builds (scripts/ios.sh)
+/godot/dev_server.txt
