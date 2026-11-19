@@ -1,0 +1,212 @@
+{
+ "version": 1,
+ "client": [
+  {
+   "t": "hello",
+   "v": 1,
+   "name": "Speedy Otter",
+   "token": "tok",
+   "room": "ABCD",
+   "quick": true,
+   "create": {
+    "visibility": "public"
+   },
+   "blocked": [
+    "p1"
+   ],
+   "auth": {
+    "provider": "guest"
+   }
+  },
+  {
+   "t": "ready",
+   "ready": true
+  },
+  {
+   "t": "settings",
+   "map": "neon",
+   "laps": 2,
+   "bots": true,
+   "visibility": "private"
+  },
+  {
+   "t": "start"
+  },
+  {
+   "t": "kick",
+   "playerId": "p2"
+  },
+  {
+   "t": "preview",
+   "vehicle": "bolt"
+  },
+  {
+   "t": "lock",
+   "vehicle": "rhino"
+  },
+  {
+   "t": "in",
+   "seq": 77,
+   "steer": -1,
+   "thr": 1,
+   "ab": true
+  },
+  {
+   "t": "rematch"
+  },
+  {
+   "t": "report",
+   "playerId": "p3",
+   "reason": "name"
+  },
+  {
+   "t": "ping",
+   "ts": 1700000000123
+  },
+  {
+   "t": "leave"
+  }
+ ],
+ "server": [
+  {
+   "t": "welcome",
+   "playerId": "p1",
+   "token": "tok",
+   "room": "ABCD"
+  },
+  {
+   "t": "room",
+   "code": "ABCD",
+   "name": "Sunny Circuit · 3 laps · #ABCD Turbo",
+   "state": "LOBBY",
+   "visibility": "public",
+   "map": "sunny",
+   "laps": 3,
+   "bots": true,
+   "players": [
+    {
+     "id": "p1",
+     "name": "A",
+     "bot": false,
+     "ready": true,
+     "host": true,
+     "pingMs": 40
+    },
+    {
+     "id": "b1",
+     "name": "Bot Bolt",
+     "bot": true,
+     "ready": false,
+     "host": false,
+     "pingMs": 0
+    }
+   ],
+   "deadline": 1700000030000,
+   "region": "eu"
+  },
+  {
+   "t": "select",
+   "claims": [
+    {
+     "vehicle": "bolt",
+     "playerId": "p1"
+    }
+   ],
+   "previews": {
+    "p2": "goo"
+   },
+   "deadline": 1700000020000
+  },
+  {
+   "t": "raceStart",
+   "seed": 42,
+   "map": "neon",
+   "laps": 3,
+   "grid": [
+    {
+     "car": 0,
+     "playerId": "p1",
+     "vehicle": "bolt",
+     "name": "A",
+     "bot": false
+    }
+   ],
+   "startAt": 1700000003000,
+   "tick": 90,
+   "you": 0
+  },
+  {
+   "t": "ev",
+   "kind": "lap",
+   "tick": 1200,
+   "car": 3,
+   "value": 2
+  },
+  {
+   "t": "results",
+   "rows": [
+    {
+     "pos": 1,
+     "car": 0,
+     "playerId": "p1",
+     "name": "A",
+     "vehicle": "bolt",
+     "bot": false,
+     "finished": true,
+     "timeMs": 110000,
+     "bestLapMs": 35000
+    }
+   ],
+   "verified": [
+    {
+     "playerId": "p1",
+     "bestLapMs": 35000,
+     "timeMs": 110000,
+     "won": true
+    }
+   ]
+  },
+  {
+   "t": "kicked",
+   "reason": "host"
+  },
+  {
+   "t": "pong",
+   "ts": 1700000000123
+  },
+  {
+   "t": "err",
+   "code": "version",
+   "msg": "please update"
+  }
+ ],
+ "snapshot": {
+  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBAAWoBgAASgEw+AAAZggAAP8AAAAA",
+  "ack": 99,
+  "tick": 4242,
+  "cars": [
+   {
+    "ID": 0,
+    "S": 1234.57,
+    "D": -9.88,
+    "YawRel": 0.43210000000000004,
+    "Y": 1.23,
+    "Speed": 39.99,
+    "Vy": -7.5,
+    "Lap": 2,
+    "Flags": 1
+   },
+   {
+    "ID": 5,
+    "S": 17.04,
+    "D": 3.3000000000000003,
+    "YawRel": -0.2,
+    "Y": 0,
+    "Speed": 21.5,
+    "Vy": 0,
+    "Lap": -1,
+    "Flags": 0
+   }
+  ]
+ }
+}
