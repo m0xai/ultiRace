@@ -6,7 +6,11 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ### Blocking iOS export / device install (Step 2 preflight)
 
-0. [ ] **Enable Developer Mode on the iPhone 15 Pro Max** (current blocker): iPhone →
+00. [x] **Trust the developer on the iPhone** (done) (blocks app launch; install already works):
+    *Settings → General → VPN & Device Management → Apple Development: m0xai@icloud.com → Trust*.
+    Free Personal Team profiles expire after 7 days: re-run `make ios-run` then.
+
+0. [x] **Enable Developer Mode on the iPhone 15 Pro Max** (done): iPhone →
    *Settings → Privacy & Security → Developer Mode* → on → restart → confirm *Turn On* after
    reboot. (If the toggle is missing, open Xcode → *Window → Devices and Simulators* with the
    phone connected once; it appears then.) The phone is already paired.

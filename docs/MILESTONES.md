@@ -3,7 +3,7 @@
 Source: `docs/GAME_PLAN.md` §10. Tick a box only when every "done when" criterion is verified.
 Each milestone ends with a demo and an updated `docs/PROGRESS.md`.
 
-- [ ] **M0 — Setup.** Repo, Go module, Godot project pinned, Makefile, CI green; empty Godot scene runs on a real iPhone via Xcode
+- [x] **M0 — Setup.** (done 2026-11-19: CI green on 930f1e8, Boot scene runs on iPhone 15 Pro Max) Repo, Go module, Godot project pinned, Makefile, CI green; empty Godot scene runs on a real iPhone via Xcode
 - [ ] **M1 — Sim core (Go).** Track building + car physics + laps/ranking, determinism test, fixtures written
 - [ ] **M2 — Rooms & bots (Go).** Protocol, rooms, state machine, bots, public/private visibility, room directory API, matchmaker; Go bot clients Quick Play into rooms and finish races over WebSocket
 - [ ] **M3 — Mirror (Godot).** `Track.gd` + `Physics.gd` pass all fixtures; 3 maps render from JSON with a free camera

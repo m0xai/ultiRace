@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0 in progress.**
+- **M0 done** (2026-11-19). **M1 in progress** (see M1 plan below).
 
 ## M0 plan — Setup
 
@@ -26,9 +26,9 @@ on a real iPhone via Xcode.
       race tests, fixtures/sync checks, Godot tests; macOS: iOS export + unsigned compile).
 - [x] Local: `make test`, `make lint`, `make check-sync`, `make ios-check`, `make screenshot`
       (docs/screenshots/boot.png, looks right).
-- [ ] CI green on GitHub (repo is public: check via
+- [x] CI green on GitHub (run 44512690544) (repo is public: check via
       `curl -s https://api.github.com/repos/m0xai/ultiRace/actions/runs?per_page=1`).
-- [ ] `make ios-run` installs + launches on the iPhone 15 Pro Max.
+- [x] `make ios-run` installs + launches on the iPhone 15 Pro Max (human confirmed it opens).
 
 ## Next steps
 
