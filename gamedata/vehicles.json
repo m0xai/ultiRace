@@ -1,0 +1,12 @@
+{
+  "vehicles": [
+    { "id": "bolt",    "name": "Bolt",    "color": "#F5C518", "ult": "nitro",   "stats": { "speed": 5, "accel": 3, "handling": 2, "weight": 2 } },
+    { "id": "rhino",   "name": "Rhino",   "color": "#E8772E", "ult": "ram",     "stats": { "speed": 2, "accel": 2, "handling": 3, "weight": 5 } },
+    { "id": "glacier", "name": "Glacier", "color": "#7FD3F5", "ult": "ice",     "stats": { "speed": 3, "accel": 3, "handling": 3, "weight": 3 } },
+    { "id": "volt",    "name": "Volt",    "color": "#8E5CF0", "ult": "emp",     "stats": { "speed": 3, "accel": 4, "handling": 3, "weight": 2 } },
+    { "id": "hook",    "name": "Hook",    "color": "#3DBB5A", "ult": "grapple", "stats": { "speed": 3, "accel": 3, "handling": 4, "weight": 2 } },
+    { "id": "goo",     "name": "Goo",     "color": "#A6E22E", "ult": "goo",     "stats": { "speed": 3, "accel": 2, "handling": 3, "weight": 4 } },
+    { "id": "phantom", "name": "Phantom", "color": "#F2F4F8", "ult": "phase",   "stats": { "speed": 4, "accel": 3, "handling": 3, "weight": 2 } },
+    { "id": "twister", "name": "Twister", "color": "#1FB5A8", "ult": "tornado", "stats": { "speed": 2, "accel": 4, "handling": 4, "weight": 2 } }
+  ]
+}

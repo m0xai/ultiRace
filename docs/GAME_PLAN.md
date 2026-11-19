@@ -188,8 +188,9 @@ Fixed timestep `dt = 1/30 s`. Units: metres and seconds. Each tick:
 1. `speed += accel(stat) * throttle * dt`, then drag; cap at `topSpeed * speedMultiplier`.
 2. `yawRel += steer * steerRate(stat, speed) * dt`; a strong auto-align force pulls `yawRel`
    toward 0 (feels "on rails", but you still have to steer).
-3. `s += speed * cos(yawRel) * dt * (R / (R − d·κ))`; `d += speed * sin(yawRel) * dt`.
-   The curvature correction limits the inside-line advantage.
+3. `s += speed * cos(yawRel) * dt / (1 − d·κ)`; `d += speed * sin(yawRel) * dt`;
+   `yawRel −= κ · Δs` (the tangent turns under the car, so corners need steering).
+   The Frenet correction gives the inside line its real geometric advantage, nothing more.
 4. Wall: if `|d| > halfWidth − carHalfWidth`, clamp, `speed *= 0.75`, reflect `yawRel`,
    emit a `wallHit` event (sparks + haptic).
 5. Car–car: circles in (s, d) space, radius 1.4 m; push apart by inverse weight, exchange some

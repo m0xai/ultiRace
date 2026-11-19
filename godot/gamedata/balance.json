@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "tickRate": 30,
+  "stats": {
+    "topSpeedBase": 34.0,
+    "topSpeedPerStat": 1.6,
+    "accelTimeBase": 4.4,
+    "accelTimePerStat": 0.3,
+    "steerRateBase": 1.6,
+    "steerRatePerStat": 0.15,
+    "wallReflectBase": 0.55,
+    "wallReflectPerStat": 0.06,
+    "massBase": 0.7,
+    "massPerStat": 0.15,
+    "hardCCReductionPerWeightAbove3": 0.05
+  },
+  "physics": {
+    "coastDecel": 6.0,
+    "overspeedDecel": 12.0,
+    "steerHighSpeedFalloff": 0.3,
+    "autoAlign": 1.6,
+    "maxYawRel": 0.85,
+    "airSteerFactor": 0.4,
+    "gravity": 25.0,
+    "carHalfWidth": 1.0,
+    "wallSpeedFactor": 0.75,
+    "wallMinYawOut": 0.05,
+    "minCurvatureDenominator": 0.5,
+    "landingSpeedFactor": 0.97,
+    "carRadius": 1.4,
+    "carCollisionMaxDy": 1.5,
+    "collisionSpeedExchange": 0.3
+  },
+  "race": {
+    "defaultLaps": 3,
+    "countdownS": 3.0,
+    "finishWindowS": 20.0,
+    "gridRowSpacing": 8.0,
+    "gridColumnOffset": 3.0,
+    "gridStartGap": 6.0
+  },
+  "track": {
+    "arcSamplesPerSegment": 64,
+    "fixtureSamples": 200
+  }
+}

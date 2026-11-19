@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0 done** (2026-11-19). **M1 in progress** (see M1 plan below).
+- **M0 done**, **M1 done** (2026-11-19). Next: **M2**.
 
 ## M0 plan — Setup
 
@@ -30,11 +30,29 @@ on a real iPhone via Xcode.
       `curl -s https://api.github.com/repos/m0xai/ultiRace/actions/runs?per_page=1`).
 - [x] `make ios-run` installs + launches on the iPhone 15 Pro Max (human confirmed it opens).
 
+## M1 plan — Sim core (Go)
+
+Done when: track building + car physics + laps/ranking, determinism test, fixtures written.
+
+- [x] `gamedata/`: `balance.json`, `vehicles.json` (8 cars, stats sum 12), `maps/{sunny,neon,frosty}.json`
+      (from `scripts/genmaps.py`), `embed.go` loader (unknown JSON fields = error).
+- [x] `internal/mathx`: Vec3, wrap helpers, mulberry32 (checked against the JS reference), Catmull-Rom + derivatives.
+- [x] `internal/track`: arc-length table, frames, signed curvature, width/bank, `World(s,d,y)`;
+      tests: plan bounds, Frenet identity, orthonormal frames, seam continuity, Neon bridge ≥ 8 m.
+      `ULTIRACE_PREVIEW_DIR=… go test ./internal/track -run Previews` renders top-down PNGs.
+- [x] `internal/sim`: `StepCar` (mirrored), `World` (grid, collisions, laps, finish window, ranking, hash).
+      Tests: accel time, coasting, mods cap, walls, ramps, curvature drift, every vehicle finishes
+      every map (lap 34–37 s), collisions, laps can't be farmed, ranking, finish window,
+      determinism across goroutines. Benchmark: 8-car tick ≈ 2.4 µs (budget 0.2 ms).
+- [x] Fixtures: `gamedata/fixtures/track_*.json` (200 samples + wrap cases), `physics_*.json`
+      (6 scenarios × 300 ticks); `TestFixtures` fails when stale; synced to `godot/gamedata`.
+
 ## Next steps
 
-1. Finish M0 (two boxes above), tick it in MILESTONES.md, commit + push.
-2. M1: sim core in Go (gamedata/balance.json, vehicles.json, 3 maps, mathx, track, sim,
-   laps/ranking, determinism test, fixtures).
+1. M2: protocol (`internal/protocol`), rooms (goroutine per room, state machine, fake clock),
+   bots (`internal/bots`: racing line from curvature, avoidance), directory + `/api/rooms`,
+   matchmaker (`/api/quickplay`), moderation (names), WebSocket (`/ws`), `cmd/botclient`
+   Quick Play e2e.
 
 ## Open questions
 
