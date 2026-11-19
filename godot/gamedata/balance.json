@@ -59,6 +59,7 @@
     "emptyRoomS": 60.0,
     "seatReservationS": 5.0,
     "quickPlaySpectateMaxS": 30.0,
-    "snapshotEveryNth": 3
+    "snapshotEveryNth": 3,
+    "maxListedRooms": 80
   }
 }

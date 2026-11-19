@@ -179,3 +179,33 @@ func TestRoomCodesAreClean(t *testing.T) {
 		}
 	}
 }
+
+// GAME_PLAN §8: room list ≤ 5 ms p99 with 1,000 rooms and ≤ 30 KB response.
+func TestDirectoryBudgetWith1000Rooms(t *testing.T) {
+	d := NewDirectory(nil)
+	d.MaxListed = data(t).Bal.Rooms.MaxListedRooms
+	for i := range 1000 {
+		e := entry(fmt.Sprintf("R%03d", i), protocol.Public, "LOBBY", i%8, int64(i))
+		e.Summary.Name = "Neon Overpass · 3 laps · #ABCD Slippery"
+		e.Summary.Host = "Speedy Otter 42"
+		e.Summary.Deadline = 1_700_000_000_000
+		e.Summary.Region = "eu"
+		d.Update(e)
+	}
+	var worst time.Duration
+	for i := 0; i < 100; i++ {
+		start := time.Now()
+		d.cacheAt = time.Time{} // force a rebuild every time (worst case)
+		body, _ := d.ListJSON("", 0)
+		if el := time.Since(start); el > worst {
+			worst = el
+		}
+		if len(body) > 30*1024 {
+			t.Fatalf("listing is %d bytes > 30 KB", len(body))
+		}
+	}
+	if worst > 5*time.Millisecond && !raceEnabled { // the race detector slows this 5–10×
+		t.Fatalf("worst rebuild %s > 5 ms", worst)
+	}
+	t.Logf("worst rebuild %s", worst)
+}

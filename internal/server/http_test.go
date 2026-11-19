@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -10,7 +11,10 @@ import (
 )
 
 func TestHealthz(t *testing.T) {
-	srv := New(Config{Version: "test", TestMode: true}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	srv, err := New(context.Background(), Config{Version: "test", TestMode: true}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 
@@ -35,7 +39,10 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestHealthzRejectsPost(t *testing.T) {
-	srv := New(Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	srv, err := New(context.Background(), Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 

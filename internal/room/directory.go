@@ -33,6 +33,9 @@ type Directory struct {
 	cacheBody []byte
 	cacheETag string
 	now       func() time.Time
+
+	// MaxListed caps the listing (0 = unlimited); set from balance.json rooms.maxListedRooms.
+	MaxListed int
 }
 
 // NewDirectory creates an empty directory.
@@ -117,6 +120,9 @@ func (d *Directory) List(mapID string, laps int) protocol.RoomList {
 		}
 		return a.Code < b.Code
 	})
+	if d.MaxListed > 0 && len(rooms) > d.MaxListed {
+		rooms = rooms[:d.MaxListed]
+	}
 	if rooms == nil {
 		rooms = []protocol.RoomSummary{}
 	}

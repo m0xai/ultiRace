@@ -381,7 +381,8 @@ desync and NAT problems; we want one authoritative sim.
 - **Room directory** (public listing): each room goroutine pushes a small `RoomSummary`
   (code, name, map, laps, humans, bots, state, timer deadline, visibility) to the directory on
   every change. The directory keeps a sorted slice behind an `RWMutex`, rebuilds a cached JSON
-  body at most twice per second, and serves it with an `ETag`. No room state is ever read
+  body at most twice per second, and serves it with an `ETag`. The listing returns at most
+  `rooms.maxListedRooms` (80) rows, best first. No room state is ever read
   from outside its goroutine.
 - **Matchmaker** (`POST /api/quickplay` or `hello{quick:true}`): picks a room from the
   directory by the Quick Play rules (§2.3.1), reserves a seat for 5 s (so two players can't
@@ -679,8 +680,8 @@ triangles, tier, ping, kbps.
 - **Godot unit tests (gdUnit4, headless):** conformance against Go fixtures (track, physics,
   protocol), interpolation incl. `s` wrap, prediction and reconciliation, input mapping incl.
   tilt, quality controller.
-- **Test-only time scale:** server `-test` flag lets rooms accept `timeScale` 1–10; refused in
-  production.
+- **Test-only time scale:** server `-test -time-scale N` (1–10) runs every room N× faster;
+  refused without `-test`.
 - **E2E (CI, no device):** headless Godot bot clients (`BotClient.gd`) against the real server
   binary: solo Practice race finishes; 4 clients join one room, lock different vehicles at once
   (uniqueness), race, all see the same results; two clients lock the same car at the same

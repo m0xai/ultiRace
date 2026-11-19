@@ -15,12 +15,12 @@ import (
 func TestCleanName(t *testing.T) {
 	rng := mathx.NewRng(1)
 	good := map[string]string{
-		"Kerem":            "Kerem",
+		"Kerem":             "Kerem",
 		"  Speedy   Otter ": "Speedy Otter",
-		"Cassandra":        "Cassandra", // contains "ass" but is not a whole token
-		"Bass_Player-7":    "Bass_Player-7",
-		"Ömer":             "Ömer",
-		"Scunthorpe Fan":   "",          // contains a long blocked word: rejected (documented trade-off)
+		"Cassandra":         "Cassandra", // contains "ass" but is not a whole token
+		"Bass_Player-7":     "Bass_Player-7",
+		"Ömer":              "Ömer",
+		"Scunthorpe Fan":    "", // contains a long blocked word: rejected (documented trade-off)
 	}
 	for in, want := range good {
 		got, ok := CleanName(in, rng)

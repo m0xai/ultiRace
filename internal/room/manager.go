@@ -37,6 +37,7 @@ func NewManager(ctx context.Context, data *Data, dir *Directory, reports *modera
 	if tickDur == 0 {
 		tickDur = time.Second / time.Duration(data.Bal.TickRate)
 	}
+	dir.MaxListed = data.Bal.Rooms.MaxListedRooms
 	return &Manager{Data: data, Dir: dir, Reports: reports, MaxRooms: 2000, TickDur: tickDur, Now: time.Now, ctx: ctx, rooms: map[string]*Room{}}
 }
 

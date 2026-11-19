@@ -46,6 +46,8 @@ type Rooms struct {
 	QuickPlaySpectateMaxS float64 `json:"quickPlaySpectateMaxS"`
 	// SnapshotEveryNth: a snapshot is sent on every tick except each Nth (2 of 3 → 20 Hz).
 	SnapshotEveryNth int `json:"snapshotEveryNth"`
+	// MaxListedRooms caps GET /api/rooms (best rooms first) to keep it ≤ 30 KB (GAME_PLAN §8).
+	MaxListedRooms int `json:"maxListedRooms"`
 }
 
 // Ticks converts seconds to whole ticks at the sim rate.

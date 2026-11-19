@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0 done**, **M1 done** (2026-11-19). Next: **M2**.
+- **M0, M1, M2 done** (2026-11-19). Next: **M3** (Godot mirror + map rendering).
 
 ## M0 plan — Setup
 
@@ -47,12 +47,34 @@ Done when: track building + car physics + laps/ranking, determinism test, fixtur
 - [x] Fixtures: `gamedata/fixtures/track_*.json` (200 samples + wrap cases), `physics_*.json`
       (6 scenarios × 300 ticks); `TestFixtures` fails when stale; synced to `godot/gamedata`.
 
+## M2 plan — Rooms & bots (Go)
+
+Done when: protocol, rooms, state machine, bots, public/private visibility, room directory
+API, matchmaker; Go bot clients Quick Play into rooms and finish races over WebSocket.
+
+- [x] `internal/protocol`: all §3.7 messages, strict decoding, binary snapshots (18 B/car,
+      per-client ack prefix), fixture `gamedata/fixtures/protocol/messages.json`.
+- [x] `internal/bots`: racing line from curvature, avoidance, difficulty; 8 bots finish every map.
+- [x] `internal/room`: `Core` state machine (public/private timers, first-lock-wins, bot fill,
+      reverse grid, disconnect→bot + reconnect, AFK, kick ban, host migration, spectators),
+      `Room` goroutine, `Manager`, `Directory` (cached/ETag, 80-row cap), `Matchmaker`.
+- [x] `internal/moderation`: name filter + `blocked_words.txt`, `reports.jsonl`.
+- [x] `internal/server`: `/ws`, `/api/rooms`, `/api/stats`, `/api/quickplay`, per-IP and
+      per-player rate limits, XFF only from loopback, `-sim-lag/-sim-jitter`, `-time-scale`.
+- [x] `internal/botclient` + `cmd/botclient`; `make e2e` (real binary): 6 Quick Play clients →
+      1 room, 2 races each; Practice; 3 clients under 150 ms ± 40 ms lag (race completes).
+- [x] Budgets: room tick ≈ 2 µs (≤ 0.2 ms); listing 1,000 rooms ≈ 1.3 ms, < 30 KB.
+
+Not done in M2 (deliberately later): Quick Play rule 3 (spectate a running race that ends
+within 30 s) → M11; Game Center auth → M10; AASA/`/r/{code}` links and `bans.json` → M11;
+server capacity soak (≥ 300 rooms/vCPU) → M12; ULTs and effects → M6.
+
 ## Next steps
 
-1. M2: protocol (`internal/protocol`), rooms (goroutine per room, state machine, fake clock),
-   bots (`internal/bots`: racing line from curvature, avoidance), directory + `/api/rooms`,
-   matchmaker (`/api/quickplay`), moderation (names), WebSocket (`/ws`), `cmd/botclient`
-   Quick Play e2e.
+1. M3 — Mirror (Godot): `godot/src/sim/Track.gd` + `Physics.gd` (typed GDScript) passing
+   `gamedata/fixtures/track_*.json` and `physics_*.json` within 1e-4 (gdUnit4); `TrackBuilder.gd`
+   generates road/walls/curbs/start gate from map JSON; a free-camera viewer scene renders all
+   3 maps; screenshots in `docs/screenshots/`.
 
 ## Open questions
 
