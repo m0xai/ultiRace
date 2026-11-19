@@ -142,6 +142,24 @@ e2e predicted driver under 150 ms ± 40 ms lag: avg correction 5.6 cm. Human fee
 (`src/app/screens/SettingsScreen.gd`: auto-accelerate, swap sides, button size, tilt + sensitivity,
 haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 
+## A1 — Vehicle art v2 (in progress, 2026-11-20)
+
+- [x] Wheel tumbling fixed (CarView rebuilds wheels from rest basis + axle spin + steer; test).
+- [x] `art/blender/lib/carkit2.py`: lofted subdivided bodies, glass canopies, boolean wheel arches,
+      lathed tyres + spoked rims, embedded lamps, tubes, glow; PBR materials (Paint clear-coat,
+      Accent, Trim, Chrome, Glass, Rubber, Light, TailLight). `art/blender/cars2/*.py` (8 cars),
+      `make assets` builds them (CARS_DIR=cars builds the old M8 placeholders). Turntables in
+      `art/previews/`, in-game `docs/screenshots/a1_grid.png`.
+- [x] CarView keeps imported PBR materials; per-car Paint copy for effects.
+- [ ] Draw calls: race view 168 (low budget 150): merge each car to ~4 surfaces (vertex-coloured
+      opaque body incl. trim/rubber/accent, Glass, Light, TailLight) and wheels to 1 surface.
+- [ ] Particles: soft round texture for wind lines / flames / sparks (currently hard squares).
+- [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
+- [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
+
+Then A2 — Game UI & feel (research → docs/UI_STYLE.md: display font, colour/shape language,
+animated buttons and transitions, 3D car showroom on Home/Select, juicy countdown/results).
+
 ## Next steps
 
 1. M10 — Game Center: **server side done** (`internal/server/auth_gamecenter.go`,

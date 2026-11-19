@@ -52,19 +52,19 @@ func _load_model(vehicle: String) -> void:
 	_model.position.y = -RIDE_HEIGHT
 	_body.visible = false
 	_cabin.visible = false
-	var paint: StandardMaterial3D = StandardMaterial3D.new()
-	paint.vertex_color_use_as_albedo = true # every part carries its colour as vertex colours
-	paint.roughness = 0.45
-	_paint = paint
+	# A1 models carry their own PBR materials (paint, glass, chrome, lights): keep them, and give
+	# this car its own copy of "Paint" so effect visuals (ghost, boost glow) don't leak to others.
 	for mi: Node in _model.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = mi as MeshInstance3D
-		if not m.name.begins_with("Wheel_"):
-			m.material_override = paint
-		else:
-			var tyre: StandardMaterial3D = StandardMaterial3D.new()
-			tyre.vertex_color_use_as_albedo = true
-			tyre.roughness = 0.9
-			m.material_override = tyre
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for i: int in m.mesh.get_surface_count():
+			var mat: Material = m.mesh.surface_get_material(i)
+			if mat != null and mat.resource_name == "Paint" and mat is StandardMaterial3D:
+				if _paint == null:
+					_paint = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				m.set_surface_override_material(i, _paint)
+	for mi: Node in _model.find_children("*", "MeshInstance3D", true, false):
+		var m: MeshInstance3D = mi as MeshInstance3D
 		if m.name.begins_with("Wheel_"):
 			_wheels.append(m)
 			_rest[m] = m.basis
