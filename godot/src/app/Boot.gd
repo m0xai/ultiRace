@@ -12,5 +12,5 @@ func _ready() -> void:
 	_version_label.text = "v%s · Godot %s · %s" % [ver, engine, OS.get_name()]
 	_server.text = Config.server_url()
 	_watch.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://src/app/Watch.tscn"))
-	if OS.get_cmdline_user_args().has("--watch"):
+	if Config.user_args().has("--watch"):
 		_watch.pressed.emit()

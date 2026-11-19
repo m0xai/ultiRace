@@ -30,3 +30,4 @@
 
 # dev-only server URL baked into device builds (scripts/ios.sh)
 /godot/dev_server.txt
+/godot/dev_args.txt

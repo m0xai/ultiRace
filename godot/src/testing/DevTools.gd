@@ -7,7 +7,7 @@ extends Node
 const DEFAULT_DELAY_S: float = 2.0
 
 func _ready() -> void:
-	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var args: PackedStringArray = Config.user_args()
 	var shot_i: int = args.find("--shot")
 	if shot_i < 0 or shot_i + 1 >= args.size():
 		return

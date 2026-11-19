@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M3 done** (2026-11-19). Next: **M4** (Godot client connects and watches a race).
+- **M0–M4 done** (2026-11-19). Next: **M5** (playable app flow + touch controls + HUD).
 
 ## M0 plan — Setup
 
@@ -80,14 +80,33 @@ Done when: `Track.gd` + `Physics.gd` pass all fixtures; 3 maps render from JSON 
 - [x] Screenshots `docs/screenshots/m3_{sunny,neon,frosty}_{overview,start}.png`, `m3_neon_bridge.png`.
       Budgets: ≤ 38 draw calls, ≤ 113k triangles per view (`DevTools --shot` prints PERF).
 
+## M4 plan — Connect & watch
+
+Done when: Godot client joins a room; all cars interpolated (no prediction); protocol fixtures pass.
+
+- [x] `godot/src/net/Protocol.gd` (+ conformance vs `fixtures/protocol/messages.json`),
+      `Connection.gd`, `Interpolation.gd` (+ unit tests: blend, s wrap, delay, jitter).
+- [x] `godot/src/render/CarView.tscn` (one scene for all cars), `godot/src/app/Watch.tscn`.
+- [x] `godot/src/testing/BotClient.tscn`; `make e2e` runs 4 headless Godot clients in one
+      Quick Play room (all finish); e2e added to the CI Linux job.
+- [x] On device: iPhone 15 Pro Max joined the Mac's LAN dev server, raced, ping 8 ms
+      (`docs/screenshots/m4_device.png`).
+
+Known issue: the "▼ name" tag of your car rendered far from the car on device → fix with the
+M5 HUD name tags.
+
 ## Next steps
 
-1. M4 — Connect & watch: `godot/src/net/` (`Protocol.gd` mirroring internal/protocol incl.
-   binary snapshots, passing `fixtures/protocol/messages.json`; `Connection.gd` (WebSocketPeer,
-   hello/welcome, reconnect); `Snapshot.gd`; `Interpolation.gd` (≈100 ms buffer, s-wrap, adaptive
-   to 160 ms)); a watch scene that joins a room and renders all 8 cars (placeholder boxes) on the
-   track with a chase/spectator camera; `testing/BotClient.gd` headless client for e2e; verify on
-   the iPhone against the Mac's dev server (LAN IP).
+1. M5 — Play: app state machine `src/app/App.gd` (Home → Lobby → Vehicle Select → Countdown →
+   Race → Results → Lobby), screens (Home with Quick Play / Practice / Create / Join code,
+   Lobby list + ready/settings/start, Select cards with 20 s timer + LOCK, Race HUD: position
+   (from server ranking events or results — never computed as a game rule on the client;
+   position display may use snapshot progress order as cosmetic only), lap, timer, ULT button
+   placeholder, minimap, name tags ≤ 4 nearest; Results table + Rematch/Leave),
+   `src/input/TouchControls.tscn` (two steer buttons ≥ 80 pt bottom-left, ULT bottom-right,
+   auto-accelerate on, safe area), settings stub; full race vs bots on the iPhone.
+   Check: is "position" a game rule? Plan §3.3: ranking is Go-only → add `pos` to snapshots or
+   a ranking event from the server (protocol change → bump fixtures) rather than computing it.
 
 ## Open questions
 

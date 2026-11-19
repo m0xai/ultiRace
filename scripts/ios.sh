@@ -9,6 +9,8 @@
 #      CONFIG (Release|Debug, default Release),
 #      SERVER_URL (dev only, e.g. ws://192.168.178.32:8090): baked into res://dev_server.txt and adds
 #      NSLocalNetworkUsageDescription to the exported Info.plist. Never set for App Store builds.
+#      DEV_ARGS (dev only): user args baked into res://dev_args.txt, e.g. "--watch --shot user://x.png"
+#      (iOS does not pass launch arguments to Godot). Fetch files with: scripts/ios.sh pull <name>
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -26,6 +28,7 @@ die() { echo "ios.sh: $*" >&2; exit 1; }
 do_export() {
   rm -rf "$OUT"; mkdir -p "$OUT"
   if [ -n "${SERVER_URL:-}" ]; then printf '%s\n' "$SERVER_URL" > "$REPO/godot/dev_server.txt"; else rm -f "$REPO/godot/dev_server.txt"; fi
+  if [ -n "${DEV_ARGS:-}" ]; then printf '%s\n' "$DEV_ARGS" > "$REPO/godot/dev_args.txt"; else rm -f "$REPO/godot/dev_args.txt"; fi
   "$GODOT" --headless --path "$REPO/godot" --import >"$LOG/godot_import.txt" 2>&1 || true
   "$GODOT" --headless --path "$REPO/godot" --export-release "iOS" "$XPROJ" >"$LOG/godot_export.txt" 2>&1 || true
   # Godot exits 0 on failed exports and may leave a half-written project behind.
@@ -97,8 +100,18 @@ do_compile_check() {
   echo "unsigned iOS compile ok"
 }
 
+do_pull() {  # copy a file from the app's Documents (user://) to build/device/
+  local ids dev; ids=$(device_ids); dev="${ids%% *}"
+  mkdir -p "$REPO/build/device"
+  xcrun devicectl device copy from --device "$dev" --domain-type appDataContainer --domain-identifier "$BUNDLE_ID" \
+    --source "Documents/$2" --destination "$REPO/build/device/$2" >"$LOG/devicectl_pull.txt" 2>&1 \
+    || { tail -3 "$LOG/devicectl_pull.txt" >&2; die "pull failed"; }
+  echo "pulled build/device/$2"
+}
+
 case "${1:-}" in
   export) do_export;; device) do_device;; run) do_run;; archive) do_archive;;
   compile-check) do_compile_check;;
-  *) die "usage: $0 <export|device|run|archive|compile-check>";;
+  pull) do_pull "$@";;
+  *) die "usage: $0 <export|device|run|archive|compile-check|pull <file>>";;
 esac

@@ -7,10 +7,21 @@ extends RefCounted
 
 const PROD_SERVER: String = "wss://ultirace.flappus.com"
 const DEV_FILE: String = "res://dev_server.txt"
+const DEV_ARGS_FILE: String = "res://dev_args.txt"
+
+
+## Command-line user args plus dev args baked into device builds (iOS does not forward launch
+## arguments to Godot): `make ios-run DEV_ARGS="--watch --shot user://x.png"`.
+static func user_args() -> PackedStringArray:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if FileAccess.file_exists(DEV_ARGS_FILE):
+		for a: String in FileAccess.get_file_as_string(DEV_ARGS_FILE).strip_edges().split(" ", false):
+			args.append(a)
+	return args
 
 
 static func server_url() -> String:
-	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var args: PackedStringArray = user_args()
 	var i: int = args.find("--server")
 	if i >= 0 and i + 1 < args.size():
 		return args[i + 1]
@@ -24,7 +35,7 @@ static func server_url() -> String:
 
 
 static func arg(key: String, def: String) -> String:
-	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var args: PackedStringArray = user_args()
 	var i: int = args.find(key)
 	if i >= 0 and i + 1 < args.size():
 		return args[i + 1]

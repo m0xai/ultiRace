@@ -65,6 +65,16 @@ xcrun devicectl device process launch --device <identifier> <bundle-id>
 Steps c/d (export, simulator, device) are written in `scripts/preflight.sh` but **not yet
 verified** (template, signing and device missing). Update this file once they pass.
 
+## Device dev loop (verified 2026-11-19)
+
+```bash
+go build -o build/e2e/server ./cmd/server && build/e2e/server -addr 0.0.0.0:8090 -test &   # Mac LAN IP: ipconfig getifaddr en0
+SERVER_URL=ws://192.168.178.32:8090 DEV_ARGS="--watch --shot user://shot.png --shot-delay 30" make ios-run
+./scripts/ios.sh pull shot.png        # → build/device/shot.png
+```
+First LAN connection shows the iOS local-network prompt on the phone (human taps Allow, once).
+macOS firewall is off on this Mac. iOS ignores launch arguments for Godot apps → use DEV_ARGS.
+
 ## Surprises / gotchas
 
 - **No iOS Simulator builds with the official Godot 4.7.2 templates on Apple Silicon.** The
