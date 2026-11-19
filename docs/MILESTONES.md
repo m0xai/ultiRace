@@ -13,8 +13,11 @@ Each milestone ends with a demo and an updated `docs/PROGRESS.md`.
 - [x] **M7 — Prediction.** (done 2026-11-19: e2e predicted driver under 150 ms ± 40 ms lag, avg correction 5.6 cm; feel check on device in HUMAN_TODO) Own-car prediction + reconciliation; instant feel with `-sim-lag=150ms`
 - [ ] **M8 — Art pass.** 8 Blender cars approved, props, baked lightmaps, VFX, cosmetic suspension, camera polish
 - [x] **M9 — Audio & haptics.** (done 2026-11-19; procedural CC0 audio; human listening/feel check in HUMAN_TODO) Engine layers, SFX, music, mix, haptics, settings
+- [ ] **A1 — Vehicle art v2.** 8 new Blender cars: smooth stylised bodies (lofted, subdivided), wheel arches, real tyres + rims, lights, glass/chrome/paint materials, joyful proportions (toy-like, chunky wheels); wheels spin correctly; turntables approved by the human
+- [ ] **A2 — Game UI & feel.** Menus feel like a game, not an app: custom display font, bold colour/shape language, animated buttons and transitions, 3D car showroom on Home and Vehicle Select, juicy countdown/results; reference research in docs/UI_STYLE.md; human approval
+- [ ] **A3 — Track & world art.** Track dressing per map (props from Blender, terrain, skybox, lighting mood), effects polish; human approval
 - [ ] **M10 — Game Center.** Sign-in + server verification, leaderboards, achievements
 - [ ] **M11 — Public play & deploy.** Room browser screen, Quick Play, lobby timer, kick/report/block, name filter; server live on flappus behind native Caddy; Universal Links, share sheet, landing page; strangers can find and join each other
-- [ ] **M12 — Performance.** Tiers tuned on oldest and newest test devices; all §8 budgets met
-- [ ] **M13 — TestFlight.** Signed build, friends play a full group session, crash-free ≥ 99 %
-- [ ] **M14 — App Store.** Store page, screenshots, privacy answers, submitted for review
+- [ ] **M12 — Performance.** (parked until A1–A3 are done) Tiers tuned on oldest and newest test devices; all §8 budgets met
+- [ ] *(parked)* **M13 — TestFlight.** Signed build, friends play a full group session, crash-free ≥ 99 %
+- [ ] *(parked)* **M14 — App Store.** Store page, screenshots, privacy answers, submitted for review

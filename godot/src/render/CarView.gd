@@ -16,6 +16,9 @@ var vehicle_id: String = ""
 var _model: Node3D = null
 var _wheels: Array[Node3D] = []
 var _front: Array[Node3D] = []
+var _rest: Dictionary = {} # wheel → rest Basis (as exported)
+var _wheel_spin: float = 0.0
+var _steer: float = 0.0
 var _wheel_r: float = 0.4
 var _last_s: float = -1.0
 var _last_yaw: float = 0.0
@@ -64,6 +67,7 @@ func _load_model(vehicle: String) -> void:
 			m.material_override = tyre
 		if m.name.begins_with("Wheel_"):
 			_wheels.append(m)
+			_rest[m] = m.basis
 			if m.name.ends_with("FL") or m.name.ends_with("FR"):
 				_front.append(m)
 			_wheel_r = maxf(_wheel_r, m.get_aabb().size.y / 2.0)
@@ -149,11 +153,15 @@ func _animate_wheels(st: Physics.CarState, tr: Track) -> void:
 		return
 	var ds: float = 0.0 if _last_s < 0.0 else MathX.wrap_delta(_last_s, st.s, tr.length)
 	_last_s = st.s
-	var roll: float = clampf(ds, -5.0, 5.0) / _wheel_r
-	var steer: float = clampf((st.yaw_rel - _last_yaw) * 8.0, -0.45, 0.45)
+	# Rebuild each wheel from clean angles in car space (no accumulated local rotations):
+	# spin around the axle (car X), steering around the vertical axis (front wheels only).
+	_wheel_spin = fmod(_wheel_spin - clampf(ds, -5.0, 5.0) / _wheel_r, TAU)
+	var target_steer: float = clampf((st.yaw_rel - _last_yaw) * 8.0, -0.45, 0.45)
+	_steer = lerpf(_steer, target_steer, 0.3)
 	_last_yaw = st.yaw_rel
+	var spin: Basis = Basis(Vector3.RIGHT, _wheel_spin)
 	for w: Node3D in _wheels:
-		w.rotate_object_local(Vector3.RIGHT, roll)
-	for w: Node3D in _front:
-		var r: Vector3 = w.rotation
-		w.rotation = Vector3(r.x, lerpf(r.y, steer, 0.3), r.z)
+		var b: Basis = spin * (_rest[w] as Basis)
+		if _front.has(w):
+			b = Basis(Vector3.UP, _steer) * b
+		w.basis = b

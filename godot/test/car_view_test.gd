@@ -22,3 +22,26 @@ func test_car_and_tag_follow_state() -> void:
 	var smp: Track.Sample = tr.at(500.0)
 	var fwd: Vector3 = -cv.global_transform.basis.z
 	assert_float(fwd.dot(Vector3(smp.tx, smp.ty, smp.tz))).is_greater(0.99)
+
+
+## Regression (2026-11-20, seen on device): wheels must spin around the axle only — no tumbling.
+func test_wheels_spin_around_axle_only() -> void:
+	var tr: Track = Track.load_map("sunny")
+	var root: Node3D = auto_free(Node3D.new()) as Node3D
+	add_child(root)
+	var cv: CarView = (load("res://src/render/CarView.tscn") as PackedScene).instantiate() as CarView
+	root.add_child(cv)
+	cv.configure("bolt", "Tester", true)
+	assert_int(cv._wheels.size()).is_equal(4)
+	var st: Physics.CarState = Physics.CarState.new()
+	for i: int in 90:
+		st.s = 100.0 + float(i) * 1.1
+		st.yaw_rel = 0.2 * sin(float(i) * 0.3)
+		cv.show_state(st, tr)
+	for w: Node3D in cv._wheels:
+		var delta_rot: Basis = w.basis * (cv._rest[w] as Basis).inverse()
+		var axle: Vector3 = delta_rot * Vector3.RIGHT
+		if cv._front.has(w):
+			assert_float(absf(axle.y)).override_failure_message("front axle tilted %s" % axle).is_less(1e-4)
+		else:
+			assert_float(axle.distance_to(Vector3.RIGHT)).override_failure_message("rear axle moved %s" % axle).is_less(1e-4)
