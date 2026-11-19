@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M7 done** (2026-11-19). **M8 in progress** (art pass): cars + VFX + suspension done; lighting, props, camera polish, human review next.
+- **M0–M7 done** (2026-11-19). **M8** implemented, waiting for human visual approval. Next: **M9** audio & haptics.
 
 ## M0 plan — Setup
 
@@ -126,15 +126,24 @@ check with `-races 2000 -seed {1,3,7}`, then copy to gamedata/balance.json and `
 Server input FIFO + exact ack; `godot/src/net/Prediction.gd`; RaceView renders own car predicted;
 e2e predicted driver under 150 ms ± 40 ms lag: avg correction 5.6 cm. Human feel check: HUMAN_TODO #11.
 
+## M8 status — Art pass (waiting for human approval)
+
+- [x] Scripted Blender cars (`art/blender/lib/carkit.py`, `art/blender/cars/*.py`, `make assets`),
+      turntables `art/previews/`, CarView loads glb, wheel roll/steer.
+- [x] VFX (`godot/src/render/Vfx.gd`), camera shake, cosmetic suspension, rim light, Neon brightened.
+- [ ] Human approval of cars/visuals (HUMAN_TODO #12). Props as Blender glb (trees/pines/buildings)
+      and baked lighting deferred (see DECISIONS).
+
 ## Next steps
 
-1. Finish M6 balance (apply tuned3 if better: copy to gamedata/balance.json, `make fixtures sync
-   test`, `make balance`), then tick M6.
-2. M8 — Art pass: `art/blender/lib/` helpers + `art/blender/cars/<id>.py` (8 parametric cars,
-   distinct silhouettes §2.6, LOD0 ≤ 6k tris, separate wheels), `art/export.sh` → `godot/assets/cars/*.glb`
-   + turntables `art/previews/`; CarView loads the glb per vehicle; props (trees/pines/buildings)
-   as glb + MultiMesh; baked LightmapGI per track; VFX (boost flames, sparks, ice, goo, tornado,
-   EMP ring, grapple cable, wind lines); cosmetic suspension; camera polish. Human approves visuals.
+1. M9 — Audio & haptics: AudioDirector (buses Master → Music/SFX/Engine/UI, limiter), engine
+   layers per car class (idle/mid/high, pitch by speed; own car 2D, others 3D max 4), SFX
+   (countdown, boost, wall hit, spin-out, ice, EMP, grapple, splat, tornado, lap, finish, UI),
+   music loops per map + menu, ducking; sounds generated procedurally (sfxr-style, CC0 — log in
+   godot/assets/audio/CREDITS.md); Haptics.gd (`Input.vibrate_handheld`) for countdown/GO/wall/
+   hard CC/ULT ready/start boost; Settings screen (swap sides, button size, tilt, auto-accelerate,
+   haptics, reduce motion, volumes).
+2. Then M10 Game Center (needs paid Apple Developer Program → HUMAN_TODO), M11 public play & deploy.
 
 ## Open questions
 

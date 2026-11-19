@@ -49,9 +49,9 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.sky_top = Color(0.02, 0.02, 0.08)
 			t.sky_horizon = Color(0.25, 0.08, 0.35)
 			t.sun_color = Color(0.6, 0.6, 1.0)
-			t.sun_energy = 0.35
+			t.sun_energy = 0.6
 			t.sun_rot = Vector3(-50, 30, 0)
-			t.ambient = 0.6
+			t.ambient = 1.1
 			t.fog = Color(0.12, 0.05, 0.2)
 			t.fog_density = 0.0008
 			t.pillars = true
@@ -406,6 +406,14 @@ static func _environment(th: TrackTheme) -> Node3D:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 120.0
 	node.add_child(sun)
+	# rim/fill light from the opposite side, no shadows (GAME_PLAN §4.1: "rim light on cars")
+	var rim: DirectionalLight3D = DirectionalLight3D.new()
+	rim.name = "Rim"
+	rim.light_color = th.sky_horizon.lerp(Color.WHITE, 0.5)
+	rim.light_energy = th.sun_energy * 0.45
+	rim.rotation_degrees = Vector3(-25, th.sun_rot.y + 180.0, 0)
+	rim.shadow_enabled = false
+	node.add_child(rim)
 	var env: Environment = Environment.new()
 	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = th.sky_top
