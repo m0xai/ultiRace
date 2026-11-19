@@ -1,0 +1,37 @@
+# One lowercase word per line. Matched after normalising leetspeak and removing
+# non-letters (see internal/moderation/names.go). Keep this list short and obvious;
+# it filters player names and generated room codes, nothing else.
+anal
+anus
+arse
+ass
+bastard
+bitch
+boob
+cock
+cunt
+damn
+dick
+dildo
+fag
+fuck
+hitler
+jizz
+kike
+nazi
+nigg
+penis
+piss
+porn
+pussy
+rape
+retard
+sex
+shit
+slut
+spic
+tits
+twat
+vagina
+wank
+whore

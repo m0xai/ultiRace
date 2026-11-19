@@ -42,5 +42,23 @@
   "track": {
     "arcSamplesPerSegment": 64,
     "fixtureSamples": 200
+  },
+  "rooms": {
+    "maxCars": 8,
+    "publicLobbyS": 30.0,
+    "publicLobbySoloS": 60.0,
+    "lateJoinMinS": 10.0,
+    "allReadyS": 5.0,
+    "privateAutoStartS": 3.0,
+    "selectS": 20.0,
+    "resultsS": 10.0,
+    "afkS": 20.0,
+    "afkRacesToKick": 2,
+    "reconnectS": 30.0,
+    "kickBanS": 600.0,
+    "emptyRoomS": 60.0,
+    "seatReservationS": 5.0,
+    "quickPlaySpectateMaxS": 30.0,
+    "snapshotEveryNth": 3
   }
 }

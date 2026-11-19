@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-//go:embed *.json maps/*.json
+//go:embed *.json *.txt maps/*.json
 var FS embed.FS
 
 // Balance holds every tunable number. Only cmd/balance tuning may change balance.json.
@@ -24,6 +24,33 @@ type Balance struct {
 	Physics  Physics      `json:"physics"`
 	Race     Race         `json:"race"`
 	Track    TrackParams  `json:"track"`
+	Rooms    Rooms        `json:"rooms"`
+}
+
+// Rooms holds lobby/room timing rules (GAME_PLAN §2.3, §2.3.1, §3.6). Durations in seconds.
+type Rooms struct {
+	MaxCars               int     `json:"maxCars"`
+	PublicLobbyS          float64 `json:"publicLobbyS"`
+	PublicLobbySoloS      float64 `json:"publicLobbySoloS"`
+	LateJoinMinS          float64 `json:"lateJoinMinS"`
+	AllReadyS             float64 `json:"allReadyS"`
+	PrivateAutoStartS     float64 `json:"privateAutoStartS"`
+	SelectS               float64 `json:"selectS"`
+	ResultsS              float64 `json:"resultsS"`
+	AfkS                  float64 `json:"afkS"`
+	AfkRacesToKick        int     `json:"afkRacesToKick"`
+	ReconnectS            float64 `json:"reconnectS"`
+	KickBanS              float64 `json:"kickBanS"`
+	EmptyRoomS            float64 `json:"emptyRoomS"`
+	SeatReservationS      float64 `json:"seatReservationS"`
+	QuickPlaySpectateMaxS float64 `json:"quickPlaySpectateMaxS"`
+	// SnapshotEveryNth: a snapshot is sent on every tick except each Nth (2 of 3 → 20 Hz).
+	SnapshotEveryNth int `json:"snapshotEveryNth"`
+}
+
+// Ticks converts seconds to whole ticks at the sim rate.
+func (b *Balance) Ticks(seconds float64) int {
+	return int(seconds*float64(b.TickRate) + 0.5)
 }
 
 // StatsMapping turns 1–5 vehicle stats into physical values (linear, GAME_PLAN §2.6).
