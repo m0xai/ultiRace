@@ -368,10 +368,72 @@ def turntable(png_path, size=480):
     bpy.data.objects.remove(floor)
 
 
+KEEP = ("Paint", "Glass")
+
+
+def _base_color(m):
+    b = m.node_tree.nodes.get("Principled BSDF") if m.use_nodes else None
+    return tuple(b.inputs["Base Color"].default_value) if b else (0.5, 0.5, 0.5, 1.0)
+
+
+def _is_lamp(m):
+    b = m.node_tree.nodes.get("Principled BSDF") if m.use_nodes else None
+    return b is not None and "Emission Strength" in b.inputs and b.inputs["Emission Strength"].default_value > 0.5 \
+        and m.name not in KEEP
+
+
+def consolidate():
+    """Draw-call budget (GAME_PLAN §8): per mesh keep Paint and Glass, bake every other material's
+    colour into vertex colours and merge them into two materials: Detail (opaque) and Lamp
+    (emissive). Bodies end up with ≤ 4 surfaces, wheels with 1."""
+    detail = bpy.data.materials.get("Detail") or bpy.data.materials.new("Detail")
+    lamp = bpy.data.materials.get("Lamp") or bpy.data.materials.new("Lamp")
+    for mat, emit in ((detail, False), (lamp, True)):
+        mat.use_nodes = True
+        nt = mat.node_tree
+        b = nt.nodes["Principled BSDF"]
+        vc = nt.nodes.get("vc") or nt.nodes.new("ShaderNodeVertexColor")
+        vc.name, vc.layer_name = "vc", "Col"
+        nt.links.new(vc.outputs["Color"], b.inputs["Base Color"])
+        b.inputs["Metallic"].default_value = 0.25
+        b.inputs["Roughness"].default_value = 0.45
+        if emit:
+            for key in ("Emission Color", "Emission"):
+                if key in b.inputs:
+                    nt.links.new(vc.outputs["Color"], b.inputs[key])
+                    break
+            b.inputs["Emission Strength"].default_value = 3.0
+    for o in bpy.context.scene.objects:
+        if o.type != "MESH" or o.get("cutter"):
+            continue
+        me = o.data
+        if "Col" not in me.color_attributes:
+            me.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+        col = me.color_attributes["Col"]
+        old = [s.material for s in o.material_slots]
+        new_slots, remap = [], {}
+        for i, m in enumerate(old):
+            target = m if (m is not None and m.name in KEEP) else (lamp if (m is not None and _is_lamp(m)) else detail)
+            if target not in new_slots:
+                new_slots.append(target)
+            remap[i] = new_slots.index(target)
+        for poly in me.polygons:
+            c = _base_color(old[poly.material_index]) if old and old[poly.material_index] else (0.5, 0.5, 0.5, 1)
+            for li in poly.loop_indices:
+                col.data[li].color = c
+        idx = [remap.get(p.material_index, 0) for p in me.polygons]
+        me.materials.clear()
+        for m in new_slots:
+            me.materials.append(m)
+        for poly, i in zip(me.polygons, idx):
+            poly.material_index = i
+
+
 def run(build):
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     reset()
     build()
+    consolidate()
     print(f"CAR_TRIS {triangles()}")
     if argv:
         export(argv[0])

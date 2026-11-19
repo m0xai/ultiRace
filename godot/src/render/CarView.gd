@@ -59,7 +59,9 @@ func _load_model(vehicle: String) -> void:
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for i: int in m.mesh.get_surface_count():
 			var mat: Material = m.mesh.surface_get_material(i)
-			if mat != null and mat.resource_name == "Paint" and mat is StandardMaterial3D:
+			if mat != null and mat.resource_name in ["Detail", "Lamp"]:
+				m.set_surface_override_material(i, _shared(mat.resource_name))
+			elif mat != null and mat.resource_name == "Paint" and mat is StandardMaterial3D:
 				if _paint == null:
 					_paint = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 				m.set_surface_override_material(i, _paint)
@@ -74,6 +76,23 @@ func _load_model(vehicle: String) -> void:
 
 
 var _paint: StandardMaterial3D = null
+
+static var _shared_mats: Dictionary = {}
+
+
+## One Detail (vertex-coloured trim/chrome/rubber) and one Lamp (emissive vertex colour) material
+## shared by all cars: fewer state changes, consistent look.
+static func _shared(kind: String) -> StandardMaterial3D:
+	if not _shared_mats.has(kind):
+		var m: StandardMaterial3D = StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		if kind == "Lamp":
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED # lamps read as glowing
+		else:
+			m.metallic = 0.25
+			m.roughness = 0.45
+		_shared_mats[kind] = m
+	return _shared_mats[kind] as StandardMaterial3D
 
 
 ## Places the car from a track-space state (rendering only; no game rules).

@@ -151,9 +151,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       `make assets` builds them (CARS_DIR=cars builds the old M8 placeholders). Turntables in
       `art/previews/`, in-game `docs/screenshots/a1_grid.png`.
 - [x] CarView keeps imported PBR materials; per-car Paint copy for effects.
-- [ ] Draw calls: race view 168 (low budget 150): merge each car to ~4 surfaces (vertex-coloured
-      opaque body incl. trim/rubber/accent, Glass, Light, TailLight) and wheels to 1 surface.
-- [ ] Particles: soft round texture for wind lines / flames / sparks (currently hard squares).
+- [x] Draw calls: carkit2 `consolidate()` bakes non-paint/glass materials into vertex colours →
+      Detail + Lamp (bodies ≤ 4 surfaces, wheels 1); CarView shares those two materials across
+      cars. Race view 168 → 109 draw calls.
+- [x] Particles: soft radial sprite for flames, wind lines and sparks.
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 

@@ -78,9 +78,30 @@ static func _burst(color: Color, size: float, amount: int, life: float) -> GPUPa
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	m.vertex_color_use_as_albedo = true
 	m.albedo_color = color
+	m.albedo_texture = soft_dot()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	quad.material = m
 	p.draw_pass_1 = quad
 	return p
+
+
+static var _soft: GradientTexture2D = null
+
+
+## Soft round particle sprite (no hard squares).
+static func soft_dot() -> GradientTexture2D:
+	if _soft == null:
+		var g: Gradient = Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 1))
+		g.set_color(1, Color(1, 1, 1, 0))
+		_soft = GradientTexture2D.new()
+		_soft.gradient = g
+		_soft.fill = GradientTexture2D.FILL_RADIAL
+		_soft.fill_from = Vector2(0.5, 0.5)
+		_soft.fill_to = Vector2(1.0, 0.5)
+		_soft.width = 64
+		_soft.height = 64
+	return _soft
 
 
 static func _fade_ramp() -> GradientTexture1D:
@@ -126,6 +147,7 @@ static func _trail(color: Color, size: float) -> GPUParticles3D:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.vertex_color_use_as_albedo = true
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_texture = soft_dot()
 	quad.material = m
 	p.draw_pass_1 = quad
 	return p
