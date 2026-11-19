@@ -82,3 +82,21 @@ func TestReportLogAppendsJSONLines(t *testing.T) {
 		t.Fatalf("reasons %v", reasons)
 	}
 }
+
+func TestBanListReload(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bans.json")
+	b, err := NewBanList(path) // missing file: no bans
+	if err != nil || b.Banned("p1") {
+		t.Fatalf("missing file: %v %v", err, b.Banned("p1"))
+	}
+	if err := os.WriteFile(path, []byte(`{"players":["p1","p2"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Reload(); err != nil || !b.Banned("p2") || b.Banned("p3") || b.Count() != 2 {
+		t.Fatalf("reload: %v count %d", err, b.Count())
+	}
+	_ = os.WriteFile(path, []byte(`not json`), 0o644)
+	if err := b.Reload(); err == nil || !b.Banned("p1") {
+		t.Fatal("bad file must fail and keep the old list")
+	}
+}

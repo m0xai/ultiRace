@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -26,8 +27,16 @@ func main() {
 	logLevel := flag.String("log-level", envOr("LOG_LEVEL", "info"), "debug|info|warn|error")
 	timeScale := flag.Float64("time-scale", 1, "test mode only: run rooms up to 10× faster")
 	dataDir := flag.String("data", envOr("DATA_DIR", ""), "directory for reports.jsonl (empty = discard)")
-	maxRooms := flag.Int("max-rooms", 2000, "maximum concurrent rooms")
+	maxRooms := flag.Int("max-rooms", atoiOr(os.Getenv("MAX_ROOMS"), 2000), "maximum concurrent rooms")
+	healthcheck := flag.Bool("healthcheck", false, "probe http://127.0.0.1:$PORT/healthz and exit (container healthcheck)")
 	flag.Parse()
+	if *healthcheck {
+		res, err := http.Get("http://127.0.0.1:" + envOr("PORT", "8090") + "/healthz")
+		if err != nil || res.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
 	var lvl slog.Level
 	if err := lvl.UnmarshalText([]byte(*logLevel)); err != nil {
@@ -41,7 +50,7 @@ func main() {
 	}
 	cfg := server.Config{Addr: *addr, TestMode: *test, TimeScale: *timeScale, SimLag: *simLag, SimJitter: *simJitter,
 		Version: version, IDSecret: os.Getenv("ID_SECRET"), DataDir: *dataDir, MaxRooms: *maxRooms,
-		BundleID: os.Getenv("APPLE_BUNDLE_ID")}
+		BundleID: os.Getenv("APPLE_BUNDLE_ID"), TeamID: os.Getenv("APPLE_TEAM_ID"), StoreURL: os.Getenv("APP_STORE_URL")}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -58,6 +67,19 @@ func main() {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+
+	// SIGHUP reloads /data/bans.json (GAME_PLAN §6.3)
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		for range hup {
+			if err := srv.Bans.Reload(); err != nil {
+				log.Error("reload bans", "err", err)
+			} else {
+				log.Info("bans reloaded", "count", srv.Bans.Count())
+			}
+		}
+	}()
 
 	errc := make(chan error, 1)
 	go func() {
@@ -88,4 +110,12 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func atoiOr(s string, def int) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
 }

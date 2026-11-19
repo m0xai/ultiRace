@@ -105,6 +105,10 @@ func (c *conn) serve(ctx context.Context) {
 		token = newToken()
 	}
 	c.id = c.s.playerID(token)
+	if c.s.Bans.Banned(c.id) {
+		c.fail(ctx, protocol.ErrBanned, "banned")
+		return
+	}
 	name, _ := moderation.CleanName(hello.Name, mathx.NewRng(rand.Uint32()))
 
 	code, errCode := c.join(ctx, hello, token, name)

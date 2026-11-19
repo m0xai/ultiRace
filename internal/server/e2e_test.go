@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -175,5 +176,33 @@ func TestClientIPTrustsForwardedOnlyFromLoopback(t *testing.T) {
 	r.RemoteAddr = "198.51.100.7:5555"
 	if ip := clientIP(r); ip != "198.51.100.7" {
 		t.Fatalf("spoofed XFF trusted: %s", ip)
+	}
+}
+
+func TestUniversalLinks(t *testing.T) {
+	_, ts := startServer(t, Config{TeamID: "ABCDE12345", BundleID: "com.flappus.ultirace", StoreURL: "https://testflight.apple.com/join/x"})
+	res, err := http.Get(ts.URL + "/.well-known/apple-app-site-association")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var aasa map[string]any
+	_ = json.NewDecoder(res.Body).Decode(&aasa)
+	res.Body.Close()
+	if res.StatusCode != 200 || res.Header.Get("Content-Type") != "application/json" {
+		t.Fatalf("aasa status %d type %s", res.StatusCode, res.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(fmt.Sprint(aasa), "ABCDE12345.com.flappus.ultirace") {
+		t.Fatalf("aasa body %v", aasa)
+	}
+	res, _ = http.Get(ts.URL + "/r/ABCD")
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != 200 || !strings.Contains(string(body), "ABCD") || !strings.Contains(string(body), "testflight") {
+		t.Fatalf("landing %d %s", res.StatusCode, body[:min(len(body), 80)])
+	}
+	res, _ = http.Get(ts.URL + "/r/<script>")
+	res.Body.Close()
+	if res.StatusCode != 404 {
+		t.Fatalf("bad code accepted: %d", res.StatusCode)
 	}
 }

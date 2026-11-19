@@ -1,0 +1,6 @@
+# Add to /etc/caddy/Caddyfile (or an imported file such as /etc/caddy/sites/ultirace.caddy).
+# Caddy proxies WebSocket upgrades automatically and fetches the TLS certificate.
+ultirace.flappus.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8090
+}

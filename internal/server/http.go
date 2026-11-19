@@ -29,6 +29,8 @@ type Config struct {
 	DataDir   string // reports.jsonl lives here ("" = discard)
 	MaxRooms  int
 	BundleID  string // APPLE_BUNDLE_ID: enables Game Center verification
+	TeamID    string // APPLE_TEAM_ID: Universal Links (AASA)
+	StoreURL  string // APP_STORE_URL: landing page button (App Store or TestFlight link)
 }
 
 // Server owns the HTTP mux and the room manager.
@@ -48,6 +50,7 @@ type Server struct {
 
 	gc       *GCVerifier
 	sessions sessions
+	Bans     *moderation.BanList
 }
 
 // New returns a Server. Rooms stop when ctx is cancelled.
@@ -76,12 +79,19 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Server, error) {
 	if cfg.MaxRooms > 0 {
 		mgr.MaxRooms = cfg.MaxRooms
 	}
+	var bans *moderation.BanList
+	if cfg.DataDir != "" {
+		var err error
+		if bans, err = moderation.NewBanList(cfg.DataDir + "/bans.json"); err != nil {
+			log.Error("bans.json", "err", err)
+		}
+	}
 	var gc *GCVerifier
 	if cfg.BundleID != "" {
 		gc = &GCVerifier{BundleID: cfg.BundleID}
 	}
 	return &Server{
-		gc:  gc,
+		gc: gc, Bans: bans,
 		cfg: cfg, log: log, started: time.Now(),
 		Rooms: mgr, Dir: dir, MM: room.NewMatchmaker(mgr),
 		connLimit:   newLimiter(2, 20),
@@ -99,6 +109,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/stats", s.handleStats)
 	mux.HandleFunc("POST /api/quickplay", s.handleQuickPlay)
 	mux.HandleFunc("POST /api/auth/gamecenter", s.handleGameCenterAuth)
+	mux.HandleFunc("GET /.well-known/apple-app-site-association", s.handleAASA)
+	mux.HandleFunc("GET /r/{code}", s.handleRoomLink)
 	mux.HandleFunc("GET /ws", s.handleWS)
 	return mux
 }

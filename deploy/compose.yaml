@@ -1,0 +1,21 @@
+# /opt/ultirace/compose.yaml on flappus (GAME_PLAN §7.1). Caddy runs natively on the host and
+# proxies ultirace.flappus.com → 127.0.0.1:8090.
+services:
+  ultirace:
+    image: ultirace-server:latest
+    container_name: ultirace
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ADDR: 0.0.0.0:8090
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./data:/data
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD", "/server", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
