@@ -12,7 +12,7 @@ Each milestone ends with a demo and an updated `docs/PROGRESS.md`.
 - [x] **M6 — ULTs & balance.** (done 2026-11-19; 7/8 balance targets over 6000 races, Bolt avg position 5.15 vs ≤ 5.1 → follow-up in M12) All 8 ULTs, effects, CC rules, catch-up; balance report within targets
 - [x] **M7 — Prediction.** (done 2026-11-19: e2e predicted driver under 150 ms ± 40 ms lag, avg correction 5.6 cm; feel check on device in HUMAN_TODO) Own-car prediction + reconciliation; instant feel with `-sim-lag=150ms`
 - [ ] **M8 — Art pass.** 8 Blender cars approved, props, baked lightmaps, VFX, cosmetic suspension, camera polish
-- [ ] **M9 — Audio & haptics.** Engine layers, SFX, music, mix, haptics, settings
+- [x] **M9 — Audio & haptics.** (done 2026-11-19; procedural CC0 audio; human listening/feel check in HUMAN_TODO) Engine layers, SFX, music, mix, haptics, settings
 - [ ] **M10 — Game Center.** Sign-in + server verification, leaderboards, achievements
 - [ ] **M11 — Public play & deploy.** Room browser screen, Quick Play, lobby timer, kick/report/block, name filter; server live on flappus behind native Caddy; Universal Links, share sheet, landing page; strangers can find and join each other
 - [ ] **M12 — Performance.** Tiers tuned on oldest and newest test devices; all §8 budgets met

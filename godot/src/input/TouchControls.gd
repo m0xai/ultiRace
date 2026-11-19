@@ -8,8 +8,14 @@ extends Control
 
 signal ability_pressed
 
-const STEER_SIZE: Vector2 = Vector2(150, 150) # ≈ 90 pt on iPhone (plan: ≥ 80 pt)
-const ULT_SIZE: float = 150.0
+const BASE_SIZE: float = 150.0 # ≈ 90 pt on iPhone (plan: ≥ 80 pt); S/M/L scale it
+const TILT_DEAD_DEG: float = 4.0
+const TILT_FULL_DEG: float = 25.0
+
+var STEER_SIZE: Vector2 = Vector2(150, 150)
+var ULT_SIZE: float = 150.0
+var _tilt: bool = false
+var _tilt_sens: float = 1.0
 const GAP: float = 20.0
 
 var steer: int = 0 # screen direction: +1 = right (convert with Protocol.steer_from_screen)
@@ -32,6 +38,11 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_auto_accel = Profile.auto_accelerate()
 	_swap = Profile.swap_sides()
+	_tilt = bool(Profile.get_value("tilt", false))
+	_tilt_sens = float(Profile.get_value("tilt_sensitivity", 1.0))
+	var k: float = {"S": 0.85, "M": 1.0, "L": 1.2}.get(str(Profile.get_value("button_size", "M")), 1.0) as float
+	STEER_SIZE = Vector2(BASE_SIZE, BASE_SIZE) * k
+	ULT_SIZE = BASE_SIZE * k
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 
@@ -109,6 +120,8 @@ func _update() -> void:
 			"accel":
 				a = true
 	steer = (1 if r else 0) - (1 if l else 0)
+	if _tilt and steer == 0:
+		steer = _tilt_steer()
 	throttle = 1 if (_auto_accel or a) else 0
 	queue_redraw()
 
@@ -146,3 +159,17 @@ func _arrow(c: Vector2, dir: float) -> void:
 	outline.append(pts[0])
 	draw_polyline(outline, Color(0, 0, 0, 0.45), 6.0, true) # contrast on bright curbs/snow
 	draw_colored_polygon(pts, Color(1, 1, 1, 0.9))
+
+
+## Tilt maps device roll to the same −1/0/1 steering (dead zone 4°, full lock at 25°).
+func _tilt_steer() -> int:
+	var g: Vector3 = Input.get_gravity()
+	if g.length() < 0.1:
+		return 0
+	# landscape: roll is the rotation around the screen's long axis
+	var roll_deg: float = rad_to_deg(atan2(g.x, -g.y)) * _tilt_sens
+	if DisplayServer.screen_get_orientation() == DisplayServer.SCREEN_REVERSE_LANDSCAPE:
+		roll_deg = -roll_deg
+	if absf(roll_deg) < TILT_DEAD_DEG:
+		return 0
+	return 1 if roll_deg > 0.0 else -1

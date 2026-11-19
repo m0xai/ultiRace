@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M7 done** (2026-11-19). **M8** implemented, waiting for human visual approval. Next: **M9** audio & haptics.
+- **M0–M7, M9 done** (2026-11-19). **M8** waiting for human visual approval. Next: **M10** Game Center (needs paid Apple Developer Program) / **M11** public play & deploy.
 
 ## M0 plan — Setup
 
@@ -134,16 +134,25 @@ e2e predicted driver under 150 ms ± 40 ms lag: avg correction 5.6 cm. Human fee
 - [ ] Human approval of cars/visuals (HUMAN_TODO #12). Props as Blender glb (trees/pines/buildings)
       and baked lighting deferred (see DECISIONS).
 
+## M9 — done (audio & haptics)
+
+`art/audio/gen_audio.py` → `godot/assets/audio/*.wav` (+ CREDITS.md); `src/audio/AudioDirector.gd`
+(autoload: buses + limiter, music per screen/map, SFX pool, ducking); `src/audio/EngineSound.gd`
+(3 layers per class, own 2D + 4 nearest 3D); `src/platform/Haptics.gd`; Settings screen
+(`src/app/screens/SettingsScreen.gd`: auto-accelerate, swap sides, button size, tilt + sensitivity,
+haptics, reduce motion, volumes). Dev arg `--settings` opens it.
+
 ## Next steps
 
-1. M9 — Audio & haptics: AudioDirector (buses Master → Music/SFX/Engine/UI, limiter), engine
-   layers per car class (idle/mid/high, pitch by speed; own car 2D, others 3D max 4), SFX
-   (countdown, boost, wall hit, spin-out, ice, EMP, grapple, splat, tornado, lap, finish, UI),
-   music loops per map + menu, ducking; sounds generated procedurally (sfxr-style, CC0 — log in
-   godot/assets/audio/CREDITS.md); Haptics.gd (`Input.vibrate_handheld`) for countdown/GO/wall/
-   hard CC/ULT ready/start boost; Settings screen (swap sides, button size, tilt, auto-accelerate,
-   haptics, reduce motion, volumes).
-2. Then M10 Game Center (needs paid Apple Developer Program → HUMAN_TODO), M11 public play & deploy.
+1. M10 — Game Center: blocked on the paid Apple Developer Program (Game Center capability,
+   App Store Connect leaderboards/achievements) → HUMAN_TODO. Prepare without it: server-side
+   `POST /api/auth/gamecenter` verification (check Apple's current
+   `fetchItems(forIdentityVerificationSignature:)` docs first; tests with self-signed certs),
+   `platform/GameServices.gd` interface with a guest fallback, plugin spike (GameCenterKit vs
+   godot-ios-plugins).
+2. M11 — public play & deploy: Room browser screen, report/block/kick UI, name filter in UI,
+   Quick Play rule 3, AASA + `/r/{code}` landing page, `bans.json` + SIGHUP, `deploy/`
+   (Dockerfile, compose.yaml, Caddyfile.snippet, DEPLOY.md with the exact commands for the human).
 
 ## Open questions
 

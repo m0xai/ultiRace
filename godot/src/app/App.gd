@@ -17,6 +17,7 @@ var _home: HomeScreen
 var _lobby: LobbyScreen
 var _select: SelectScreen
 var _results: ResultsScreen
+var _settings: SettingsScreen
 var _view: RaceView
 var _hud: RaceHud
 var _touch: TouchControls
@@ -51,6 +52,12 @@ func _ready() -> void:
 	for c: Control in [_hud, _touch, _home, _lobby, _select, _results]:
 		_ui.add_child(c)
 	_home.play.connect(_play)
+	_home.settings.connect(func() -> void:
+		_settings = SettingsScreen.new()
+		_ui.add_child(_settings)
+		_settings.closed.connect(func() -> void:
+			_settings.queue_free()
+			_rebuild_touch()))
 	_lobby.send.connect(_send)
 	_lobby.leave.connect(_leave)
 	_select.send.connect(_send)
@@ -64,10 +71,28 @@ func _ready() -> void:
 		_play({"quick": _auto == "quick", "practice": _auto == "practice"})
 	elif join != "":
 		_play({"quick": join == "quick", "practice": join == "practice"})
+	if Config.user_args().has("--settings"):
+		_home.settings.emit()
+
+
+## Recreate touch controls so new control settings (size, sides, tilt) apply.
+func _rebuild_touch() -> void:
+	var vis: bool = _touch.visible
+	_touch.queue_free()
+	_touch = TouchControls.new()
+	_ui.add_child(_touch)
+	_ui.move_child(_touch, 1)
+	_touch.ability_pressed.connect(func() -> void: _ult_pending = 3)
+	_touch.visible = vis
+	_view.reduce_motion = bool(Profile.get_value("reduce_motion", false))
 
 
 func _show(s: Screen) -> void:
 	_screen = s
+	if s == Screen.RACE and _view.track != null:
+		AudioDirector.play_music(_view.track.theme)
+	elif s != Screen.RACE:
+		AudioDirector.play_music("menu")
 	_home.visible = s == Screen.HOME
 	_lobby.visible = s == Screen.LOBBY
 	_select.visible = s == Screen.SELECT
@@ -244,7 +269,11 @@ func _process(delta: float) -> void:
 		return
 	var flags: int = _view.flags_of(_view.you)
 	_touch.ult_progress = Protocol.charge_of(flags)
-	_touch.ult_ready = _touch.ult_progress >= 0.999 and _view.race_time() >= 3.0
+	var ready_now: bool = _touch.ult_progress >= 0.999 and _view.race_time() >= 3.0
+	if ready_now and not _touch.ult_ready:
+		AudioDirector.sfx("ult_ready", -6.0)
+		Haptics.tap_light()
+	_touch.ult_ready = ready_now
 	# fixed 30 Hz input clock (carry the remainder): the server applies one input per tick and
 	# prediction replays them one by one, so the rate must match exactly
 	_input_t = minf(_input_t + delta, 3.0 / INPUT_HZ)

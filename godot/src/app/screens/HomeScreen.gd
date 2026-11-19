@@ -5,6 +5,7 @@ extends Control
 ## join by code. Browse Rooms arrives in M11.
 
 signal play(opts: Dictionary)
+signal settings
 
 var _name: LineEdit
 var _code: LineEdit
@@ -37,6 +38,9 @@ func _ready() -> void:
 	left.add_child(_name)
 	_status = Ui.label("", 20, Color(1, 0.5, 0.4))
 	left.add_child(_status)
+	var set_btn: Button = Ui.button("Settings")
+	set_btn.pressed.connect(func() -> void: settings.emit())
+	left.add_child(set_btn)
 	row.add_child(left)
 
 	var right: VBoxContainer = Ui.vbox(16)

@@ -20,6 +20,8 @@ var prediction: Prediction = null # own car (M7); other cars are interpolated
 var vfx: Vfx
 var reduce_motion: bool = false
 var _shake: float = 0.0
+var _engines: Array[EngineSound] = []
+var _last_count: int = 99
 
 var _track_node: Node3D = null
 var _cam: Camera3D
@@ -53,6 +55,7 @@ func start_race(m: Dictionary) -> void:
 		c.queue_free()
 	cars.clear()
 	_states.clear()
+	_engines.clear()
 	for slot: Variant in grid:
 		var sd: Dictionary = slot as Dictionary
 		var cv: CarView = _car_scene.instantiate() as CarView
@@ -60,9 +63,14 @@ func start_race(m: Dictionary) -> void:
 		cv.configure(sd["vehicle"] as String, sd["name"] as String, int(sd["car"]) == you)
 		cars.append(cv)
 		_states.append(null)
+		var es: EngineSound = EngineSound.new()
+		cv.add_child(es)
+		es.setup(sd["vehicle"] as String, int(sd["car"]) == you)
+		_engines.append(es)
 	interp = Interpolation.new(track.length)
 	latest = null
 	prediction = null
+	_last_count = 99
 	if you >= 0:
 		prediction = Prediction.new(track, (grid[you] as Dictionary)["vehicle"] as String)
 
@@ -153,6 +161,34 @@ func _process(delta: float) -> void:
 			vfx.car_trail(i, cars[i], (fl & Protocol.EFF_BOOST) != 0, (fl & Protocol.EFF_DRAFT) != 0)
 	_update_hazards()
 	_update_camera(delta)
+	_update_audio()
+
+
+## Engines (own + 4 nearest audible) and countdown beeps.
+func _update_audio() -> void:
+	var dists: Array = []
+	for i: int in cars.size():
+		if _states[i] != null:
+			dists.append([_cam.global_position.distance_to(cars[i].global_position), i])
+	dists.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var audible: Dictionary = {}
+	for k: int in mini(5, dists.size()):
+		audible[int(dists[k][1])] = true
+	for i: int in _engines.size():
+		_engines[i].audible = i == you or audible.has(i)
+		if _states[i] != null:
+			_engines[i].update(_states[i].speed)
+	var t: float = race_time()
+	if t > -4.0 and t < 0.0:
+		var c: int = int(ceil(-t))
+		if c < _last_count:
+			_last_count = c
+			AudioDirector.sfx("countdown")
+			Haptics.tap_light()
+	elif t >= 0.0 and _last_count > 0 and _last_count < 99:
+		_last_count = 0
+		AudioDirector.sfx("go")
+		Haptics.tap_heavy()
 
 
 var _hazards: Array[MeshInstance3D] = []
@@ -214,7 +250,23 @@ func on_event(m: Dictionary) -> void:
 			vfx.sparks(cars[car].global_position + Vector3.UP * 0.5)
 			if car == follow:
 				shake(clampf(float(m.get("value", 5.0)) / 20.0, 0.1, 0.6))
+				AudioDirector.sfx("wall", -4.0)
+				Haptics.wall(float(m.get("value", 5.0)))
+		"lap":
+			if car == you:
+				AudioDirector.sfx("lap")
+		"finished":
+			if car == you:
+				AudioDirector.sfx("finish")
+		"startBoost":
+			if car == you:
+				AudioDirector.sfx("start_boost")
+				Haptics.double_tap()
 		"abilityUsed":
+			var ult_sfx: Dictionary = {"nitro": "boost", "ram": "boost", "ice": "ice", "emp": "emp", "grapple": "grapple", "goo": "splat", "phase": "phase", "tornado": "tornado"}
+			var near: bool = cars[car].global_position.distance_to(_cam.global_position) < 80.0
+			if car == you or near:
+				AudioDirector.sfx(str(ult_sfx.get(str(m.get("ult", "")), "boost")), 0.0 if car == you else -8.0)
 			match str(m.get("ult", "")):
 				"emp":
 					vfx.ring(cars[car].global_position, float(GameData.balance()["ults"]["emp"]["radiusM"]), Color(0.7, 0.4, 1.0, 0.8))
@@ -228,6 +280,11 @@ func on_event(m: Dictionary) -> void:
 				vfx.cable(cars[src], cars[car], 0.8)
 			if car == follow:
 				shake(0.6)
+			if car == you:
+				var hard: bool = str(m.get("ult", "")) in ["ram", "tornado"]
+				AudioDirector.sfx("spinout" if hard else "splat", -2.0)
+				if hard:
+					Haptics.hard_cc()
 
 
 func shake(amount: float) -> void:
