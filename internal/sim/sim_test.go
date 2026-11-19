@@ -253,9 +253,11 @@ func TestCollisionsSeparateCars(t *testing.T) {
 	w.Cars[1].State = CarState{S: 101, D: 0.5, Speed: 20}
 	w.Step()
 	a, b := w.Cars[0].State, w.Cars[1].State
-	dist := math.Hypot(mathx.WrapDelta(a.S, b.S, tr.Length), b.D-a.D)
-	if dist < 2*f.bal.Physics.CarRadius-1e-6 {
-		t.Fatalf("still overlapping: %.3f", dist)
+	ph := f.bal.Physics
+	ox := 2*ph.CarHalfLength - math.Abs(mathx.WrapDelta(a.S, b.S, tr.Length))
+	oy := 2*ph.CarHalfWidth - math.Abs(b.D-a.D)
+	if ox > 1e-6 && oy > 1e-6 {
+		t.Fatalf("car boxes still overlap: ox=%.3f oy=%.3f", ox, oy)
 	}
 	bumps := 0
 	for _, e := range w.Events {
@@ -394,5 +396,42 @@ func BenchmarkWorldStep8Cars(b *testing.B) {
 		if w.Over() {
 			w = NewWorld(tr, f.bal, f.vehicles, 3)
 		}
+	}
+}
+
+// Rear-end hit: the faster car behind slows, the car ahead is shoved forward; nobody overlaps.
+func TestRearEndImpactExchangesSpeed(t *testing.T) {
+	f := load(t)
+	tr := f.tracks["sunny"]
+	w := NewWorld(tr, f.bal, []gamedata.Vehicle{f.vehicle(t, "bolt"), f.vehicle(t, "glacier")}, 3)
+	w.Cars[0].State = CarState{S: 100, D: 0, Speed: 35}
+	w.Cars[1].State = CarState{S: 103.5, D: 0.2, Speed: 20}
+	w.collide()
+	a, b := w.Cars[0].State, w.Cars[1].State
+	if a.Speed >= 35 || b.Speed <= 20 {
+		t.Fatalf("no impact: rear %.1f front %.1f", a.Speed, b.Speed)
+	}
+	if gap := mathx.WrapDelta(a.S, b.S, tr.Length); gap < 2*f.bal.Physics.CarHalfLength-1e-6 {
+		t.Fatalf("still overlapping lengthwise: gap %.3f", gap)
+	}
+}
+
+// Side contact: cars bounce apart sideways and their headings turn away from each other.
+func TestSideContactBouncesApart(t *testing.T) {
+	f := load(t)
+	tr := f.tracks["sunny"]
+	w := NewWorld(tr, f.bal, []gamedata.Vehicle{f.vehicle(t, "bolt"), f.vehicle(t, "rhino")}, 3)
+	w.Cars[0].State = CarState{S: 100, D: -0.8, Speed: 30, YawRel: 0.2}   // steering into car 1
+	w.Cars[1].State = CarState{S: 100.5, D: 0.8, Speed: 30, YawRel: -0.1} // steering into car 0
+	w.collide()
+	a, b := w.Cars[0].State, w.Cars[1].State
+	if b.D-a.D < 2*f.bal.Physics.CarHalfWidth-1e-6 {
+		t.Fatalf("still overlapping sideways: %.3f", b.D-a.D)
+	}
+	if a.YawRel >= 0.2 || b.YawRel <= -0.1 {
+		t.Fatalf("headings not deflected: %.3f %.3f", a.YawRel, b.YawRel)
+	}
+	if math.Abs(a.D+0.8) <= math.Abs(b.D-0.8) {
+		t.Fatalf("heavy rhino moved more than light bolt")
 	}
 }

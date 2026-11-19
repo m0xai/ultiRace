@@ -128,11 +128,15 @@ def loft(name, sections, mats, ring=24, glass=None):
     return obj
 
 
-def cabin(name, sections, P, roof_from=0.82):
-    """Greenhouse: lofted canopy; faces below roof_from of its height are glass, the roof is paint."""
+def cabin(name, sections, P, roof_from=0.82, sink=0.22):
+    """Greenhouse: lofted canopy; faces below roof_from of its height are glass, the roof is paint.
+    The canopy is sunk `sink` m into the body so its walls cross the body surface steeply:
+    nearly tangent/coplanar overlaps z-fight (visible flicker in motion)."""
     mats = [P["Paint"], P["Glass"]]
+    split_zb = min(s["zb"] for s in sections)
+    sections = [dict(s, zb=s["zb"] - sink) for s in sections]
     obj = loft(name, sections, mats, ring=24)
-    zb = min(s["zb"] for s in sections)
+    zb = split_zb
     zt = max(s["zt"] for s in sections)
     split = zb + (zt - zb) * roof_from
     for f in obj.data.polygons:
@@ -187,7 +191,7 @@ def disc(name, radius, depth, loc, mat, axis="Y", verts=20):
     return obj
 
 
-def lathe(name, profile, mats_idx, mats, segments=28):
+def lathe(name, profile, mats_idx, mats, segments=22):
     """Revolve (radius, x) profile points around the X axis; mats_idx[i] = material of band i."""
     bm = bmesh.new()
     rings = []
@@ -217,7 +221,7 @@ def wheel(name, x, y, r, width, P, rim_mat="Chrome", spokes=5, inner=False):
             (r * 0.97, w * 0.85), (r * 0.86, w * 1.02), (r * 0.62, w)]
     tyre = lathe(name, prof, [0] * 7, [P["Rubber"]])
     rim_r = r * 0.64
-    rim = disc(name + "_rim", rim_r, width * 0.7, (0, 0, 0), P[rim_mat], axis="X", verts=24)
+    rim = disc(name + "_rim", rim_r, width * 0.7, (0, 0, 0), P[rim_mat], axis="X", verts=18)
     hub = disc(name + "_hub", rim_r * 0.28, width * 0.82, (0, 0, 0), P["Trim"], axis="X", verts=12)
     parts = [rim, hub]
     for k in range(spokes):
@@ -309,6 +313,11 @@ def finalize_body(body):
     for m in list(body.modifiers):
         bpy.ops.object.modifier_apply(modifier=m.name)
     apply_and_clean()
+    # keep the smooth panels smooth but give the boolean arch rims crisp edges (no creases)
+    try:
+        bpy.ops.object.shade_smooth_by_angle(angle=0.6)
+    except (AttributeError, RuntimeError):
+        pass
 
 
 def export(path):

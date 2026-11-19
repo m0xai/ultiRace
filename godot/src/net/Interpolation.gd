@@ -12,6 +12,7 @@ const MAX_DELAY_MS: float = 160.0
 const EXPECTED_GAP_MS: float = 50.0 # 20 Hz snapshots
 const MAX_EXTRAPOLATE_TICKS: float = 3.0
 const BUFFER_TICKS: int = 60
+const MAX_AHEAD_S: float = 0.3
 
 var track_length: float = 1.0
 var delay_ms: float = MIN_DELAY_MS
@@ -97,6 +98,31 @@ func sample(car_id: int) -> Physics.CarState:
 	out.vy = lerpf(ca.vy, cb.vy, f)
 	out.speed = lerpf(ca.speed, cb.speed, f)
 	return out
+
+
+## Dead-reckons a car from the newest snapshot `ahead_s` seconds into the future (used to show
+## remote cars at the same moment as the predicted own car, so contact looks right).
+func extrapolate(car_id: int, ahead_s: float) -> Physics.CarState:
+	if _snaps.is_empty():
+		return null
+	var c: Protocol.SnapCar = _find(_snaps[_snaps.size() - 1], car_id)
+	if c == null:
+		return null
+	ahead_s = clampf(ahead_s, 0.0, MAX_AHEAD_S)
+	var out: Physics.CarState = Physics.CarState.new()
+	var prog: float = float(c.lap) * track_length + c.s + c.speed * cos(c.yaw_rel) * ahead_s
+	out.lap = int(floorf(prog / track_length))
+	out.s = prog - float(out.lap) * track_length
+	out.d = c.d + c.speed * sin(c.yaw_rel) * ahead_s * 0.5 # lateral motion is less predictable
+	out.yaw_rel = c.yaw_rel
+	out.y = maxf(c.y + c.vy * ahead_s, 0.0)
+	out.vy = c.vy
+	out.speed = c.speed
+	return out
+
+
+func newest_age_s(now_ms: float) -> float:
+	return maxf((now_ms - _last_arrival_ms) / 1000.0, 0.0) if _last_arrival_ms >= 0.0 else 0.0
 
 
 func _find(s: Protocol.Snapshot, car_id: int) -> Protocol.SnapCar:

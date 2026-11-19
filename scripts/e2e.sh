@@ -6,6 +6,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${PORT:-18090}"
 BIN="$REPO/build/e2e"
 mkdir -p "$BIN" "$REPO/build/logs"
+rm -f "$REPO"/build/logs/e2e_godot_[A-D].txt
 
 go build -o "$BIN/server" "$REPO/cmd/server"
 go build -o "$BIN/botclient" "$REPO/cmd/botclient"
@@ -34,9 +35,9 @@ for n in A B C D; do
 done
 fail=0
 for p in "${pids[@]}"; do wait "$p" || fail=1; done
-grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt || true
-rooms=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt | sed 's/.*room=\([A-Z]*\).*/\1/' | sort -u | wc -l | tr -d ' ')
-results=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_*.txt | wc -l | tr -d ' ')
+grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_[A-D].txt || true
+rooms=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_[A-D].txt | sed 's/.*room=\([A-Z]*\).*/\1/' | sort -u | wc -l | tr -d ' ')
+results=$(grep -h "BOTCLIENT RESULT" "$REPO"/build/logs/e2e_godot_[A-D].txt | wc -l | tr -d ' ')
 if [ "$fail" -ne 0 ] || [ "$results" -ne 4 ] || [ "$rooms" -ne 1 ]; then
   echo "godot e2e failed: results=$results rooms=$rooms"; exit 1
 fi

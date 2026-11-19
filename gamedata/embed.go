@@ -132,6 +132,10 @@ type Physics struct {
 	CarRadius               float64 `json:"carRadius"`
 	CarCollisionMaxDy       float64 `json:"carCollisionMaxDy"`
 	CollisionSpeedExchange  float64 `json:"collisionSpeedExchange"`
+	CarHalfLength           float64 `json:"carHalfLength"`        // car footprint for car–car contact
+	CollisionRestitution    float64 `json:"collisionRestitution"` // bounciness of rear-end hits (0–1)
+	SideBounceYaw           float64 `json:"sideBounceYaw"`        // heading kick away on side contact (rad)
+	SideScrub               float64 `json:"sideScrub"`            // speed lost on side contact (fraction)
 }
 
 // Race holds race-flow numbers.

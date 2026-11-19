@@ -21,6 +21,7 @@ var vfx: Vfx
 var reduce_motion: bool = false
 var _shake: float = 0.0
 var _engines: Array[EngineSound] = []
+var _smoothed: Dictionary = {} # car index → Physics.CarState shown last frame
 var _last_count: int = 99
 
 var _track_node: Node3D = null
@@ -70,6 +71,7 @@ func start_race(m: Dictionary) -> void:
 	interp = Interpolation.new(track.length)
 	latest = null
 	prediction = null
+	_smoothed.clear()
 	_last_count = 99
 	if you >= 0:
 		prediction = Prediction.new(track, (grid[you] as Dictionary)["vehicle"] as String)
@@ -149,10 +151,20 @@ func _process(delta: float) -> void:
 	if interp == null or track == null:
 		return
 	interp.advance(delta)
+	var predicting: bool = prediction != null and prediction.started
+	# Remote cars: with prediction on, show them at the predicted moment (dead reckoning +
+	# smoothing) instead of ~100 ms in the past, so cars meet where the server says they meet.
+	var ahead_s: float = 0.0
+	if predicting:
+		ahead_s = float(prediction.pending_inputs()) / Interpolation.TICK_RATE + interp.newest_age_s(float(Time.get_ticks_msec()))
 	for i: int in cars.size():
-		var st: Physics.CarState = interp.sample(i)
-		if i == you and prediction != null and prediction.started:
+		var st: Physics.CarState
+		if i == you and predicting:
 			st = prediction.visual(delta)
+		elif predicting:
+			st = _smooth_remote(i, interp.extrapolate(i, ahead_s), delta)
+		else:
+			st = interp.sample(i)
 		_states[i] = st
 		if st != null:
 			cars[i].show_state(st, track)
@@ -162,6 +174,33 @@ func _process(delta: float) -> void:
 	_update_hazards()
 	_update_camera(delta)
 	_update_audio()
+
+
+## Keeps remote cars moving at their speed every frame and blends toward the newest estimate,
+## so a new snapshot never makes them jump (no visual stutter/flicker).
+func _smooth_remote(i: int, target: Physics.CarState, delta: float) -> Physics.CarState:
+	if target == null:
+		return null
+	var prev: Physics.CarState = _smoothed.get(i, null) as Physics.CarState
+	if prev == null:
+		_smoothed[i] = target
+		return target
+	var L: float = track.length
+	var prev_prog: float = float(prev.lap) * L + prev.s + prev.speed * cos(prev.yaw_rel) * delta
+	var tgt_prog: float = float(target.lap) * L + target.s
+	if absf(tgt_prog - prev_prog) > 15.0: # far off (respawn, big correction): snap
+		_smoothed[i] = target
+		return target
+	var k: float = 1.0 - exp(-delta / 0.08)
+	var out: Physics.CarState = target.copy()
+	var prog: float = lerpf(prev_prog, tgt_prog, k)
+	out.lap = int(floorf(prog / L))
+	out.s = prog - float(out.lap) * L
+	out.d = lerpf(prev.d, target.d, k)
+	out.yaw_rel = lerpf(prev.yaw_rel, target.yaw_rel, k)
+	out.y = lerpf(prev.y, target.y, k)
+	_smoothed[i] = out
+	return out
 
 
 ## Engines (own + 4 nearest audible) and countdown beeps.

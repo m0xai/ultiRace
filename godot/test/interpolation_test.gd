@@ -71,3 +71,12 @@ func test_ignores_out_of_order() -> void:
 	ip.push(_snap(10, 10.0, 0, 0.0), 0.0)
 	ip.push(_snap(9, 9.0, 0, 0.0), 1.0)
 	assert_int(ip.latest_tick()).is_equal(10)
+
+
+func test_extrapolate_moves_forward_and_wraps() -> void:
+	var ip: Interpolation = Interpolation.new(L)
+	ip.push(_snap(100, 995.0, 0, 1.0), 0.0) # speed 30 in _snap
+	var st: Physics.CarState = ip.extrapolate(0, 0.2) # +6 m → wraps to lap 1, s 1
+	assert_int(st.lap).is_equal(1)
+	assert_float(st.s).is_equal_approx(1.0, 1e-9)
+	assert_float(ip.extrapolate(0, 5.0).s).is_equal_approx(4.0, 1e-9) # clamped to 0.3 s → +9 m

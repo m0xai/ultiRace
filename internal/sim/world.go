@@ -262,52 +262,82 @@ func (w *World) catchup() {
 	}
 }
 
-// collide resolves car–car overlaps as circles in (s, d) space (GAME_PLAN §2.5 step 5).
+// collide resolves car–car contact (GAME_PLAN §2.5 step 5) with car-sized boxes in (s, d)
+// space: cars never overlap. A contact is resolved along the axis of least penetration:
+// rear-end hits separate the cars and exchange speed (mass-weighted, restitution); side
+// contacts push the cars apart, kick their headings away from each other and scrub a little
+// speed. Two passes settle three-car pile-ups. Server only (collisions are not mirrored).
 func (w *World) collide() {
-	ph := &w.Bal.Physics
-	L := w.Track.Length
-	minDist := 2 * ph.CarRadius
-	for i := 0; i < len(w.Cars); i++ {
-		for j := i + 1; j < len(w.Cars); j++ {
-			a, b := &w.Cars[i].State, &w.Cars[j].State
-			if math.Abs(a.Y-b.Y) > ph.CarCollisionMaxDy || w.Cars[i].Status.Ghost(w.Tick) || w.Cars[j].Status.Ghost(w.Tick) {
-				continue
+	for pass := 0; pass < 2; pass++ {
+		for i := 0; i < len(w.Cars); i++ {
+			for j := i + 1; j < len(w.Cars); j++ {
+				w.contact(i, j, pass == 0)
 			}
-			ds := mathx.WrapDelta(a.S, b.S, L) // + means b is ahead of a
-			dd := b.D - a.D
-			dist := math.Sqrt(ds*ds + dd*dd)
-			if dist >= minDist {
-				continue
-			}
-			var ns, nd float64
-			if dist > 1e-9 {
-				ns, nd = ds/dist, dd/dist
-			} else {
-				ns, nd = 0, 1 // perfectly overlapping: separate sideways, lower id to −d
-			}
-			overlap := minDist - dist
-			ma, mb := w.Cars[i].Params.Mass, w.Cars[j].Params.Mass
-			wa, wb := mb/(ma+mb), ma/(ma+mb) // the lighter car moves more
-			a.S -= ns * overlap * wa
-			a.D -= nd * overlap * wa
-			b.S += ns * overlap * wb
-			b.D += nd * overlap * wb
-
-			// Speed exchange: a faster car bumping into the one ahead gives it some speed.
-			rear, front, mr, mf := a, b, ma, mb
-			if ds < 0 {
-				rear, front, mr, mf = b, a, mb, ma
-			}
-			if rel := rear.Speed - front.Speed; rel > 0 && math.Abs(ns) > 0.3 {
-				transfer := rel * ph.CollisionSpeedExchange
-				rear.Speed -= transfer * mf / (mr + mf)
-				front.Speed += transfer * mr / (mr + mf)
-			}
-			w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "bump", Car: w.Cars[i].ID, Other: w.Cars[j].ID, Value: overlap})
-			w.fixup(a)
-			w.fixup(b)
 		}
 	}
+}
+
+func (w *World) contact(i, j int, emit bool) {
+	ph := &w.Bal.Physics
+	ci, cj := w.Cars[i], w.Cars[j]
+	a, b := &ci.State, &cj.State
+	if math.Abs(a.Y-b.Y) > ph.CarCollisionMaxDy || ci.Status.Ghost(w.Tick) || cj.Status.Ghost(w.Tick) {
+		return
+	}
+	ds := mathx.WrapDelta(a.S, b.S, w.Track.Length) // + means b is ahead of a
+	dd := b.D - a.D
+	ox := 2*ph.CarHalfLength - math.Abs(ds) // penetration along the track
+	oy := 2*ph.CarHalfWidth - math.Abs(dd)  // penetration sideways
+	if ox <= 0 || oy <= 0 {
+		return
+	}
+	ma, mb := ci.Params.Mass, cj.Params.Mass
+	wa, wb := mb/(ma+mb), ma/(ma+mb) // the lighter car moves more
+	impact := 0.0
+	if ox/(2*ph.CarHalfLength) < oy/(2*ph.CarHalfWidth) {
+		// rear-end: separate along s, 1D impact with restitution
+		dir := 1.0
+		if ds < 0 {
+			dir = -1
+		}
+		a.S -= dir * ox * wa
+		b.S += dir * ox * wb
+		rear, front, mr, mf := a, b, ma, mb
+		if ds < 0 {
+			rear, front, mr, mf = b, a, mb, ma
+		}
+		if rel := rear.Speed - front.Speed; rel > 0 {
+			e := ph.CollisionRestitution
+			vr := (mr*rear.Speed + mf*front.Speed - mf*e*rel) / (mr + mf)
+			vf := (mr*rear.Speed + mf*front.Speed + mr*e*rel) / (mr + mf)
+			rear.Speed, front.Speed = math.Max(vr, 0), vf
+			impact = rel
+		}
+	} else {
+		// side contact: push apart sideways, bounce headings away, scrub speed
+		dir := 1.0
+		if dd < 0 {
+			dir = -1
+		}
+		if dd == 0 {
+			dir = float64(i - j) // deterministic tie-break
+		}
+		a.D -= dir * oy * wa
+		b.D += dir * oy * wb
+		closing := (a.Speed*math.Sin(a.YawRel) - b.Speed*math.Sin(b.YawRel)) * dir // > 0 when moving together
+		if closing > 0 {
+			a.YawRel -= dir * ph.SideBounceYaw * wa * 2
+			b.YawRel += dir * ph.SideBounceYaw * wb * 2
+			a.Speed *= 1 - ph.SideScrub
+			b.Speed *= 1 - ph.SideScrub
+			impact = closing
+		}
+	}
+	if emit {
+		w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "bump", Car: ci.ID, Other: cj.ID, Value: impact})
+	}
+	w.fixup(a)
+	w.fixup(b)
 }
 
 // fixup re-wraps s (adjusting the lap) and clamps d to the walls after a push.

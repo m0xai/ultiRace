@@ -17,6 +17,18 @@ func _ready() -> void:
 	if delay_i >= 0 and delay_i + 1 < args.size():
 		delay = args[delay_i + 1].to_float()
 	await get_tree().create_timer(delay).timeout
+	var bi: int = args.find("--burst")
+	if bi >= 0 and bi + 1 < args.size():
+		# consecutive frames path_0.png … path_{n-1}.png (frame-to-frame artefacts like flicker)
+		var frames: Array[Image] = []
+		var times: PackedFloat64Array = []
+		for k: int in args[bi + 1].to_int():
+			await RenderingServer.frame_post_draw
+			frames.append(get_viewport().get_texture().get_image()) # keep in memory: no stalls between frames
+			times.append(Time.get_ticks_usec() / 1000.0)
+		for k: int in frames.size():
+			frames[k].save_png(path.get_basename() + "_%d.png" % k)
+		print("BURST saved, frame times ms: ", times)
 	await RenderingServer.frame_post_draw
 	var img: Image = get_viewport().get_texture().get_image()
 	var err: Error = img.save_png(path)

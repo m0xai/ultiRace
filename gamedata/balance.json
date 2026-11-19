@@ -30,7 +30,11 @@
     "landingSpeedFactor": 0.97,
     "carRadius": 1.4,
     "carCollisionMaxDy": 1.5,
-    "collisionSpeedExchange": 0.3
+    "collisionSpeedExchange": 0.3,
+    "carHalfLength": 2,
+    "collisionRestitution": 0.35,
+    "sideBounceYaw": 0.12,
+    "sideScrub": 0.03
   },
   "race": {
     "defaultLaps": 3,
@@ -87,14 +91,14 @@
     "startBoostS": 1
   },
   "vehicleTrim": {
-    "bolt": -0.013,
-    "glacier": 0.024,
-    "goo": 0.031,
-    "hook": -0.011,
-    "phantom": -0.029,
-    "rhino": 0.028,
-    "twister": -0.006,
-    "volt": -0.014
+    "bolt": -0.009,
+    "glacier": 0.027,
+    "goo": 0.033,
+    "hook": -0.012,
+    "phantom": -0.032,
+    "rhino": 0.029,
+    "twister": -0.013,
+    "volt": -0.016
   },
   "ults": {
     "emp": {

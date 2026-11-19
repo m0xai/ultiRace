@@ -155,6 +155,12 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       Detail + Lamp (bodies ≤ 4 surfaces, wheels 1); CarView shares those two materials across
       cars. Race view 168 → 109 draw calls.
 - [x] Particles: soft radial sprite for flames, wind lines and sparks.
+- [x] Flicker fixed: predicted car sub-tick blending, canopy/body z-fighting removed (canopies sunk
+      0.22 m), shadow bias raised. Diagnosed with `DevTools --burst N` (consecutive frames in memory).
+- [x] Collisions: car-sized boxes + impact response (server); remote cars displayed at the predicted
+      time (dead reckoning + smoothing) so contacts look solid. Tests for rear-end and side contact.
+- [ ] Quality pass toward the human's references (Traffic Racer trailers, `build/refs/`): more
+      realistic proportions and detail (see A1 next steps).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 

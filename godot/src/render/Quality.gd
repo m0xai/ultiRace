@@ -40,7 +40,8 @@ func _apply() -> void:
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if render_scale < 0.99 else Viewport.SCALING_3D_MODE_BILINEAR
 	vp.scaling_3d_scale = render_scale
 	vp.msaa_3d = Viewport.MSAA_2X if tier == HIGH else Viewport.MSAA_DISABLED
-	RenderingServer.directional_shadow_atlas_set_size(2048 if tier == HIGH else 1024, true)
+	RenderingServer.directional_shadow_atlas_set_size(4096 if tier == HIGH else 2048, true)
+	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW if tier == HIGH else RenderingServer.SHADOW_QUALITY_HARD)
 	tier_changed.emit(tier)
 
 
@@ -49,7 +50,10 @@ func configure_environment(env: Environment, sun: DirectionalLight3D) -> void:
 	env.glow_enabled = env.glow_enabled and tier == HIGH
 	sun.shadow_enabled = tier == HIGH
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 60.0
+	sun.directional_shadow_max_distance = 45.0
+	sun.shadow_blur = 1.5
+	sun.shadow_bias = 0.08
+	sun.shadow_normal_bias = 3.0 # curved glossy car bodies showed self-shadow acne (shimmer/flicker)
 
 
 func _process(delta: float) -> void:
