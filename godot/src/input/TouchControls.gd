@@ -124,6 +124,7 @@ func _draw() -> void:
 		var pressed: bool = held.has(key) or (key == "left" and steer < 0) or (key == "right" and steer > 0)
 		var c: Vector2 = r.get_center()
 		var rad: float = r.size.x / 2.0
+		draw_circle(c, rad, Color(0, 0, 0, 0.18)) # darken behind for contrast
 		draw_circle(c, rad, Color(1, 1, 1, 0.32 if pressed else 0.16))
 		draw_arc(c, rad, 0, TAU, 48, Color(1, 1, 1, 0.55), 3.0, true)
 		match key:
@@ -141,4 +142,7 @@ func _draw() -> void:
 
 func _arrow(c: Vector2, dir: float) -> void:
 	var pts: PackedVector2Array = PackedVector2Array([c + Vector2(dir * 34, 0), c + Vector2(-dir * 22, -34), c + Vector2(-dir * 22, 34)])
-	draw_colored_polygon(pts, Color(1, 1, 1, 0.85))
+	var outline: PackedVector2Array = pts.duplicate()
+	outline.append(pts[0])
+	draw_polyline(outline, Color(0, 0, 0, 0.45), 6.0, true) # contrast on bright curbs/snow
+	draw_colored_polygon(pts, Color(1, 1, 1, 0.9))

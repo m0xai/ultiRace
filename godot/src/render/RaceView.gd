@@ -17,6 +17,9 @@ var follow: int = 0
 var go_tick: int = 0
 var latest: Protocol.Snapshot = null
 var prediction: Prediction = null # own car (M7); other cars are interpolated
+var vfx: Vfx
+var reduce_motion: bool = false
+var _shake: float = 0.0
 
 var _track_node: Node3D = null
 var _cam: Camera3D
@@ -30,6 +33,9 @@ func _ready() -> void:
 	_cam.far = 3000.0
 	add_child(_cam)
 	_cam.current = true
+	vfx = Vfx.new()
+	add_child(vfx)
+	reduce_motion = bool(Profile.get_value("reduce_motion", false))
 
 
 func start_race(m: Dictionary) -> void:
@@ -142,7 +148,9 @@ func _process(delta: float) -> void:
 		_states[i] = st
 		if st != null:
 			cars[i].show_state(st, track)
-			cars[i].show_effects(flags_of(i), delta)
+			var fl: int = flags_of(i)
+			cars[i].show_effects(fl, delta)
+			vfx.car_trail(i, cars[i], (fl & Protocol.EFF_BOOST) != 0, (fl & Protocol.EFF_DRAFT) != 0)
 	_update_hazards()
 	_update_camera(delta)
 
@@ -195,6 +203,38 @@ func _update_hazards() -> void:
 			mi.rotate_object_local(Vector3.UP, float(Time.get_ticks_msec()) * 0.02)
 
 
+## Server event → effect (cosmetic only).
+func on_event(m: Dictionary) -> void:
+	var kind: String = str(m.get("kind", ""))
+	var car: int = int(m.get("car", -1))
+	if car < 0 or car >= cars.size():
+		return
+	match kind:
+		"wallHit":
+			vfx.sparks(cars[car].global_position + Vector3.UP * 0.5)
+			if car == follow:
+				shake(clampf(float(m.get("value", 5.0)) / 20.0, 0.1, 0.6))
+		"abilityUsed":
+			match str(m.get("ult", "")):
+				"emp":
+					vfx.ring(cars[car].global_position, float(GameData.balance()["ults"]["emp"]["radiusM"]), Color(0.7, 0.4, 1.0, 0.8))
+				"phase":
+					vfx.ring(cars[car].global_position, 4.0, Color(0.9, 0.95, 1.0, 0.8))
+				"nitro":
+					vfx.ring(cars[car].global_position, 3.0, Color(1.0, 0.6, 0.1, 0.8))
+		"hit":
+			var src: int = int(m.get("other", -1))
+			if str(m.get("ult", "")) == "grapple" and src >= 0 and src < cars.size():
+				vfx.cable(cars[src], cars[car], 0.8)
+			if car == follow:
+				shake(0.6)
+
+
+func shake(amount: float) -> void:
+	if not reduce_motion:
+		_shake = maxf(_shake, amount)
+
+
 func _update_camera(delta: float) -> void:
 	if follow >= cars.size() or _states[follow] == null:
 		return
@@ -208,6 +248,9 @@ func _update_camera(delta: float) -> void:
 	else:
 		_cam.global_position = _cam.global_position.lerp(want, 1.0 - exp(-delta * 8.0))
 	_cam.look_at(car.global_position + fwd * CAM_LOOK_AHEAD + Vector3.UP * 0.6, Vector3.UP)
+	if _shake > 0.0:
+		_cam.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _shake * 0.25
+		_shake = maxf(_shake - delta * 2.5, 0.0)
 	var st: Physics.CarState = _states[follow]
 	var target_fov: float = 70.0 + clampf((st.speed - 38.0) / 6.0, 0.0, 1.0) * 10.0 # FOV kick at high speed
 	_cam.fov = lerpf(_cam.fov, target_fov, 1.0 - exp(-delta * 3.0))

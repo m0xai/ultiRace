@@ -226,6 +226,7 @@ const ULT_NAMES: Dictionary = {"nitro": "Nitro", "ram": "Ram Charge", "ice": "Ic
 
 
 func _on_event(m: Dictionary) -> void:
+	_view.on_event(m)
 	var kind: String = str(m.get("kind", ""))
 	var car: int = int(m.get("car", -1))
 	if kind == "hit" and car == _view.you:

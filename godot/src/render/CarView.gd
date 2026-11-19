@@ -120,7 +120,31 @@ func flash() -> void:
 
 
 ## Cosmetic only: wheels roll with distance travelled, front wheels show the steering.
+var _roll: float = 0.0
+var _pitch: float = 0.0
+var _last_speed: float = 0.0
+var _last_y: float = 0.0
+
+
+## Cosmetic suspension (client only): body rolls into turns, pitches on speed changes,
+## squashes on landing.
+func _suspension(st: Physics.CarState) -> void:
+	if _model == null:
+		return
+	var turn: float = clampf((st.yaw_rel - _last_yaw) * 30.0, -1.0, 1.0)
+	_roll = lerpf(_roll, -turn * 0.06, 0.15)
+	_pitch = lerpf(_pitch, clampf((st.speed - _last_speed) * 0.02, -0.05, 0.05), 0.2)
+	var squash: float = 0.0
+	if _last_y > 0.3 and st.y <= 0.01:
+		squash = 0.12
+	_model.rotation = Vector3(_pitch, _model.rotation.y, _roll)
+	_model.scale = _model.scale.lerp(Vector3(1.0 + squash * 0.5, 1.0 - squash, 1.0 + squash * 0.5), 0.5).lerp(Vector3.ONE, 0.15)
+	_last_speed = st.speed
+	_last_y = st.y
+
+
 func _animate_wheels(st: Physics.CarState, tr: Track) -> void:
+	_suspension(st)
 	if _wheels.is_empty():
 		return
 	var ds: float = 0.0 if _last_s < 0.0 else MathX.wrap_delta(_last_s, st.s, tr.length)
