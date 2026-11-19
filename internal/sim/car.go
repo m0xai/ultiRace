@@ -7,7 +7,7 @@ import "github.com/m0xai/ultiRace/gamedata"
 
 // Input is one tick of player or bot input (protocol `in`).
 type Input struct {
-	Steer    int  // -1, 0, 1 (positive steers toward +d)
+	Steer    int  // -1, 0, 1 (positive steers toward +d, which is the driver's LEFT)
 	Throttle int  // 0 or 1
 	Ability  bool // ULT button (M6)
 }

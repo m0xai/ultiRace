@@ -262,4 +262,4 @@ func _process(delta: float) -> void:
 			thr = 1 if _touch.taps > _taps_at_go else 0
 	var ab: bool = _ult_pending > 0
 	_ult_pending = max(_ult_pending - 1, 0)
-	_send(Protocol.input(_seq, _touch.steer, thr, ab))
+	_send(Protocol.input(_seq, Protocol.steer_from_screen(_touch.steer), thr, ab))

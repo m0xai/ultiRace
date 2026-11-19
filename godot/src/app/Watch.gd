@@ -175,7 +175,7 @@ func _send_input(delta: float) -> void:
 	elif Input.is_key_pressed(KEY_RIGHT):
 		steer = 1
 	_seq += 1
-	_conn.send(Protocol.input(_seq, steer, 1, false))
+	_conn.send(Protocol.input(_seq, Protocol.steer_from_screen(steer), 1, false))
 
 
 func _update_camera(delta: float) -> void:

@@ -12,7 +12,7 @@ const STEER_SIZE: Vector2 = Vector2(150, 150) # ≈ 90 pt on iPhone (plan: ≥ 8
 const ULT_SIZE: float = 150.0
 const GAP: float = 20.0
 
-var steer: int = 0
+var steer: int = 0 # screen direction: +1 = right (convert with Protocol.steer_from_screen)
 var throttle: int = 1
 var ult_ready: bool = false
 var ult_progress: float = 0.0 # 0–1 cooldown ring (M6)

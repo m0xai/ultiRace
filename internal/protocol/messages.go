@@ -136,7 +136,7 @@ type Lock struct {
 type In struct {
 	T     string `json:"t"`
 	Seq   uint32 `json:"seq"`
-	Steer int    `json:"steer"` // -1, 0, 1
+	Steer int    `json:"steer"` // -1, 0, 1; +1 turns toward +d (track Normal) = the driver's LEFT
 	Thr   int    `json:"thr"`   // 0, 1
 	Ab    bool   `json:"ab"`
 }

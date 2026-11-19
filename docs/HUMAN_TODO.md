@@ -94,7 +94,7 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     prediction. Tell Claude what feels off (button size/position, camera, speed, steering).
     Install: `SERVER_URL=ws://<Mac IP>:8090 make ios-run` with the dev server running
     (`go run ./cmd/server -addr 0.0.0.0:8090`).
-8. [ ] **Decide:** keep the iPhone 11 "low" graphics tier, or target only recent iPhones
+8. [x] (answered 2026-11-19: keep the iPhone 11 low tier for now) **Decide:** keep the iPhone 11 "low" graphics tier, or target only recent iPhones
    (you said high-end graphics matter more)? Until answered the plan stays as written.
 
 ## Done

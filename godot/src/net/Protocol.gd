@@ -136,6 +136,13 @@ static func lock(vehicle: String) -> Dictionary:
 	return {"t": T_LOCK, "vehicle": vehicle}
 
 
+## Converts a screen/driver steering direction (+1 = right, −1 = left) to the protocol/physics
+## value. Physics steers +1 toward +d (the track Normal), which is the driver's LEFT when looking
+## along the track, so the sign flips. Always build `in.steer` through this.
+static func steer_from_screen(dir: int) -> int:
+	return -dir
+
+
 static func input(seq: int, steer: int, thr: int, ab: bool) -> Dictionary:
 	return {"t": T_IN, "seq": seq, "steer": steer, "thr": thr, "ab": ab}
 
