@@ -13,9 +13,18 @@ const RIDE_HEIGHT: float = 0.55
 var vehicle_id: String = ""
 
 
+var _model: Node3D = null
+var _wheels: Array[Node3D] = []
+var _front: Array[Node3D] = []
+var _wheel_r: float = 0.4
+var _last_s: float = -1.0
+var _last_yaw: float = 0.0
+
+
 func configure(vehicle: String, display_name: String, is_you: bool) -> void:
 	vehicle_id = vehicle
 	var v: Dictionary = GameData.vehicle(vehicle)
+	_load_model(vehicle)
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.albedo_color = Color.html(v.get("color", "#cccccc") as String)
 	mat.roughness = 0.4
@@ -29,8 +38,43 @@ func configure(vehicle: String, display_name: String, is_you: bool) -> void:
 	_tag.visible = false # names are drawn by the 2D HUD (≤ 4 nearest); kept for spectator/debug use
 
 
+## Uses the Blender model (art/blender/cars/<id>.py → assets/cars/<id>.glb) when present;
+## the placeholder boxes stay as a fallback.
+func _load_model(vehicle: String) -> void:
+	var path: String = "res://assets/cars/%s.glb" % vehicle
+	if _model != null or not ResourceLoader.exists(path):
+		return
+	_model = (load(path) as PackedScene).instantiate() as Node3D
+	add_child(_model)
+	_model.position.y = -RIDE_HEIGHT
+	_body.visible = false
+	_cabin.visible = false
+	var paint: StandardMaterial3D = StandardMaterial3D.new()
+	paint.vertex_color_use_as_albedo = true # every part carries its colour as vertex colours
+	paint.roughness = 0.45
+	_paint = paint
+	for mi: Node in _model.find_children("*", "MeshInstance3D", true, false):
+		var m: MeshInstance3D = mi as MeshInstance3D
+		if not m.name.begins_with("Wheel_"):
+			m.material_override = paint
+		else:
+			var tyre: StandardMaterial3D = StandardMaterial3D.new()
+			tyre.vertex_color_use_as_albedo = true
+			tyre.roughness = 0.9
+			m.material_override = tyre
+		if m.name.begins_with("Wheel_"):
+			_wheels.append(m)
+			if m.name.ends_with("FL") or m.name.ends_with("FR"):
+				_front.append(m)
+			_wheel_r = maxf(_wheel_r, m.get_aabb().size.y / 2.0)
+
+
+var _paint: StandardMaterial3D = null
+
+
 ## Places the car from a track-space state (rendering only; no game rules).
 func show_state(st: Physics.CarState, tr: Track) -> void:
+	_animate_wheels(st, tr)
 	var smp: Track.Sample = tr.at(st.s)
 	var p: Vector3 = tr.world(st.s, st.d, st.y + RIDE_HEIGHT)
 	var cy: float = cos(st.yaw_rel)
@@ -55,7 +99,9 @@ func show_effects(flags: int, delta: float) -> void:
 		_spin = 0.0
 	_body.rotation.y = _spin
 	_cabin.rotation.y = _spin
-	var mat: StandardMaterial3D = _body.material_override as StandardMaterial3D
+	if _model != null:
+		_model.rotation.y = _spin
+	var mat: StandardMaterial3D = _paint if _paint != null else _body.material_override as StandardMaterial3D
 	if mat == null:
 		return
 	var ghost: bool = (flags & Protocol.EFF_GHOST) != 0
@@ -71,3 +117,19 @@ func show_effects(flags: int, delta: float) -> void:
 
 func flash() -> void:
 	_flash_t = 0.4
+
+
+## Cosmetic only: wheels roll with distance travelled, front wheels show the steering.
+func _animate_wheels(st: Physics.CarState, tr: Track) -> void:
+	if _wheels.is_empty():
+		return
+	var ds: float = 0.0 if _last_s < 0.0 else MathX.wrap_delta(_last_s, st.s, tr.length)
+	_last_s = st.s
+	var roll: float = clampf(ds, -5.0, 5.0) / _wheel_r
+	var steer: float = clampf((st.yaw_rel - _last_yaw) * 8.0, -0.45, 0.45)
+	_last_yaw = st.yaw_rel
+	for w: Node3D in _wheels:
+		w.rotate_object_local(Vector3.RIGHT, roll)
+	for w: Node3D in _front:
+		var r: Vector3 = w.rotation
+		w.rotation = Vector3(r.x, lerpf(r.y, steer, 0.3), r.z)
