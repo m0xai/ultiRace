@@ -27,13 +27,9 @@ jobs:
       - name: Lint
         run: make lint
 
+      # Go tests also fail when gamedata/fixtures are stale (numeric compare, see fixtures_test.go)
       - name: Go tests
         run: make test-go
-
-      - name: Fixtures are up to date
-        run: |
-          make fixtures
-          git diff --exit-code -- gamedata/fixtures || { echo "::error::fixtures are stale, run make fixtures"; exit 1; }
 
       - name: godot/gamedata is in sync
         run: make check-sync

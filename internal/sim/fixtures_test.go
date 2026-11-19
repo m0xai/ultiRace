@@ -3,6 +3,7 @@ package sim
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -180,10 +181,58 @@ func TestFixtures(t *testing.T) {
 		if err != nil {
 			t.Fatalf("missing fixture %s: run make fixtures", name)
 		}
-		if !bytes.Equal(old, data) {
-			t.Errorf("fixture %s is stale: run make fixtures && make sync", name)
+		if bytes.Equal(old, data) {
+			continue
+		}
+		// Byte equality fails across CPU architectures: Go may fuse x*y+z into FMA on arm64
+		// but not on amd64, changing the last bits. Compare numerically instead.
+		var a, b any
+		if err := json.Unmarshal(old, &a); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(data, &b); err != nil {
+			t.Fatal(err)
+		}
+		if where := jsonDiff(a, b, ""); where != "" {
+			t.Errorf("fixture %s is stale at %s: run make fixtures && make sync", name, where)
 		}
 	}
+}
+
+// jsonDiff returns the path of the first difference beyond 1e-7 (relative), or "".
+func jsonDiff(a, b any, path string) string {
+	switch av := a.(type) {
+	case float64:
+		bv, ok := b.(float64)
+		if !ok || math.Abs(av-bv) > 1e-7*math.Max(1, math.Abs(av)) {
+			return path
+		}
+	case []any:
+		bv, ok := b.([]any)
+		if !ok || len(av) != len(bv) {
+			return path
+		}
+		for i := range av {
+			if d := jsonDiff(av[i], bv[i], fmt.Sprintf("%s[%d]", path, i)); d != "" {
+				return d
+			}
+		}
+	case map[string]any:
+		bv, ok := b.(map[string]any)
+		if !ok || len(av) != len(bv) {
+			return path
+		}
+		for k := range av {
+			if d := jsonDiff(av[k], bv[k], path+"."+k); d != "" {
+				return d
+			}
+		}
+	default:
+		if a != b {
+			return path
+		}
+	}
+	return ""
 }
 
 // checkScenarioCoverage makes sure each scenario exercises what its name promises.
