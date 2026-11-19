@@ -393,3 +393,34 @@ func BenchmarkRoomRacingTick(b *testing.B) {
 		}
 	}
 }
+
+// M7: racing inputs are applied one per tick in order, and the snapshot ack is the seq of the
+// input the simulation used last (the client replays everything after it).
+func TestRacingInputsQueuedOnePerTick(t *testing.T) {
+	c := newCore(t, protocol.Private)
+	join(c, "a")
+	toSelect(t, c)
+	for c.State != Racing {
+		c.Step()
+	}
+	p := c.find("a")
+	for seq := uint32(1); seq <= 3; seq++ { // a burst of three inputs in one tick
+		c.Handle("a", &protocol.In{Seq: seq, Steer: int(seq%3) - 1, Thr: 1})
+	}
+	for want := uint32(1); want <= 3; want++ {
+		c.Step()
+		if p.ack != want {
+			t.Fatalf("after step: ack %d, want %d", p.ack, want)
+		}
+	}
+	c.Step() // queue empty: last input repeats, ack unchanged
+	if p.ack != 3 {
+		t.Fatalf("ack moved without input: %d", p.ack)
+	}
+	for seq := uint32(4); seq <= 20; seq++ { // flood: queue stays bounded
+		c.Handle("a", &protocol.In{Seq: seq, Thr: 1})
+	}
+	if len(p.queue) > maxInputQueue {
+		t.Fatalf("queue %d > %d", len(p.queue), maxInputQueue)
+	}
+}

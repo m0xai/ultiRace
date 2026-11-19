@@ -16,6 +16,7 @@ var you: int = -1
 var follow: int = 0
 var go_tick: int = 0
 var latest: Protocol.Snapshot = null
+var prediction: Prediction = null # own car (M7); other cars are interpolated
 
 var _track_node: Node3D = null
 var _cam: Camera3D
@@ -55,6 +56,9 @@ func start_race(m: Dictionary) -> void:
 		_states.append(null)
 	interp = Interpolation.new(track.length)
 	latest = null
+	prediction = null
+	if you >= 0:
+		prediction = Prediction.new(track, (grid[you] as Dictionary)["vehicle"] as String)
 
 
 func clear() -> void:
@@ -64,12 +68,17 @@ func clear() -> void:
 	_states.clear()
 	interp = null
 	latest = null
+	prediction = null
 
 
 func push_snapshot(snap: Protocol.Snapshot) -> void:
 	latest = snap
 	if interp != null:
 		interp.push(snap, float(Time.get_ticks_msec()))
+	if prediction != null and snap.tick > go_tick:
+		for c: Protocol.SnapCar in snap.cars:
+			if c.id == you:
+				prediction.reconcile(c, snap.ack)
 
 
 ## Interpolated state of car i this frame (null if unknown).
@@ -128,6 +137,8 @@ func _process(delta: float) -> void:
 	interp.advance(delta)
 	for i: int in cars.size():
 		var st: Physics.CarState = interp.sample(i)
+		if i == you and prediction != null and prediction.started:
+			st = prediction.visual(delta)
 		_states[i] = st
 		if st != null:
 			cars[i].show_state(st, track)

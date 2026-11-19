@@ -83,10 +83,11 @@ func TestVehicleStatsSumTo12(t *testing.T) {
 func TestParamsMatchPlanFormulas(t *testing.T) {
 	f := load(t)
 	p := ParamsFor(f.vehicle(t, "bolt").Stats, f.bal.Stats)
-	if math.Abs(p.TopSpeed-(34+1.6*5)) > 1e-12 {
+	m := f.bal.Stats // linear mapping from balance.json (coefficients are tuned by cmd/balance)
+	if math.Abs(p.TopSpeed-(m.TopSpeedBase+m.TopSpeedPerStat*5)) > 1e-12 {
 		t.Errorf("bolt top speed %v", p.TopSpeed)
 	}
-	if math.Abs(p.TopSpeed/p.Accel-(4.4-0.3*3)) > 1e-12 {
+	if math.Abs(p.TopSpeed/p.Accel-(m.AccelTimeBase-m.AccelTimePerStat*3)) > 1e-9 {
 		t.Errorf("bolt accel time %v", p.TopSpeed/p.Accel)
 	}
 }

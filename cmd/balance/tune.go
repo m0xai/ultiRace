@@ -42,6 +42,21 @@ var knobs = []knob{
 	{[]string{"ults", "emp", "radiusM"}, 12, 22},
 	{[]string{"ults", "tornado", "speedFactor"}, 1.15, 1.5},
 	{[]string{"catchup", "startBoostSpeed"}, 0.1, 0.35},
+	// per-vehicle levers: every ULT's cooldown and main strength
+	{[]string{"ults", "ram", "cooldownS"}, 6, 14},
+	{[]string{"ults", "ice", "cooldownS"}, 6, 14},
+	{[]string{"ults", "ice", "slow"}, 0.1, 0.35},
+	{[]string{"ults", "ice", "effectS"}, 0.8, 2.0},
+	{[]string{"ults", "emp", "cooldownS"}, 7, 15},
+	{[]string{"ults", "emp", "durationS"}, 1.0, 2.5},
+	{[]string{"ults", "grapple", "cooldownS"}, 6, 14},
+	{[]string{"ults", "grapple", "durationS"}, 0.5, 1.5},
+	{[]string{"ults", "goo", "cooldownS"}, 6, 14},
+	{[]string{"ults", "goo", "lifeS"}, 2, 6},
+	{[]string{"ults", "phase", "cooldownS"}, 8, 16},
+	{[]string{"ults", "phase", "durationS"}, 1.5, 3.0},
+	{[]string{"ults", "nitro", "durationS"}, 1.0, 2.5},
+	{[]string{"ults", "tornado", "cooldownS"}, 7, 15},
 }
 
 func toMap(b *gamedata.Balance) map[string]any {

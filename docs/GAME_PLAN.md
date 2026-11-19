@@ -206,8 +206,9 @@ Base numbers (all in `gamedata/balance.json`): track width 18–22 m, top speed 
 Every vehicle has **4 stats on a 1–5 scale that sum to 12** plus one ULT. Linear mapping in
 `gamedata/balance.json`:
 
-- **Speed:** top speed `34 + 1.6·stat` m/s
-- **Accel:** time to top speed `4.4 − 0.3·stat` s
+- **Speed:** top speed `topSpeedBase + topSpeedPerStat·stat` m/s (initially 34 + 1.6·stat)
+- **Accel:** time to top speed `accelTimeBase − accelTimePerStat·stat` s (initially 4.4 − 0.3·stat)
+- Coefficients are tuned by `cmd/balance` (see `docs/BALANCE_REPORT.md`); current values in balance.json
 - **Handling:** steer rate and wall-bounce recovery
 - **Weight:** collision push, plus hard-CC duration −5 % per point above 3
 

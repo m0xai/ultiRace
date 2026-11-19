@@ -244,10 +244,15 @@ func _process(delta: float) -> void:
 	var flags: int = _view.flags_of(_view.you)
 	_touch.ult_progress = Protocol.charge_of(flags)
 	_touch.ult_ready = _touch.ult_progress >= 0.999 and _view.race_time() >= 3.0
-	_input_t += delta
-	if _input_t < 1.0 / INPUT_HZ:
-		return
-	_input_t = 0.0
+	# fixed 30 Hz input clock (carry the remainder): the server applies one input per tick and
+	# prediction replays them one by one, so the rate must match exactly
+	_input_t = minf(_input_t + delta, 3.0 / INPUT_HZ)
+	while _input_t >= 1.0 / INPUT_HZ:
+		_input_t -= 1.0 / INPUT_HZ
+		_send_input_tick()
+
+
+func _send_input_tick() -> void:
 	_seq += 1
 	var thr: int = _touch.throttle
 	if Profile.auto_accelerate():
@@ -262,4 +267,7 @@ func _process(delta: float) -> void:
 			thr = 1 if _touch.taps > _taps_at_go else 0
 	var ab: bool = _ult_pending > 0
 	_ult_pending = max(_ult_pending - 1, 0)
-	_send(Protocol.input(_seq, Protocol.steer_from_screen(_touch.steer), thr, ab))
+	var steer: int = Protocol.steer_from_screen(_touch.steer)
+	_send(Protocol.input(_seq, steer, thr, ab))
+	if _view.prediction != null:
+		_view.prediction.step_local(_seq, steer, thr)

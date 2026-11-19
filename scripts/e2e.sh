@@ -55,4 +55,18 @@ for _ in $(seq 1 50); do
 done
 "$BIN/botclient" -url "ws://127.0.0.1:$PORT" -clients 3 -races 1 -timeout 3m
 
+echo "== M7: headless Godot client drives with prediction under -sim-lag=150ms (real time) =="
+kill $SERVER_PID 2>/dev/null || true
+wait $SERVER_PID 2>/dev/null || true
+"$BIN/server" -addr "127.0.0.1:$PORT" -test -sim-lag 150ms -sim-jitter 40ms -log-level warn >"$REPO/build/logs/e2e_server_pred.txt" 2>&1 &
+SERVER_PID=$!
+for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$PORT/healthz" >/dev/null && break; sleep 0.1; done
+"$GODOT" --headless --path "$REPO/godot" res://src/testing/BotClient.tscn -- --server "ws://127.0.0.1:$PORT" --name "Pred" \
+  --mode practice --drive --timeout 240 >"$REPO/build/logs/e2e_godot_pred.txt" 2>&1 || { tail -5 "$REPO/build/logs/e2e_godot_pred.txt"; exit 1; }
+line=$(grep "BOTCLIENT RESULT" "$REPO/build/logs/e2e_godot_pred.txt")
+echo "$line"
+echo "$line" | grep -q "finished=true" || { echo "predicted driver did not finish under lag"; exit 1; }
+avg=$(echo "$line" | sed 's/.*pred_err_avg=\([0-9.]*\).*/\1/')
+awk -v a="$avg" 'BEGIN { exit !(a < 0.5) }' || { echo "prediction error too high: avg $avg m"; exit 1; }
+
 echo "e2e: OK"

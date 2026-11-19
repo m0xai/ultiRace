@@ -89,6 +89,9 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
    Try it yourself: `/Applications/Godot.app/Contents/MacOS/Godot --path godot res://src/render/MapViewer.tscn`
    (WASD/QE fly, right-drag look, keys 1/2/3 switch maps). Tell Claude anything about track
    shapes, widths, corners or the bridge you want changed.
+11. [ ] **Feel check M7 (prediction):** the build on your phone now predicts your own car
+    (steering should react instantly). Steering direction was fixed. Tell Claude if the car
+    jitters/rubber-bands, especially when hit by ULTs or bumping into cars.
 10. [ ] **Play a race on the phone (feel check, M5):** Home → Practice vs bots → READY → pick a car
     → race with the two steer buttons. Known: your car reacts ~100 ms late until M7 adds
     prediction. Tell Claude what feels off (button size/position, camera, speed, steering).

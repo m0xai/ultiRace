@@ -1,0 +1,97 @@
+class_name Prediction
+extends RefCounted
+
+## Own-car prediction + reconciliation (GAME_PLAN §3.5). The client steps its own car with the
+## Physics.gd mirror every input tick; on each snapshot it resets to the server's state for the
+## acknowledged input and replays the inputs the server has not used yet. Visual corrections are
+## smoothed over ~100 ms; errors above SNAP_DISTANCE snap. Collisions, ULTs and effects stay
+## server-only: they arrive through snapshots (spin-out freezes input locally).
+
+const SMOOTH_S: float = 0.1
+const SNAP_DISTANCE: float = 5.0
+const MAX_HISTORY: int = 90
+
+var state: Physics.CarState = Physics.CarState.new()
+var started: bool = false
+var last_error: float = 0.0 # metres, for the debug overlay / tests
+
+var _track: Track
+var _params: Physics.CarParams
+var _ph: Physics.Constants
+var _dt: float
+var _mods: Physics.Mods = Physics.Mods.new()
+var _history: Array[PackedInt32Array] = [] # [seq, steer, thr]
+var _off_s: float = 0.0
+var _off_d: float = 0.0
+var _off_yaw: float = 0.0
+
+
+func _init(tr: Track, vehicle_id: String) -> void:
+	_track = tr
+	_params = Physics.params_for_vehicle(vehicle_id)
+	_ph = Physics.constants()
+	_dt = 1.0 / float(GameData.balance()["tickRate"])
+
+
+## Applies one local input tick (call at the input rate, after sending it to the server).
+func step_local(seq: int, steer: int, thr: int) -> void:
+	if not started:
+		return
+	_history.append(PackedInt32Array([seq, steer, thr]))
+	if _history.size() > MAX_HISTORY:
+		_history.remove_at(0)
+	Physics.step_car(state, steer, thr, _params, _mods, _track, _ph, _dt)
+
+
+## Server correction: car = our car in the snapshot, ack = last input seq the server applied.
+func reconcile(car: Protocol.SnapCar, ack: int) -> void:
+	var before: Physics.CarState = state.copy()
+	var had: bool = started
+	state.s = car.s
+	state.d = car.d
+	state.yaw_rel = car.yaw_rel
+	state.y = car.y
+	state.vy = car.vy
+	state.speed = car.speed
+	state.lap = car.lap
+	_mods.no_input = (car.flags & Protocol.EFF_SPINOUT) != 0
+	started = true
+	while _history.size() > 0 and _history[0][0] <= ack:
+		_history.remove_at(0)
+	for h: PackedInt32Array in _history:
+		Physics.step_car(state, h[1], h[2], _params, _mods, _track, _ph, _dt)
+	if not had:
+		return
+	# keep what the player sees continuous: carry the error as a decaying visual offset
+	var raw_s: float = MathX.wrap_delta(state.s, before.s, _track.length)
+	var raw_d: float = before.d - state.d
+	last_error = sqrt(raw_s * raw_s + raw_d * raw_d) # this correction only (metrics)
+	var es: float = raw_s + _off_s
+	var ed: float = raw_d + _off_d
+	if sqrt(es * es + ed * ed) > SNAP_DISTANCE:
+		_off_s = 0.0
+		_off_d = 0.0
+		_off_yaw = 0.0
+	else:
+		_off_s = es
+		_off_d = ed
+		_off_yaw = before.yaw_rel - state.yaw_rel + _off_yaw
+
+
+## What to render this frame: the predicted state plus the fading correction offset.
+func visual(delta: float) -> Physics.CarState:
+	var k: float = exp(-delta / SMOOTH_S)
+	_off_s *= k
+	_off_d *= k
+	_off_yaw *= k
+	var v: Physics.CarState = state.copy()
+	var prog: float = float(v.lap) * _track.length + v.s + _off_s
+	v.lap = int(floorf(prog / _track.length))
+	v.s = prog - float(v.lap) * _track.length
+	v.d += _off_d
+	v.yaw_rel += _off_yaw
+	return v
+
+
+func pending_inputs() -> int:
+	return _history.size()

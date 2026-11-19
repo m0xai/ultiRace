@@ -91,7 +91,9 @@ type Player struct {
 	car            int // index in the world, -1 if not racing
 	blocked        map[string]bool
 	input          sim.Input
-	ack            uint32
+	ack            uint32     // seq of the last input applied by the simulation (snapshot ack)
+	lastSeq        uint32     // newest seq received
+	queue          []queuedIn // racing: one input is applied per tick, in order (M7 replay)
 	lastInputTick  int
 	afk            bool
 	wasAfk         bool
@@ -104,6 +106,14 @@ type Player struct {
 }
 
 func (p *Player) connected() bool { return p.send != nil && !p.left }
+
+type queuedIn struct {
+	seq uint32
+	in  sim.Input
+}
+
+// maxInputQueue caps server-side input latency (ticks); older inputs are dropped.
+const maxInputQueue = 4
 
 // Options configure a new room.
 type Options struct {
@@ -295,6 +305,7 @@ func (c *Core) Reconnect(token string, send Sender) (*Player, bool) {
 func (c *Core) attach(p *Player, send Sender) {
 	p.send = send
 	p.disconnectedAt = -1
+	p.lastSeq, p.queue = 0, nil // a reconnected client restarts its input sequence
 	p.lastInputTick = c.tick
 	p.afk = false
 	c.roomDirty = true
@@ -437,14 +448,26 @@ func (c *Core) Handle(id string, msg any) {
 	case *protocol.Lock:
 		c.lock(p, m.Vehicle)
 	case *protocol.In:
-		if m.Seq > p.ack || p.ack == 0 {
+		if m.Seq > p.lastSeq || p.lastSeq == 0 {
 			in := sim.Input{Steer: m.Steer, Throttle: m.Thr, Ability: m.Ab}
-			if in != p.input {
+			last := p.input
+			if n := len(p.queue); n > 0 {
+				last = p.queue[n-1].in
+			}
+			if in != last {
 				p.lastInputTick = c.tick
 				p.afk = false
 			}
-			p.input = in
-			p.ack = m.Seq
+			p.lastSeq = m.Seq
+			if c.State == Racing {
+				// queued: applied one per tick so the client can replay exactly (prediction)
+				p.queue = append(p.queue, queuedIn{m.Seq, in})
+				if len(p.queue) > maxInputQueue {
+					p.queue = p.queue[len(p.queue)-maxInputQueue:]
+				}
+			} else {
+				p.input, p.ack, p.queue = in, m.Seq, p.queue[:0]
+			}
 		}
 	case *protocol.Rematch:
 		if c.State == Results {
@@ -654,7 +677,7 @@ func (c *Core) startRace() {
 	for i, p := range c.grid {
 		p.car = i
 		p.input = sim.Input{}
-		p.ack = 0
+		p.ack, p.lastSeq, p.queue = 0, 0, nil
 		p.afk, p.wasAfk = false, false
 		p.lastInputTick = c.tick
 		vehicles[i], _ = c.data.vehicle(p.vehicle)
@@ -754,6 +777,10 @@ func (c *Core) driveCars() {
 			p.afk, p.wasAfk = true, true
 		}
 		if human && !p.afk {
+			if len(p.queue) > 0 { // one queued input per tick; otherwise repeat the last one
+				p.input, p.ack = p.queue[0].in, p.queue[0].seq
+				p.queue = p.queue[1:]
+			}
 			car.Input = p.input
 			continue
 		}
