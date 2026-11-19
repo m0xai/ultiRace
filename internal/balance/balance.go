@@ -30,6 +30,9 @@ type Race struct {
 	Ticks       int
 }
 
+// FormNoise is the spread of per-race bot line accuracy (m); 0 = identical deterministic bots.
+var FormNoise = 3.0
+
 // Drive applies bot input for every car (also used by rooms for bot seats).
 func Drive(w *sim.World, ctrls []*bots.Controller, startDelay []int) {
 	states := make([]*sim.CarState, len(w.Cars))
@@ -66,7 +69,10 @@ func RunRace(d *room.Data, mapID string, laps int, seed uint32) Race {
 	ctrls := make([]*bots.Controller, len(vs))
 	delay := make([]int, len(vs))
 	for i := range ctrls {
-		ctrls[i] = bots.NewController(d.Lines[mapID], bots.Normal, rng.Uint32())
+		// equal average skill, human-like race-to-race form: every vehicle draws from the same
+		// distribution (line accuracy and reaction), so no vehicle is favoured
+		form := bots.Difficulty{ReactionTicks: 3 + rng.Intn(7), LineNoise: 0.5 + rng.Float()*FormNoise}
+		ctrls[i] = bots.NewController(d.Lines[mapID], form, rng.Uint32())
 		ctrls[i].SetPhysics(w.Cars[i].Params, &d.Bal.Physics)
 		delay[i] = 1 + rng.Intn(14) // human-like reaction at GO: some get a start boost
 	}

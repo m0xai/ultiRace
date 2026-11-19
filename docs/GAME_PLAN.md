@@ -255,7 +255,7 @@ with antennas (purple), Hook crane arm (green), Goo tanker (lime), Phantom sleek
 
 ### 2.9 Balance targets (checked by the balance sim)
 
-`make balance RACES=500`: 8 equal-skill bots, random vehicle per slot, all 3 maps, 3 laps.
+`make balance` (2000 races): 8 bots of equal average skill with per-race form, random vehicle per slot, all 3 maps, 3 laps.
 
 | Metric | Target |
 |---|---|
@@ -268,7 +268,7 @@ with antennas (purple), Hook crane arm (green), Goo tanker (lime), Phantom sleek
 
 Bots use a simple heuristic per ULT (Ram when a car is within 10 m ahead, EMP when ≥ 2 cars
 within 18 m, Ice when a car is within 30 m behind, …). The tuner may only change numbers in
-`gamedata/balance.json`. The sim (`cmd/balance`) runs races in parallel goroutines and writes
+`gamedata/balance.json` (including small per-vehicle top-speed trims, `vehicleTrim`). The sim (`cmd/balance`) runs races in parallel goroutines and writes
 `docs/BALANCE_REPORT.md`.
 
 ### 2.10 Maps (3)

@@ -124,7 +124,7 @@ func boolInt(b bool) int {
 func buildPhysicsFixture(t *testing.T, f *fixture, sc scenario) physicsFixture {
 	tr := f.tracks[sc.mapID]
 	v := f.vehicle(t, sc.vehicle)
-	p := ParamsFor(v.Stats, f.bal.Stats)
+	p := ParamsForVehicle(v, f.bal)
 	dt := 1.0 / float64(f.bal.TickRate)
 	if sc.start.S < 0 { // negative start s = metres before the start line
 		sc.start.S += tr.Length

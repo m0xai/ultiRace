@@ -86,6 +86,16 @@
     "startBoostAccel": 0.5,
     "startBoostS": 1
   },
+  "vehicleTrim": {
+    "bolt": -0.013,
+    "glacier": 0.024,
+    "goo": 0.031,
+    "hook": -0.011,
+    "phantom": -0.029,
+    "rhino": 0.028,
+    "twister": -0.006,
+    "volt": -0.014
+  },
   "ults": {
     "emp": {
       "cooldownS": 11,
@@ -124,7 +134,7 @@
       "accel": 0.6,
       "cooldownS": 9.417,
       "durationS": 2,
-      "speed": 0.35
+      "speed": 0.22
     },
     "phase": {
       "cooldownS": 12,

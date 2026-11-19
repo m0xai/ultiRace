@@ -28,6 +28,9 @@ type Balance struct {
 	Rooms    Rooms        `json:"rooms"`
 	Effects  Effects      `json:"effects"`
 	Catchup  Catchup      `json:"catchup"`
+	// VehicleTrim is a small per-vehicle top-speed adjustment (fraction, e.g. 0.02 = +2 %) set by
+	// the balance tuner; stats define character, trims fine-tune fairness.
+	VehicleTrim map[string]float64 `json:"vehicleTrim"`
 	// Ults holds each ULT's numbers by ult id (vehicles.json "ult"), e.g. Ults["nitro"]["cooldownS"].
 	Ults map[string]map[string]float64 `json:"ults"`
 }

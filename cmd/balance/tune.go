@@ -186,3 +186,27 @@ func tunePace(bal *gamedata.Balance, iters int, path string) *gamedata.Balance {
 	_ = os.WriteFile(path, append(data, '\n'), 0o644)
 	return out
 }
+
+// tuneTrim nudges each vehicle's top-speed trim toward an average finishing position of 4.5
+// (proportional feedback on the race sim), keeping |trim| ≤ 0.05.
+func tuneTrim(bal *gamedata.Balance, iters, races, laps int, path string) *gamedata.Balance {
+	cur := toMap(bal)
+	for it := 0; it < iters; it++ {
+		b := fromMap(cur)
+		s := evaluate(b, races, laps, uint32(1+it*101)) // fresh races each round: no overfitting
+		fmt.Printf("trim iter %d loss %.3f", it, s.Loss)
+		for _, v := range s.Vehicles {
+			// average position pulls toward 4.5, win rate toward 12.5 % (high-variance cars like
+			// Bolt can have a fair average but too many wins)
+			t := b.VehicleTrim[v] + 0.006*(s.AvgPos[v]-4.5) - 0.08*(s.WinRate[v]-0.125)
+			t = mathx.Clamp(t, -0.05, 0.05)
+			set(cur, []string{"vehicleTrim", v}, t)
+			fmt.Printf(" %s=%.3f(%.2f)", v, t, s.AvgPos[v])
+		}
+		fmt.Println()
+	}
+	out := fromMap(cur)
+	data, _ := json.MarshalIndent(out, "", "  ")
+	_ = os.WriteFile(path, append(data, '\n'), 0o644)
+	return out
+}

@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M5, M7 done** (2026-11-19). **M6** open only for balance targets (tuning round 3 running). Next: **M8** art pass.
+- **M0–M7 done** (2026-11-19). **M8 in progress** (art pass): cars + VFX + suspension done; lighting, props, camera polish, human review next.
 
 ## M0 plan — Setup
 
@@ -114,22 +114,12 @@ Deferred from M5 on purpose: settings screen (M9 with haptics/audio), Browse Roo
 block/kick UI (M11), countdown start boost + ULT logic (M6), prediction (M7: own car still
 interpolated ~100 ms behind → steering feels laggy until M7).
 
-## M6 status — ULTs & balance (open: balance targets)
+## M6 — done (ULTs & balance)
 
-- [x] effects (`internal/sim/effects.go`), world integration (ULT activation, traps, projectiles,
-      start boost, drafting, comeback, recharge by position, lead-change metric), 8 ULTs in
-      `internal/abilities/` (+ tests for every ULT and CC rule), bot ULT heuristics
-      (`internal/bots/ults.go`), bots lift for corners, absolute steering falloff (`steerRefSpeed`).
-- [x] protocol: effects + ULT charge in flags, traps/projectiles in snapshots, `ev.ult`; client
-      ULT button/ring, hit banners, placeholder effect/hazard visuals.
-- [x] `cmd/balance`: report (`make balance` → `docs/BALANCE_REPORT.md`), `-trial` (solo lap per
-      vehicle/map), `-tune-pace N` (stage 1), `-tune N [-tune-all]` (stage 2), `-balance file`.
-- [ ] Targets: 6/8 met (CC share, CC/lap, lead changes 5.5, gap 6.5 s, lap 40.7 s); win rate
-      per vehicle (0.2–33 %) and avg position (2.4–6.4) still fail. Glacier/Goo/Rhino lose,
-      Bolt/Phantom win. Round 3 (per-ULT cooldown/strength knobs) running:
-      `build/logs/tune3.txt` → `build/tuned3_balance.json`. If targets stay out of reach, the
-      likely root cause: equal-skill deterministic bots turn ~0.3 s/lap pace gaps into near-certain
-      wins; consider adding race-to-race bot "form" variance (difficulty noise) — record in DECISIONS.
+All ULTs/effects/catch-up in Go, client visuals, balance tooling. Final balance over 6000 races:
+7/8 targets pass; Bolt avg position 5.15 (≤ 5.1) is the one miss (see DECISIONS). Tuning
+workflow: `build/balance -tune-pace N`, `-tune N -tune-all`, `-tune-trim N` (writes -tune-out),
+check with `-races 2000 -seed {1,3,7}`, then copy to gamedata/balance.json and `make fixtures sync test balance`.
 
 ## M7 — done (prediction)
 

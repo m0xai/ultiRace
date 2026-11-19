@@ -683,7 +683,7 @@ func (c *Core) startRace() {
 		vehicles[i], _ = c.data.vehicle(p.vehicle)
 		p.ctrl = bots.NewController(line, bots.Normal, c.rng.Uint32())
 		p.startDelay = 1 + c.rng.Intn(14) // bots: human-like reaction at GO
-		p.ctrl.SetPhysics(sim.ParamsFor(vehicles[i].Stats, c.data.Bal.Stats), &c.data.Bal.Physics)
+		p.ctrl.SetPhysics(sim.ParamsForVehicle(vehicles[i], c.data.Bal), &c.data.Bal.Physics)
 	}
 	c.world = sim.NewWorld(c.data.Tracks[c.Map], c.data.Bal, vehicles, c.Laps)
 	c.world.Ults = abilities.New(c.data.Bal)

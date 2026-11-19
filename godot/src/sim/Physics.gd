@@ -109,7 +109,14 @@ static func params_for(stats: Dictionary, mapping: Dictionary) -> CarParams:
 
 static func params_for_vehicle(vehicle_id: String) -> CarParams:
 	var v: Dictionary = GameData.vehicle(vehicle_id)
-	return params_for(v["stats"] as Dictionary, GameData.balance()["stats"] as Dictionary)
+	var bal: Dictionary = GameData.balance()
+	var p: CarParams = params_for(v["stats"] as Dictionary, bal["stats"] as Dictionary)
+	# per-vehicle top-speed trim (balance tuner); accel keeps its time-to-top-speed
+	var trim: float = float((bal.get("vehicleTrim", {}) as Dictionary).get(vehicle_id, 0.0))
+	var accel_time: float = p.top_speed / p.accel
+	p.top_speed *= 1.0 + trim
+	p.accel = p.top_speed / accel_time
+	return p
 
 
 static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams, mods: Mods, tr: Track, ph: Constants, dt: float) -> StepEvents:

@@ -22,6 +22,7 @@ func main() {
 	tuneOut := flag.String("tune-out", "gamedata/balance.json", "where the tuner writes the best balance")
 	withPace := flag.Bool("tune-all", false, "stage-2 tuning may also change the pace knobs")
 	trial := flag.Bool("trial", false, "print solo lap times per vehicle and map, then exit")
+	tuneTrimIters := flag.Int("tune-trim", 0, "per-vehicle top-speed trim feedback rounds (writes -tune-out)")
 	tunePaceIters := flag.Int("tune-pace", 0, "stage-1 tuning: equalise solo pace (writes -tune-out)")
 	flag.Parse()
 	bal, err := gamedata.LoadBalance()
@@ -34,6 +35,9 @@ func main() {
 	}
 	if *tunePaceIters > 0 {
 		bal = tunePace(bal, *tunePaceIters, *tuneOut)
+	}
+	if *tuneTrimIters > 0 {
+		bal = tuneTrim(bal, *tuneTrimIters, 1000, *laps, *tuneOut)
 	}
 	if *tuneIters > 0 {
 		bal = tune(bal, *tuneIters, 120, *laps, *tuneOut, *withPace)

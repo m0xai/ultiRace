@@ -23,7 +23,17 @@ type CarParams struct {
 
 // ParamsFor maps 1–5 stats linearly to physical values (GAME_PLAN §2.6).
 func ParamsFor(st gamedata.Stats, m gamedata.StatsMapping) CarParams {
-	top := m.TopSpeedBase + m.TopSpeedPerStat*float64(st.Speed)
+	return ParamsForTrim(st, m, 0)
+}
+
+// ParamsForVehicle includes the vehicle's top-speed trim from balance.json.
+func ParamsForVehicle(v gamedata.Vehicle, b *gamedata.Balance) CarParams {
+	return ParamsForTrim(v.Stats, b.Stats, b.VehicleTrim[v.ID])
+}
+
+// ParamsForTrim maps stats with a top-speed trim (fraction).
+func ParamsForTrim(st gamedata.Stats, m gamedata.StatsMapping, trim float64) CarParams {
+	top := (m.TopSpeedBase + m.TopSpeedPerStat*float64(st.Speed)) * (1 + trim)
 	accelTime := m.AccelTimeBase - m.AccelTimePerStat*float64(st.Accel)
 	return CarParams{
 		TopSpeed:    top,

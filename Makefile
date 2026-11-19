@@ -4,7 +4,7 @@
 GODOT   ?= /Applications/Godot.app/Contents/MacOS/Godot
 BLENDER ?= /Applications/Blender.app/Contents/MacOS/Blender
 GODOT_DIR := godot
-RACES   ?= 500
+RACES   ?= 2000
 SHOT    ?= docs/screenshots/boot.png
 
 .PHONY: help test test-go test-godot lint fixtures sync check-sync server balance assets e2e \

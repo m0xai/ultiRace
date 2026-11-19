@@ -112,7 +112,7 @@ func NewWorld(tr *track.Track, bal *gamedata.Balance, vehicles []gamedata.Vehicl
 			Vehicle: v.ID,
 			Ult:     v.Ult,
 			Weight:  v.Stats.Weight,
-			Params:  ParamsFor(v.Stats, bal.Stats),
+			Params:  ParamsForVehicle(v, bal),
 			State:   CarState{S: s, D: d, Lap: -1},
 		})
 	}
