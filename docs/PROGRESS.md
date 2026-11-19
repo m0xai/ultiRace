@@ -154,7 +154,16 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
    Associated Domains + Team ID (paid program #15). After deploy: switch nothing (prod URL is
    already the default in release builds), run `make e2e`-style public play test against
    `wss://ultirace.flappus.com` with `cmd/botclient -url wss://ultirace.flappus.com`.
-3. M12 — performance: debug overlay (FPS, frame ms, draw calls, tris, tier, ping, kbps),
+3. M12 — IN PROGRESS. Done: `-pprof` flag; test mode lifts per-IP limits; soak 100 practice
+   rooms on the Mac = ~50 % of one core, 30 MB flat (profile: game logic ≈ 3 %, rest macOS
+   kevent/syscalls with clients on the same machine → re-measure on Linux/flappus); `Quality.gd`
+   autoload (tiers by model, adaptive render scale, 120 Hz on ProMotion, plist
+   CADisableMinimumFrameDurationOnPhone); `DebugOverlay.gd` (F3 / two-finger triple tap, `--overlay`).
+   OPEN ISSUES: (a) on the Mac the adaptive scaler dropped render scale to 0.70 because the target
+   was 120 fps but vsync caps frames at 60 → only treat frame time as "slow" when FPS < target
+   and frame time > display interval; (b) draw calls rose to 154 / 321 objects in race (budget 150
+   low / 250 high) — check per-car GPUParticles trails (8 emitters) and hazard meshes, pool them.
+   Remaining M12 work: debug overlay (FPS, frame ms, draw calls, tris, tier, ping, kbps),
    `Quality.gd` tiers (iPhone 11 low / 15 Pro Max high, adaptive render scale), server capacity
    soak with `cmd/botclient -practice -clients N`, memory flat over 5 races, Bolt balance follow-up.
 

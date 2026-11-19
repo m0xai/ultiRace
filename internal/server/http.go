@@ -94,8 +94,8 @@ func New(ctx context.Context, cfg Config, log *slog.Logger) (*Server, error) {
 		gc: gc, Bans: bans,
 		cfg: cfg, log: log, started: time.Now(),
 		Rooms: mgr, Dir: dir, MM: room.NewMatchmaker(mgr),
-		connLimit:   newLimiter(2, 20),
-		createLimit: newLimiter(0.2, 5),
+		connLimit:   connLimitFor(cfg.TestMode),
+		createLimit: createLimitFor(cfg.TestMode),
 		apiLimit:    newLimiter(5, 30),
 		msgLimit:    newLimiter(msgRatePerSec*scale, msgBurst*scale), // inputs speed up with the time scale
 	}, nil
@@ -209,4 +209,21 @@ func (s *Server) handleQuickPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, quickPlayResp{Room: code})
+}
+
+// connLimitFor: per-IP limits for new connections and room creation; -test mode lifts them so
+// load tests (cmd/botclient from one IP) can open hundreds of rooms.
+func connLimitFor(test bool) *limiter {
+	if test {
+		return newLimiter(1000, 1000)
+	}
+	return newLimiter(2, 20)
+}
+
+// createLimitFor: room creations / quick plays per IP (0.2/s, burst 5); lifted in -test mode.
+func createLimitFor(test bool) *limiter {
+	if test {
+		return newLimiter(1000, 1000)
+	}
+	return newLimiter(0.2, 5)
 }

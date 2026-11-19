@@ -431,6 +431,8 @@ static func _environment(th: TrackTheme) -> Node3D:
 	env.fog_light_color = th.fog
 	env.fog_density = th.fog_density
 	env.glow_enabled = th.wall_emission.r + th.wall_emission.g + th.wall_emission.b > 0.0
+	if Engine.get_main_loop() != null and (Engine.get_main_loop() as SceneTree).root.has_node("Quality"):
+		(Engine.get_main_loop() as SceneTree).root.get_node("Quality").call("configure_environment", env, sun)
 	var we: WorldEnvironment = WorldEnvironment.new()
 	we.environment = env
 	node.add_child(we)

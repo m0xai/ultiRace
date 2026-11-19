@@ -7,6 +7,7 @@ import (
 	"flag"
 	"log/slog"
 	"net/http"
+	_ "net/http/pprof" // registered on DefaultServeMux, served only with -pprof (dev)
 	"os"
 	"os/signal"
 	"strconv"
@@ -28,6 +29,7 @@ func main() {
 	timeScale := flag.Float64("time-scale", 1, "test mode only: run rooms up to 10× faster")
 	dataDir := flag.String("data", envOr("DATA_DIR", ""), "directory for reports.jsonl (empty = discard)")
 	maxRooms := flag.Int("max-rooms", atoiOr(os.Getenv("MAX_ROOMS"), 2000), "maximum concurrent rooms")
+	pprofAddr := flag.String("pprof", "", "dev only: serve net/http/pprof on this address (e.g. 127.0.0.1:6060)")
 	healthcheck := flag.Bool("healthcheck", false, "probe http://127.0.0.1:$PORT/healthz and exit (container healthcheck)")
 	flag.Parse()
 	if *healthcheck {
@@ -66,6 +68,10 @@ func main() {
 		Addr:              cfg.Addr,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	if *pprofAddr != "" {
+		go func() { _ = http.ListenAndServe(*pprofAddr, nil) }() // DefaultServeMux has pprof handlers
 	}
 
 	// SIGHUP reloads /data/bans.json (GAME_PLAN §6.3)

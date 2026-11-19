@@ -21,6 +21,7 @@ general/ios/mix_with_others=true
 
 DevTools="*res://src/testing/DevTools.gd"
 AudioDirector="*res://src/audio/AudioDirector.gd"
+Quality="*res://src/render/Quality.gd"
 
 [debug]
 

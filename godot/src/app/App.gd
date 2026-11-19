@@ -19,6 +19,7 @@ var _select: SelectScreen
 var _results: ResultsScreen
 var _settings: SettingsScreen
 var _browser: RoomBrowserScreen
+var _overlay: CanvasLayer
 var _view: RaceView
 var _hud: RaceHud
 var _touch: TouchControls
@@ -40,6 +41,8 @@ var _banner_t: float = 0.0
 
 func _ready() -> void:
 	InputSetup.ensure()
+	_overlay = (load("res://src/testing/DebugOverlay.gd") as GDScript).new() as CanvasLayer
+	add_child(_overlay)
 	_view = RaceView.new()
 	add_child(_view)
 	_ui = CanvasLayer.new()
@@ -127,6 +130,7 @@ func _connect(opts: Dictionary) -> void:
 	add_child(_conn)
 	_conn.message.connect(_on_message)
 	_conn.snapshot.connect(_view.push_snapshot)
+	_overlay.conn = _conn
 	_conn.closed.connect(_on_closed)
 	var hello_opts: Dictionary = opts.duplicate()
 	hello_opts["token"] = Profile.token()
