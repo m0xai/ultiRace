@@ -1,0 +1,26 @@
+# build outputs and temp folders
+/build/
+*.test
+*.prof
+
+# Godot
+.godot/
+/godot/.godot/
+/godot/export_credentials.cfg
+*.translation
+
+# Blender
+*.blend1
+
+# secrets and signing (never commit)
+.env
+.env.*
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+*.keychain*
+.claude/settings.local.json
+
+# OS
+.DS_Store
