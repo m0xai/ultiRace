@@ -11,15 +11,19 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   - PASS: Go build + linux/amd64 static cross-compile; Godot headless script; Blender headless
     bevelled cube → .glb + PNG → Godot headless import; Godot windowed screenshot (Metal 4,
     Mobile renderer); Xcode 27.2 + iOS SDK + simulator runtime; Docker.
-  - **WAITING FOR HUMAN** (blocks iOS export + device install, `docs/HUMAN_TODO.md` items 1–3):
-    Godot 4.7.2 iOS export template, Apple Development signing identity, pairing the
-    iPhone 15 Pro Max.
+  - Export templates installed by Claude; Godot iOS export → Xcode project PASSES (needs an
+    app icon + Team ID; see TOOLCHAIN gotchas).
+  - iOS Simulator: not possible with the official 4.7.2 templates (x86_64-only sim slice,
+    iOS 27 sim rejects x86_64). Decision: device-only testing (DECISIONS.md).
+  - **WAITING FOR HUMAN:** HUMAN_TODO item 0, turn on Developer Mode on the iPhone 15 Pro Max.
+    Signing uses the free Personal Team `R984A9U2G4` with
+    `-allowProvisioningUpdates -allowProvisioningDeviceRegistration -destination id=<UDID>`.
 - No game code yet.
 
 ## Next steps
 
-1. When the human confirms items 1–3 in HUMAN_TODO: run `scripts/preflight.sh`; steps c, d1
-   and d2 must PASS (export, simulator, signed device install + launch). If codesign shows a
+1. When the human confirms Developer Mode: run `scripts/preflight.sh`; c and d2 must PASS
+   (d1 SKIPs by design). If codesign shows a
    keychain dialog, tell the human in one short message and wait. Then update
    `docs/TOOLCHAIN.md` (mark c/d verified, record the Team ID and min iOS version).
 2. M0: Go module + layout (§3.2), `godot/` project with `VERSION`, gdUnit4, iOS preset,

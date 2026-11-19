@@ -67,6 +67,23 @@ verified** (template, signing and device missing). Update this file once they pa
 
 ## Surprises / gotchas
 
+- **No iOS Simulator builds with the official Godot 4.7.2 templates on Apple Silicon.** The
+  `libgodot.ios.{debug,release}.xcframework/ios-arm64_x86_64-simulator/libgodot.a` slice is
+  x86_64-only (`lipo -info`), so an arm64 simulator build fails to link, and the iOS 27
+  simulator refuses x86_64 apps ("does not contain code for any platform … runnable").
+  Tried: arm64 build, `ARCHS=x86_64` build (builds, won't install), debug slice (also x86_64).
+  Consequence: on-device testing on the iPhone 15 Pro Max replaces the simulator; CI keeps an
+  unsigned `-destination 'generic/platform=iOS'` compile check. Revisit if a template update
+  ships an arm64 simulator slice (preflight d1 detects this automatically).
+- **iOS export needs an app icon** (`application/config/icon` or `icons/icon_1024x1024`), and a
+  **Team ID** even for project-only export. Without the icon, Godot aborts mid-export and
+  leaves a `.xcodeproj` with unreplaced `$pbx_*` placeholders that Xcode can't open, while the
+  process still exits 0.
+- **Signing:** Xcode has the Apple ID of the free *Personal Team* `R984A9U2G4` signed in. The
+  Team ID is read from `defaults read com.apple.dt.Xcode IDEProvisioningTeamByIdentifier`;
+  `xcodebuild -allowProvisioningUpdates` creates the certificate and profile. Free teams:
+  7-day profiles, no Game Center / Associated Domains / TestFlight (paid program needed by M10).
+
 - **No `timeout`/`gtimeout` on macOS.** Use Godot's own `--quit-after <frames>` and
   `get_tree().quit(code)` instead of wrapping commands.
 - **Godot `--export-release` returns exit 0 even when the export fails** (e.g. missing

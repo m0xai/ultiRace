@@ -6,7 +6,14 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ### Blocking iOS export / device install (Step 2 preflight)
 
-1. [ ] **Install the Godot 4.7.2 export templates** (needs `ios.zip`):
+0. [ ] **Enable Developer Mode on the iPhone 15 Pro Max** (current blocker): iPhone →
+   *Settings → Privacy & Security → Developer Mode* → on → restart → confirm *Turn On* after
+   reboot. (If the toggle is missing, open Xcode → *Window → Devices and Simulators* with the
+   phone connected once; it appears then.) The phone is already paired.
+   After the first install, iOS may also need: *Settings → General → VPN & Device Management →
+   Apple Development: … → Trust*.
+
+1. [x] ~~Install the Godot 4.7.2 export templates~~ (done by Claude 2026-11-19, SHA-512 verified):
    Godot editor → *Editor → Manage Export Templates… → Download and Install* (Official 4.7.2).
    Or in a terminal:
    ```bash
@@ -14,12 +21,13 @@ Things only the human can do. Claude adds items with exact steps; tick them when
    mkdir -p ~/Library/Application\ Support/Godot/export_templates/4.7.2.stable
    unzip -j Godot_v4.7.2-stable_export_templates.tpz 'templates/*' -d ~/Library/Application\ Support/Godot/export_templates/4.7.2.stable
    ```
-2. [ ] **Create an Apple Development signing identity**: Xcode → *Settings… → Accounts* → `+` →
+2. [ ] (probably not needed: xcodebuild `-allowProvisioningUpdates` should create it via the
+   Personal Team already signed in to Xcode; check after item 0) **Create an Apple Development signing identity**: Xcode → *Settings… → Accounts* → `+` →
    Apple ID → select the team → *Manage Certificates…* → `+` → *Apple Development*.
    Check: `security find-identity -v -p codesigning` lists "Apple Development: …".
    A free Personal Team works for device testing (7-day profiles); the paid Apple Developer
    Program is needed later for Game Center, TestFlight and Associated Domains.
-3. [ ] **Pair the iPhone 15 Pro Max**: connect by USB, unlock, tap *Trust*; enable
+3. [x] ~~Pair the iPhone 15 Pro Max~~ (paired, `00008130-001125A80A20001C`): connect by USB, unlock, tap *Trust*; enable
    *Settings → Privacy & Security → Developer Mode* (restart the phone). Open Xcode →
    *Window → Devices and Simulators* once so it prepares the device. Check:
    `xcrun devicectl list devices` shows it with state `available (paired)`.

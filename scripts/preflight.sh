@@ -56,6 +56,7 @@ config_version=5
 config/name="Preflight"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
+config/icon="res://icon.png"
 
 [rendering]
 
@@ -69,6 +70,16 @@ func _init() -> void:
 	var n: int = 6 * 7
 	print("godot headless ok: ", n, " ", Engine.get_version_info().string)
 	quit(0)
+EOF
+cat > "$P/make_icon.gd" <<'EOF'
+extends SceneTree
+
+## iOS export requires an app icon; without one Godot aborts mid-export and leaves a broken
+## .xcodeproj (unreplaced $placeholders) while still exiting 0.
+func _init() -> void:
+	var img: Image = Image.create(1024, 1024, false, Image.FORMAT_RGB8)
+	img.fill(Color(1.0, 0.8, 0.1))
+	quit(0 if img.save_png("res://icon.png") == OK else 1)
 EOF
 cat > "$P/main.gd" <<'EOF'
 extends Node3D
@@ -193,7 +204,16 @@ if [ -n "$IDENT" ]; then
   TEAM_ID=$(security find-certificate -c "$CN" -p 2>/dev/null | openssl x509 -noout -subject -nameopt multiline 2>/dev/null \
             | awk -F' = ' '/organizationalUnitName/ {print $2; exit}')
 fi
+# No certificate yet: fall back to the team of the Apple ID signed into Xcode;
+# xcodebuild -allowProvisioningUpdates then creates the development certificate itself.
+if [ -z "$TEAM_ID" ]; then
+  TEAM_ID=$(defaults read com.apple.dt.Xcode IDEProvisioningTeamByIdentifier 2>/dev/null \
+            | sed -n 's/.*teamID = \([A-Z0-9]\{10\}\);.*/\1/p' | head -1)
+fi
 TEAM_ID="${TEAM_ID_OVERRIDE:-$TEAM_ID}"
+# Godot refuses to export without a Team ID even for project-only exports. The simulator build
+# is unsigned, so a placeholder works there; d2 (device) still requires the real TEAM_ID.
+EXPORT_TEAM="${TEAM_ID:-ABCDE12345}"
 cat > "$P/export_presets.cfg" <<EOF
 [preset.0]
 
@@ -207,25 +227,37 @@ export_path="../ios/Preflight.xcodeproj"
 
 [preset.0.options]
 
-application/app_store_team_id="$TEAM_ID"
+application/app_store_team_id="$EXPORT_TEAM"
 application/bundle_identifier="$BUNDLE_ID"
 application/short_version="0.0.1"
 application/version="1"
 application/export_project_only=true
 application/min_ios_version="$MIN_IOS"
+icons/icon_1024x1024="res://icon.png"
+application/code_sign_identity_debug="Apple Development"
+application/code_sign_identity_release="Apple Development"
 EOF
+"$GODOT" --headless --path "$P" --script res://make_icon.gd >"$LOG/godot_icon.txt" 2>&1
+"$GODOT" --headless --path "$P" --import >>"$LOG/godot_icon.txt" 2>&1
 XPROJ="$W/ios/Preflight.xcodeproj"
 exported=0
 if [ ! -f "$TEMPLATE" ]; then skip c "no iOS export template at $TEMPLATE"
 else
   "$GODOT" --headless --path "$P" --export-release "iOS" "$XPROJ" >"$LOG/godot_export.txt" 2>&1
-  if [ -d "$XPROJ" ]; then exported=1; pass c "exported $XPROJ (team ${TEAM_ID:-none})"
+  # Godot exits 0 even on failure; also reject a half-written project with unreplaced $placeholders.
+  if [ -d "$XPROJ" ] && ! grep -q 'Project export for preset "iOS" failed' "$LOG/godot_export.txt" \
+     && ! grep -qE '^\s*\$(pbx|additional)_' "$XPROJ/project.pbxproj"; then exported=1; pass c "exported $XPROJ (team ${TEAM_ID:-none})"
   else fail c "iOS export failed (see $LOG/godot_export.txt)"; fi
 fi
 
 # ---------- d1: simulator build ----------
-if [ "$exported" -eq 1 ]; then
-  SCHEME=$(xcodebuild -list -project "$XPROJ" 2>/dev/null | awk '/Schemes:/ {getline; gsub(/^ +/, ""); print; exit}')
+# Godot 4.7.2's official simulator slice is x86_64-only, and the iOS 27 simulator no longer
+# runs x86_64 apps, so on Apple Silicon there is nothing to build until templates ship arm64.
+SIMLIB=$(find "$W/ios" -path '*simulator*/libgodot.a' 2>/dev/null | head -1)
+SCHEME=$(xcodebuild -list -project "$XPROJ" 2>/dev/null | awk '/Schemes:/ {getline; gsub(/^ +/, ""); print; exit}')
+if [ "$exported" -eq 1 ] && [ -n "$SIMLIB" ] && ! lipo -archs "$SIMLIB" 2>/dev/null | grep -q arm64; then
+  skip d1 "template simulator libgodot.a is $(lipo -archs "$SIMLIB") only (no arm64 slice); see docs/TOOLCHAIN.md"
+elif [ "$exported" -eq 1 ]; then
   if xcodebuild -project "$XPROJ" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
        -destination 'generic/platform=iOS Simulator' -derivedDataPath "$W/dd-sim" \
        CODE_SIGNING_ALLOWED=NO build >"$LOG/xcode_sim.txt" 2>&1; then
@@ -244,14 +276,17 @@ else skip d1 "needs step c"; fi
 # ---------- d2: signed device build ----------
 DEV=$(xcrun devicectl list devices --json-output "$W/devices.json" >/dev/null 2>&1; \
       python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["result"]["devices"]
-ok=[x for x in d if x.get("hardwareProperties",{}).get("deviceType")=="iPhone" and x.get("connectionProperties",{}).get("pairingState")=="paired"]
-print(ok[0]["identifier"] if ok else "")' "$W/devices.json" 2>/dev/null)
+ok=[x for x in d if x.get("hardwareProperties",{}).get("deviceType")=="iPhone" and x.get("hardwareProperties",{}).get("reality")!="simulated" and x.get("connectionProperties",{}).get("pairingState")=="paired"]
+print(ok[0]["identifier"] + " " + ok[0]["hardwareProperties"]["udid"] if ok else "")' "$W/devices.json" 2>/dev/null)
+DEV_UDID="${DEV#* }"; DEV="${DEV%% *}"
 if [ "$exported" -ne 1 ]; then skip d2 "needs step c"
 elif [ -z "$TEAM_ID" ]; then skip d2 "no Apple Development signing identity / Team ID"
 elif [ -z "$DEV" ]; then skip d2 "no paired iPhone (devicectl pairingState=paired)"
 else
-  if xcodebuild -project "$XPROJ" -scheme "$SCHEME" -configuration Release -destination 'generic/platform=iOS' \
-       -derivedDataPath "$W/dd-dev" -allowProvisioningUpdates DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+  # A concrete device destination + -allowProvisioningDeviceRegistration lets a free Personal
+  # Team register the iPhone and create its development profile automatically.
+  if xcodebuild -project "$XPROJ" -scheme "$SCHEME" -configuration Release -destination "id=$DEV_UDID" \
+       -derivedDataPath "$W/dd-dev" -allowProvisioningUpdates -allowProvisioningDeviceRegistration DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
        PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" build >"$LOG/xcode_dev.txt" 2>&1; then
     APP=$(find "$W/dd-dev/Build/Products" -maxdepth 2 -name '*.app' | head -1)
     if xcrun devicectl device install app --device "$DEV" "$APP" >>"$LOG/xcode_dev.txt" 2>&1 \
