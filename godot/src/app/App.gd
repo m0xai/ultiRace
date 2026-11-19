@@ -31,6 +31,9 @@ var _names: Dictionary = {}
 var _laps: int = 3
 var _auto: String = ""
 var _auto_locked: bool = false
+var _ult_pending: int = 0
+var _taps_at_go: int = -1
+var _banner_t: float = 0.0
 
 
 func _ready() -> void:
@@ -51,6 +54,7 @@ func _ready() -> void:
 	_lobby.send.connect(_send)
 	_lobby.leave.connect(_leave)
 	_select.send.connect(_send)
+	_touch.ability_pressed.connect(func() -> void: _ult_pending = 3) # hold "ab" for 3 inputs
 	_results.send.connect(_send)
 	_results.leave.connect(_leave)
 	_show(Screen.HOME)
@@ -156,6 +160,8 @@ func _on_message(m: Dictionary) -> void:
 			_results.visible = false
 			_racing = true
 			_show(Screen.RACE)
+		Protocol.T_EV:
+			_on_event(m)
 		Protocol.T_RESULTS:
 			_results.show_results(m)
 			_results.visible = true
@@ -215,12 +221,45 @@ func _auto_lock(m: Dictionary) -> void:
 			return
 
 
+const ULT_NAMES: Dictionary = {"nitro": "Nitro", "ram": "Ram Charge", "ice": "Ice Slick", "emp": "EMP Pulse",
+	"grapple": "Grapple", "goo": "Goo Bomb", "phase": "Phase", "tornado": "Tornado"}
+
+
+func _on_event(m: Dictionary) -> void:
+	var kind: String = str(m.get("kind", ""))
+	var car: int = int(m.get("car", -1))
+	if kind == "hit" and car == _view.you:
+		var src: int = int(m.get("other", -1))
+		var who: String = str((_view.grid[src] as Dictionary)["name"]) if src >= 0 and src < _view.grid.size() else ""
+		_hud.banner("%s — %s" % [ULT_NAMES.get(str(m.get("ult", "")), "Hit"), who])
+	elif kind == "startBoost" and car == _view.you:
+		_hud.banner("START BOOST!")
+	elif kind == "abilityUsed":
+		_view.flash(car)
+
+
 func _process(delta: float) -> void:
 	if not _racing or _view.you < 0:
 		return
+	var flags: int = _view.flags_of(_view.you)
+	_touch.ult_progress = Protocol.charge_of(flags)
+	_touch.ult_ready = _touch.ult_progress >= 0.999 and _view.race_time() >= 3.0
 	_input_t += delta
 	if _input_t < 1.0 / INPUT_HZ:
 		return
 	_input_t = 0.0
 	_seq += 1
-	_send(Protocol.input(_seq, _touch.steer, _touch.throttle, false))
+	var thr: int = _touch.throttle
+	if Profile.auto_accelerate():
+		# Start boost needs a fresh press within 0.25 s after GO: with auto-accelerate the throttle
+		# stays off during the countdown (touching counts as a jump start) and turns on 0.3 s after
+		# GO, or earlier when the player taps after GO.
+		var t: float = _view.race_time()
+		if t < 0.0:
+			thr = 1 if _touch.touching else 0
+			_taps_at_go = _touch.taps
+		elif t < 0.3:
+			thr = 1 if _touch.taps > _taps_at_go else 0
+	var ab: bool = _ult_pending > 0
+	_ult_pending = max(_ult_pending - 1, 0)
+	_send(Protocol.input(_seq, _touch.steer, thr, ab))

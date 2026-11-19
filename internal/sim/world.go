@@ -16,24 +16,65 @@ import (
 type Car struct {
 	ID       int
 	Vehicle  string
+	Ult      string
+	Weight   int
 	Params   CarParams
 	State    CarState
 	Input    Input
+	Status   Status
+	Flags    uint16  // effect bits of the last tick (snapshot)
+	UltLeft  float64 // seconds of cooldown left (0 = ready)
+	UltUses  int
 	Finished bool
+	// PrevThrottle/prevAbility detect rising edges (start boost, ULT button).
+	PrevThrottle int
+	prevAbility  bool
 	// FinishTick is the tick on which the car completed its last lap (valid if Finished).
 	FinishTick int
 	// LapTicks holds the tick at which each lap was completed (index 0 = lap 1).
 	LapTicks []int
 }
 
-// Event is something that happened during a tick (sent to clients as `ev` in M2).
+// Event is something that happened during a tick (sent to clients as `ev`).
 type Event struct {
 	Tick  int
-	Kind  string // "wallHit", "lap", "finished", "bump", "launch", "land"
+	Kind  string // "wallHit", "lap", "finished", "bump", "launch", "land", "abilityUsed", "hit", "startBoost"
 	Car   int
-	Other int     // second car for "bump"
+	Other int     // second car for "bump" / source car for "hit"
 	Value float64 // impact speed, lap number, …
 	Ticks int     // lap/finish tick count since race start
+	Ult   string  // ult id for "abilityUsed" / "hit"
+}
+
+// Trap is a ground hazard (ice, goo) in track space.
+type Trap struct {
+	Kind  string
+	Owner int
+	S     float64 // start of the patch
+	D     float64
+	Len   float64
+	HalfW float64
+	Until int
+	Hit   map[int]bool // cars already affected (each car once per patch)
+}
+
+// Projectile is a moving hazard (tornado).
+type Projectile struct {
+	Kind   string
+	Owner  int
+	S, D   float64
+	Speed  float64
+	Until  int
+	Target int
+}
+
+// UltSystem implements the eight ULTs (internal/abilities). It is an interface so that sim
+// does not import abilities.
+type UltSystem interface {
+	// Activate fires car's ULT; returns false if it had no effect (e.g. no target in range).
+	Activate(w *World, car int) bool
+	// Tick updates traps and projectiles after movement.
+	Tick(w *World)
 }
 
 // World is a race in progress. Not safe for concurrent use: one goroutine per room owns it.
@@ -45,7 +86,14 @@ type World struct {
 	Cars    []*Car
 	Events  []Event // events of the last Step only
 	EndTick int     // tick at which the race ends (0 = not decided yet)
-	dt      float64
+	Traps   []*Trap
+	Proj    []*Projectile
+	Ults    UltSystem // nil = no ULTs (M1-style physics only)
+	// LeadChanges counts changes of the leading car after the first seconds (balance metric).
+	LeadChanges int
+	lastLeader  int
+	rank        []int
+	dt          float64
 }
 
 // NewWorld places cars on the grid behind the start line. vehicles[i] is car i's vehicle id;
@@ -62,10 +110,13 @@ func NewWorld(tr *track.Track, bal *gamedata.Balance, vehicles []gamedata.Vehicl
 		w.Cars = append(w.Cars, &Car{
 			ID:      i,
 			Vehicle: v.ID,
+			Ult:     v.Ult,
+			Weight:  v.Stats.Weight,
 			Params:  ParamsFor(v.Stats, bal.Stats),
 			State:   CarState{S: s, D: d, Lap: -1},
 		})
 	}
+	w.lastLeader = -1
 	return w
 }
 
@@ -80,12 +131,19 @@ func (w *World) Step() {
 	w.Tick++
 	w.Events = w.Events[:0]
 	ph := &w.Bal.Physics
-	for _, c := range w.Cars {
+	if w.rank == nil {
+		w.rank = w.Ranking()
+	}
+	for i, c := range w.Cars {
 		in := c.Input
 		if c.Finished {
 			in = Input{Throttle: 1} // finished cars cruise on; they no longer race
 		}
-		ev := StepCar(&c.State, in, c.Params, NeutralMods, w.Track, ph, w.dt)
+		w.startBoost(c, in)
+		w.tryUlt(i, in)
+		mods, flags := w.mods(i)
+		c.Flags = flags
+		ev := StepCar(&c.State, in, c.Params, mods, w.Track, ph, w.dt)
 		if ev.WallHit {
 			w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "wallHit", Car: c.ID, Value: ev.WallImpact})
 		}
@@ -97,7 +155,111 @@ func (w *World) Step() {
 		}
 	}
 	w.collide()
+	if w.Ults != nil {
+		w.Ults.Tick(w)
+	}
 	w.updateLaps()
+	w.rank = w.Ranking()
+	w.catchup()
+}
+
+// startBoost: a fresh throttle press within the window after GO gives a short boost.
+func (w *World) startBoost(c *Car, in Input) {
+	window := w.Bal.Ticks(w.Bal.Catchup.StartBoostWindowS)
+	if w.Tick <= window+1 && in.Throttle == 1 && c.PrevThrottle == 0 {
+		cu := w.Bal.Catchup
+		w.Boost(c.ID, cu.StartBoostSpeed, cu.StartBoostAccel, cu.StartBoostS)
+		w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "startBoost", Car: c.ID})
+	}
+	c.PrevThrottle = in.Throttle
+}
+
+// tryUlt fires a ULT on the button's rising edge when charged and allowed.
+func (w *World) tryUlt(i int, in Input) {
+	c := w.Cars[i]
+	pressed := in.Ability && !c.prevAbility
+	c.prevAbility = in.Ability
+	if !pressed || w.Ults == nil || c.Finished || c.UltLeft > 0 ||
+		w.Tick < w.Bal.Ticks(w.Bal.Effects.UltLockS) || c.Status.Spinning(w.Tick) {
+		return
+	}
+	if w.Ults.Activate(w, i) {
+		c.UltLeft = w.Bal.Ult(c.Ult, "cooldownS")
+		c.UltUses++
+		w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "abilityUsed", Car: i, Ult: c.Ult})
+	}
+}
+
+// UltReady reports whether car i could fire its ULT now.
+func (w *World) UltReady(i int) bool {
+	c := w.Cars[i]
+	return w.Ults != nil && c.UltLeft <= 0 && !c.Finished && w.Tick >= w.Bal.Ticks(w.Bal.Effects.UltLockS) && !c.Status.Spinning(w.Tick)
+}
+
+// UltCharge is 0–1 (1 = ready) for the HUD ring.
+func (w *World) UltCharge(i int) float64 {
+	c := w.Cars[i]
+	cd := w.Bal.Ult(c.Ult, "cooldownS")
+	if cd <= 0 {
+		return 1
+	}
+	return math.Max(0, math.Min(1, 1-c.UltLeft/cd))
+}
+
+// Rank returns the race position (1-based) of car i from the last tick.
+func (w *World) Rank(i int) int {
+	for p, id := range w.rank {
+		if id == i {
+			return p + 1
+		}
+	}
+	return len(w.Cars)
+}
+
+// catchup: position-based ULT recharge, drafting, comeback boost, lead-change metric.
+func (w *World) catchup() {
+	cu := w.Bal.Catchup
+	n := len(w.Cars)
+	L := w.Track.Length
+	leader := w.Cars[w.rank[0]]
+	for p, id := range w.rank {
+		c := w.Cars[id]
+		f := 0.0
+		if n > 1 {
+			f = float64(p) / float64(n-1)
+		}
+		if c.UltLeft > 0 {
+			c.UltLeft = math.Max(0, c.UltLeft-w.dt*(cu.RechargeFirst+(cu.RechargeLast-cu.RechargeFirst)*f))
+		}
+		// drafting: close behind another car in the same lane for draftTimeS
+		behind := false
+		for _, o := range w.Cars {
+			if o == c {
+				continue
+			}
+			ds := mathx.WrapDelta(c.State.S, o.State.S, L)
+			if ds > 0 && ds < cu.DraftDistM && math.Abs(o.State.D-c.State.D) < cu.DraftLateralM {
+				behind = true
+				break
+			}
+		}
+		st := &c.Status
+		if behind {
+			st.draftTicks++
+		} else {
+			st.draftTicks = 0
+		}
+		st.drafting = st.draftTicks >= w.Bal.Ticks(cu.DraftTimeS)
+		st.comeback = leader.State.Progress(L)-c.State.Progress(L) > cu.ComebackGapM
+	}
+	if w.Tick > w.Bal.Ticks(5) && w.EndTick == 0 && w.rank[0] != w.lastLeader {
+		if w.lastLeader >= 0 {
+			w.LeadChanges++
+		}
+	}
+	if w.Tick > w.Bal.Ticks(5) {
+		w.lastLeader = w.rank[0]
+	}
 }
 
 // collide resolves car–car overlaps as circles in (s, d) space (GAME_PLAN §2.5 step 5).
@@ -108,7 +270,7 @@ func (w *World) collide() {
 	for i := 0; i < len(w.Cars); i++ {
 		for j := i + 1; j < len(w.Cars); j++ {
 			a, b := &w.Cars[i].State, &w.Cars[j].State
-			if math.Abs(a.Y-b.Y) > ph.CarCollisionMaxDy {
+			if math.Abs(a.Y-b.Y) > ph.CarCollisionMaxDy || w.Cars[i].Status.Ghost(w.Tick) || w.Cars[j].Status.Ghost(w.Tick) {
 				continue
 			}
 			ds := mathx.WrapDelta(a.S, b.S, L) // + means b is ahead of a

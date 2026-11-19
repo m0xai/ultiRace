@@ -245,6 +245,7 @@ type Ev struct {
 	Other int     `json:"other,omitempty"`
 	Value float64 `json:"value,omitempty"`
 	State string  `json:"state,omitempty"`
+	Ult   string  `json:"ult,omitempty"` // abilityUsed / hit: which ULT
 }
 
 // ResultRow is one line of the results table.

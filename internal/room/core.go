@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/m0xai/ultiRace/gamedata"
+	"github.com/m0xai/ultiRace/internal/abilities"
 	"github.com/m0xai/ultiRace/internal/bots"
 	"github.com/m0xai/ultiRace/internal/mathx"
 	"github.com/m0xai/ultiRace/internal/moderation"
@@ -43,6 +44,11 @@ func LoadData() (*Data, error) {
 	if err != nil {
 		return nil, err
 	}
+	return LoadDataWith(bal)
+}
+
+// LoadDataWith uses the given balance (balance tuner) with the embedded vehicles and maps.
+func LoadDataWith(bal *gamedata.Balance) (*Data, error) {
 	veh, err := gamedata.LoadVehicles()
 	if err != nil {
 		return nil, err
@@ -91,6 +97,7 @@ type Player struct {
 	wasAfk         bool
 	afkRaces       int
 	disconnectedAt int // tick, -1 when connected
+	startDelay     int // bot: world ticks before it presses throttle after GO
 	left           bool
 	ctrl           *bots.Controller
 	pingMs         int
@@ -652,8 +659,11 @@ func (c *Core) startRace() {
 		p.lastInputTick = c.tick
 		vehicles[i], _ = c.data.vehicle(p.vehicle)
 		p.ctrl = bots.NewController(line, bots.Normal, c.rng.Uint32())
+		p.startDelay = 1 + c.rng.Intn(14) // bots: human-like reaction at GO
+		p.ctrl.SetPhysics(sim.ParamsFor(vehicles[i].Stats, c.data.Bal.Stats), &c.data.Bal.Physics)
 	}
 	c.world = sim.NewWorld(c.data.Tracks[c.Map], c.data.Bal, vehicles, c.Laps)
+	c.world.Ults = abilities.New(c.data.Bal)
 	c.State = Countdown
 	c.goTick = c.tick + c.ticks(c.data.Bal.Race.CountdownS)
 	c.deadline = c.goTick
@@ -702,6 +712,12 @@ func (c *Core) raceStartFor(p *Player) protocol.RaceStart {
 
 func (c *Core) tickRace() {
 	if c.State == Countdown && c.tick >= c.goTick {
+		// throttle held through the countdown is a jump start: no start boost (rising edge only)
+		for i, p := range c.grid {
+			if !p.Bot && p.connected() {
+				c.world.Cars[i].PrevThrottle = p.input.Throttle
+			}
+		}
 		c.State = Racing
 		c.deadline = 0
 		c.roomDirty = true
@@ -714,7 +730,7 @@ func (c *Core) tickRace() {
 			if e.Kind == "bump" || e.Kind == "land" {
 				continue // cosmetic, derived on the client from snapshots
 			}
-			c.broadcast(protocol.Ev{T: protocol.TEv, Kind: e.Kind, Tick: c.tick, Car: e.Car, Other: e.Other, Value: e.Value})
+			c.broadcast(protocol.Ev{T: protocol.TEv, Kind: e.Kind, Tick: c.tick, Car: e.Car, Other: e.Other, Value: e.Value, Ult: e.Ult})
 		}
 	}
 	if c.tick%max(c.cfg.SnapshotEveryNth, 1) != 0 {
@@ -747,7 +763,12 @@ func (c *Core) driveCars() {
 				others = append(others, s)
 			}
 		}
-		car.Input = p.ctrl.Decide(&car.State, others, c.world.Track)
+		in := p.ctrl.Decide(&car.State, others, c.world.Track)
+		if c.world.Tick < p.startDelay {
+			in.Throttle = 0
+		}
+		in.Ability = c.world.UltReady(i) && bots.WantsUlt(c.world, i)
+		car.Input = in
 	}
 }
 
@@ -759,13 +780,25 @@ func (c *Core) sendSnapshot() {
 	}
 	for i, car := range c.world.Cars {
 		s := car.State
-		flags := protocol.WithPos(0, pos[i])
+		flags := protocol.WithCharge(protocol.WithPos(car.Flags, pos[i]), c.world.UltCharge(i))
 		if car.Finished {
 			flags |= protocol.FlagFinished
 		}
 		cars[i] = protocol.SnapCar{ID: uint8(i), S: s.S, D: s.D, YawRel: s.YawRel, Y: s.Y, Speed: s.Speed, Vy: s.Vy, Lap: int8(s.Lap), Flags: flags}
 	}
-	base := protocol.EncodeSnapshot(uint32(c.tick), cars)
+	var proj []protocol.SnapProj
+	for _, p := range c.world.Proj {
+		proj = append(proj, protocol.SnapProj{Kind: protocol.ProjTornado, S: p.S, D: p.D})
+	}
+	var traps []protocol.SnapTrap
+	for _, t := range c.world.Traps {
+		kind := protocol.TrapIce
+		if t.Kind == "goo" {
+			kind = protocol.TrapGoo
+		}
+		traps = append(traps, protocol.SnapTrap{Kind: kind, S: t.S, D: t.D, Len: t.Len})
+	}
+	base := protocol.EncodeSnapshot(uint32(c.tick), cars, proj, traps)
 	for _, p := range c.players {
 		if p.connected() {
 			p.send(protocol.PatchAck(base, p.ack))

@@ -143,6 +143,14 @@
    "value": 2
   },
   {
+   "t": "ev",
+   "kind": "hit",
+   "tick": 1300,
+   "car": 2,
+   "other": 5,
+   "ult": "tornado"
+  },
+  {
    "t": "results",
    "rows": [
     {
@@ -181,7 +189,7 @@
   }
  ],
  "snapshot": {
-  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBEAWoBgAASgEw+AAAZggAAP8AYAAA",
+  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBEAWoBgAASgEw+AAAZggAAP8UaQEBIsgAAAb/AgFCJwAAfQAIAtH7AQBw/go=",
   "ack": 99,
   "tick": 4242,
   "cars": [
@@ -205,7 +213,28 @@
     "Speed": 21.5,
     "Vy": 0,
     "Lap": -1,
-    "Flags": 24576
+    "Flags": 26900
+   }
+  ],
+  "proj": [
+   {
+    "Kind": 1,
+    "S": 512.34,
+    "D": -2.5
+   }
+  ],
+  "traps": [
+   {
+    "Kind": 1,
+    "S": 100.5,
+    "D": 1.25,
+    "Len": 8
+   },
+   {
+    "Kind": 2,
+    "S": 1300.01,
+    "D": -4,
+    "Len": 10
    }
   ]
  }

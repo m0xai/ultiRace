@@ -20,6 +20,8 @@ var _map_pts: PackedVector2Array = PackedVector2Array()
 var _map_rect: Rect2 = Rect2()
 var _map_xform: Transform2D = Transform2D.IDENTITY
 var _go_flash: float = 0.0
+var _banner: Label
+var _banner_t: float = 0.0
 
 
 func _ready() -> void:
@@ -45,6 +47,12 @@ func _ready() -> void:
 	_center.position = Vector2(-300, -170)
 	_center.size = Vector2(600, 160)
 	add_child(_center)
+	_banner = Ui.label("", 40, Color(1, 0.55, 0.35))
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_banner.position = Vector2(-400, 150)
+	_banner.size = Vector2(800, 60)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_banner)
 	_pill = Ui.label("Reconnecting…", 24)
 	_pill.position = Vector2(540, 20)
 	add_child(_pill)
@@ -77,7 +85,14 @@ func _build_minimap() -> void:
 	_map_pts.append(_map_pts[0])
 
 
+func banner(text: String) -> void:
+	_banner.text = text
+	_banner_t = 1.6
+
+
 func _process(delta: float) -> void:
+	_banner_t -= delta
+	_banner.visible = _banner_t > 0.0
 	if view == null or view.interp == null:
 		return
 	var me: int = view.follow

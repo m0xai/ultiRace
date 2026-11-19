@@ -17,7 +17,11 @@ var throttle: int = 1
 var ult_ready: bool = false
 var ult_progress: float = 0.0 # 0–1 cooldown ring (M6)
 
+var taps: int = 0 # any new touch anywhere (start-boost timing)
+var touching: bool = false
+
 var _touches: Dictionary = {} # touch index → region name
+var _any: Dictionary = {} # all active touch indices
 var _rects: Dictionary = {}
 var _auto_accel: bool = true
 var _swap: bool = false
@@ -64,6 +68,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch:
 		var t: InputEventScreenTouch = event as InputEventScreenTouch
+		if t.pressed:
+			taps += 1
+			_any[t.index] = true
+		else:
+			_any.erase(t.index)
+		touching = not _any.is_empty()
 		if t.pressed:
 			var region: String = _region_at(t.position)
 			if region != "":

@@ -15,14 +15,15 @@ import (
 //	5      4     tick (u32)
 //	9      1     car count N
 //	10     N*18  cars
-//	...    1     projectile count (0 until M6)
-//	...    1     trap count (0 until M6)
+//	...    1     projectile count P, then P × 7 bytes: kind u8 | s u32 (cm) | d i16 (cm)
+//	...    1     trap count T, then T × 8 bytes: kind u8 | s u32 (cm) | d i16 (cm) | len u8 (m)
 //
 // car (18 bytes):
 //
 //	id u8 | s u32 (cm) | d i16 (cm) | yawRel i16 (1e-4 rad) | y u16 (cm) | speed u16 (cm/s)
-//	| vy i16 (cm/s) | lap i8 | flags u16 (bit0 finished, bits 1–11 effects from M6,
-//	  bits 12–15 race position 1–8, 0 = unknown; ranking is computed only by the server)
+//	| vy i16 (cm/s) | lap i8 | flags u16 (bit0 finished, bits 1–7 effects (sim.Eff*),
+//	  bits 8–11 ULT charge 0–15 (15 = ready), bits 12–15 race position 1–8, 0 = unknown;
+//	  ranking is computed only by the server)
 const (
 	SnapKind     byte = 1
 	snapHeader        = 10
@@ -42,7 +43,35 @@ const (
 	FlagFinished uint16 = 1 << 0
 	PosShift            = 12
 	PosMask      uint16 = 0xF << PosShift
+	ChargeShift         = 8
+	ChargeMask   uint16 = 0xF << ChargeShift
 )
+
+// Projectile and trap kinds.
+const (
+	ProjTornado byte = 1
+	TrapIce     byte = 1
+	TrapGoo     byte = 2
+)
+
+// SnapProj is a projectile in a snapshot.
+type SnapProj struct {
+	Kind byte
+	S, D float64
+}
+
+// SnapTrap is a ground trap in a snapshot.
+type SnapTrap struct {
+	Kind byte
+	S, D float64
+	Len  float64
+}
+
+// WithCharge stores a 0–1 ULT charge as 0–15 in the flags.
+func WithCharge(flags uint16, charge float64) uint16 {
+	q := int(math.Round(math.Max(0, math.Min(1, charge)) * 15))
+	return flags&^ChargeMask | uint16(q)<<ChargeShift
+}
 
 // WithPos stores a 1-based race position (1–15) in the flags.
 func WithPos(flags uint16, pos int) uint16 {
@@ -70,8 +99,8 @@ type Snapshot struct {
 	Ack   uint32
 	Tick  uint32
 	Cars  []SnapCar
-	Proj  int
-	Traps int
+	Proj  []SnapProj
+	Traps []SnapTrap
 }
 
 func q(x, step float64) float64 { return math.Round(x / step) }
@@ -83,8 +112,9 @@ func clampI16(x float64) int16 {
 func clampU16(x float64) uint16 { return uint16(math.Max(0, math.Min(math.MaxUint16, x))) }
 
 // EncodeSnapshot writes the snapshot with ack=0; use PatchAck per recipient.
-func EncodeSnapshot(tick uint32, cars []SnapCar) []byte {
-	b := make([]byte, snapHeader+len(cars)*snapCarBytes+2)
+func EncodeSnapshot(tick uint32, cars []SnapCar, proj []SnapProj, traps []SnapTrap) []byte {
+	proj, traps = proj[:min(len(proj), 255)], traps[:min(len(traps), 255)]
+	b := make([]byte, snapHeader+len(cars)*snapCarBytes+2+len(proj)*7+len(traps)*8)
 	b[0] = SnapKind
 	binary.LittleEndian.PutUint32(b[5:], tick)
 	b[9] = byte(len(cars))
@@ -101,8 +131,23 @@ func EncodeSnapshot(tick uint32, cars []SnapCar) []byte {
 		binary.LittleEndian.PutUint16(b[o+16:], c.Flags)
 		o += snapCarBytes
 	}
-	b[o] = 0   // projectiles (M6)
-	b[o+1] = 0 // traps (M6)
+	b[o] = byte(len(proj))
+	o++
+	for _, p := range proj {
+		b[o] = p.Kind
+		binary.LittleEndian.PutUint32(b[o+1:], uint32(math.Max(0, q(p.S, QS))))
+		binary.LittleEndian.PutUint16(b[o+5:], uint16(clampI16(q(p.D, QS))))
+		o += 7
+	}
+	b[o] = byte(len(traps))
+	o++
+	for _, t := range traps {
+		b[o] = t.Kind
+		binary.LittleEndian.PutUint32(b[o+1:], uint32(math.Max(0, q(t.S, QS))))
+		binary.LittleEndian.PutUint16(b[o+5:], uint16(clampI16(q(t.D, QS))))
+		b[o+7] = byte(math.Max(0, math.Min(255, math.Round(t.Len))))
+		o += 8
+	}
 	return b
 }
 
@@ -145,7 +190,25 @@ func DecodeSnapshot(b []byte) (*Snapshot, error) {
 		}
 		o += snapCarBytes
 	}
-	s.Proj = int(b[o])
-	s.Traps = int(b[o+1])
+	np := int(b[o])
+	o++
+	if len(b) < o+np*7+1 {
+		return nil, ErrShortSnapshot
+	}
+	for i := 0; i < np; i++ {
+		s.Proj = append(s.Proj, SnapProj{Kind: b[o], S: float64(binary.LittleEndian.Uint32(b[o+1:])) * QS,
+			D: float64(int16(binary.LittleEndian.Uint16(b[o+5:]))) * QS})
+		o += 7
+	}
+	nt := int(b[o])
+	o++
+	if len(b) < o+nt*8 {
+		return nil, ErrShortSnapshot
+	}
+	for i := 0; i < nt; i++ {
+		s.Traps = append(s.Traps, SnapTrap{Kind: b[o], S: float64(binary.LittleEndian.Uint32(b[o+1:])) * QS,
+			D: float64(int16(binary.LittleEndian.Uint16(b[o+5:]))) * QS, Len: float64(b[o+7])})
+		o += 8
+	}
 	return s, nil
 }

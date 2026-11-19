@@ -32,8 +32,9 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 		c.Speed = math.Max(c.Speed-ph.OverspeedDecel*dt, limit)
 	}
 
-	// 2. Steering with high-speed falloff, air factor, then auto-align toward the tangent.
-	speedFrac := math.Min(c.Speed/p.TopSpeed, 1)
+	// 2. Steering with high-speed falloff (relative to one absolute reference speed, so faster
+	// cars turn less sharply: the Speed vs Handling trade-off), air factor, then auto-align.
+	speedFrac := math.Min(c.Speed/ph.SteerRefSpeed, 1)
 	rate := p.SteerRate * (1 - ph.SteerHighSpeedFalloff*speedFrac) * mods.SteerMul
 	if airborne {
 		rate *= ph.AirSteerFactor

@@ -15,6 +15,22 @@ const QYAW: float = 0.0001
 const QSPEED: float = 0.01
 const FLAG_FINISHED: int = 1
 const POS_SHIFT: int = 12 # flags bits 12–15: race position from the server (0 = unknown)
+const CHARGE_SHIFT: int = 8 # flags bits 8–11: ULT charge 0–15 (15 = ready)
+# effect bits (internal/sim/effects.go)
+const EFF_SPINOUT: int = 1 << 1
+const EFF_SLOW: int = 1 << 2
+const EFF_SLIDE: int = 1 << 3
+const EFF_BOOST: int = 1 << 4
+const EFF_GHOST: int = 1 << 5
+const EFF_IMMUNE: int = 1 << 6
+const EFF_DRAFT: int = 1 << 7
+const PROJ_TORNADO: int = 1
+const TRAP_ICE: int = 1
+const TRAP_GOO: int = 2
+
+
+static func charge_of(flags: int) -> float:
+	return float((flags >> CHARGE_SHIFT) & 0xF) / 15.0
 
 
 static func pos_of(flags: int) -> int:
@@ -61,13 +77,21 @@ class SnapCar:
 	var flags: int
 
 
+class SnapThing:
+	extends RefCounted
+	var kind: int
+	var s: float
+	var d: float
+	var length: float
+
+
 class Snapshot:
 	extends RefCounted
 	var ack: int
 	var tick: int
 	var cars: Array[SnapCar] = []
-	var proj: int
-	var traps: int
+	var proj: Array[SnapThing] = []
+	var traps: Array[SnapThing] = []
 
 
 # ---------- builders (omit empty optional fields like Go's omitempty) ----------
@@ -164,6 +188,27 @@ static func decode_snapshot(b: PackedByteArray) -> Snapshot:
 		c.flags = b.decode_u16(o + 16)
 		s.cars.append(c)
 		o += SNAP_CAR_BYTES
-	s.proj = b.decode_u8(o)
-	s.traps = b.decode_u8(o + 1)
+	var np: int = b.decode_u8(o)
+	o += 1
+	if b.size() < o + np * 7 + 1:
+		return null
+	for i: int in np:
+		var p: SnapThing = SnapThing.new()
+		p.kind = b.decode_u8(o)
+		p.s = float(b.decode_u32(o + 1)) * QS
+		p.d = float(b.decode_s16(o + 5)) * QS
+		s.proj.append(p)
+		o += 7
+	var nt: int = b.decode_u8(o)
+	o += 1
+	if b.size() < o + nt * 8:
+		return null
+	for i: int in nt:
+		var t: SnapThing = SnapThing.new()
+		t.kind = b.decode_u8(o)
+		t.s = float(b.decode_u32(o + 1)) * QS
+		t.d = float(b.decode_s16(o + 5)) * QS
+		t.length = float(b.decode_u8(o + 7))
+		s.traps.append(t)
+		o += 8
 	return s

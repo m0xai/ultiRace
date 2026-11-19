@@ -85,6 +85,21 @@ func test_snapshot_decodes_like_go() -> void:
 		assert_int(Protocol.pos_of(g.flags)).is_equal((int(w["Flags"]) >> 12) & 0xF)
 		for pair: Array in [[g.s, w["S"]], [g.d, w["D"]], [g.yaw_rel, w["YawRel"]], [g.y, w["Y"]], [g.speed, w["Speed"]], [g.vy, w["Vy"]]]:
 			assert_float(absf(float(pair[0]) - float(pair[1]))).is_less(1e-9)
+	var proj: Array = snap["proj"] as Array
+	assert_int(s.proj.size()).is_equal(proj.size())
+	for i: int in proj.size():
+		var w: Dictionary = proj[i] as Dictionary
+		assert_int(s.proj[i].kind).is_equal(int(w["Kind"]))
+		assert_float(absf(s.proj[i].s - float(w["S"]))).is_less(1e-9)
+		assert_float(absf(s.proj[i].d - float(w["D"]))).is_less(1e-9)
+	var traps: Array = snap["traps"] as Array
+	assert_int(s.traps.size()).is_equal(traps.size())
+	for i: int in traps.size():
+		var w: Dictionary = traps[i] as Dictionary
+		assert_int(s.traps[i].kind).is_equal(int(w["Kind"]))
+		assert_float(absf(s.traps[i].s - float(w["S"]))).is_less(1e-9)
+		assert_float(absf(s.traps[i].length - float(w["Len"]))).is_less(1e-9)
+	assert_float(Protocol.charge_of(s.cars[1].flags)).is_equal_approx(9.0 / 15.0, 1e-9)
 
 
 func test_truncated_snapshot_is_rejected() -> void:

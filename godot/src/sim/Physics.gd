@@ -63,6 +63,7 @@ class Constants:
 	var coast_decel: float
 	var overspeed_decel: float
 	var steer_high_speed_falloff: float
+	var steer_ref_speed: float
 	var auto_align: float
 	var max_yaw_rel: float
 	var air_steer_factor: float
@@ -77,6 +78,7 @@ class Constants:
 		coast_decel = float(ph["coastDecel"])
 		overspeed_decel = float(ph["overspeedDecel"])
 		steer_high_speed_falloff = float(ph["steerHighSpeedFalloff"])
+		steer_ref_speed = float(ph["steerRefSpeed"])
 		auto_align = float(ph["autoAlign"])
 		max_yaw_rel = float(ph["maxYawRel"])
 		air_steer_factor = float(ph["airSteerFactor"])
@@ -130,7 +132,7 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 		c.speed = maxf(c.speed - ph.overspeed_decel * dt, limit)
 
 	# 2. Steering
-	var speed_frac: float = minf(c.speed / p.top_speed, 1.0)
+	var speed_frac: float = minf(c.speed / ph.steer_ref_speed, 1.0)
 	var rate: float = p.steer_rate * (1.0 - ph.steer_high_speed_falloff * speed_frac) * mods.steer_mul
 	if airborne:
 		rate *= ph.air_steer_factor

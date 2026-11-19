@@ -40,3 +40,34 @@ func show_state(st: Physics.CarState, tr: Track) -> void:
 	if up.y < 0.0:
 		up = -up
 	transform = Transform3D(Basis.looking_at(fwd, up), p)
+
+
+var _spin: float = 0.0
+var _flash_t: float = 0.0
+
+
+## Effect visuals from the server flags (placeholder until M8 VFX): spin-out spins the body,
+## ghost is translucent, boost/slow tint.
+func show_effects(flags: int, delta: float) -> void:
+	if flags & Protocol.EFF_SPINOUT:
+		_spin += delta * TAU * 2.0
+	else:
+		_spin = 0.0
+	_body.rotation.y = _spin
+	_cabin.rotation.y = _spin
+	var mat: StandardMaterial3D = _body.material_override as StandardMaterial3D
+	if mat == null:
+		return
+	var ghost: bool = (flags & Protocol.EFF_GHOST) != 0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if ghost else BaseMaterial3D.TRANSPARENCY_DISABLED
+	mat.albedo_color.a = 0.35 if ghost else 1.0
+	_flash_t = maxf(_flash_t - delta, 0.0)
+	var glow: float = _flash_t * 3.0
+	if flags & Protocol.EFF_BOOST:
+		glow = maxf(glow, 0.6)
+	mat.emission_enabled = glow > 0.0
+	mat.emission = Color(1.0, 0.7, 0.2) * glow
+
+
+func flash() -> void:
+	_flash_t = 0.4

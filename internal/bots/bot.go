@@ -6,6 +6,7 @@ package bots
 import (
 	"math"
 
+	"github.com/m0xai/ultiRace/gamedata"
 	"github.com/m0xai/ultiRace/internal/mathx"
 	"github.com/m0xai/ultiRace/internal/sim"
 	"github.com/m0xai/ultiRace/internal/track"
@@ -67,6 +68,8 @@ type Controller struct {
 	rng     *mathx.Rng
 	tick    int
 	offset  float64 // current noise offset
+	params  sim.CarParams
+	ph      *gamedata.Physics
 	dodge   float64 // current avoidance offset
 	planned float64
 }
@@ -89,7 +92,30 @@ func (c *Controller) Decide(self *sim.CarState, others []*sim.CarState, tr *trac
 		c.planned = mathx.Clamp(c.planned, -hw, hw)
 	}
 	c.tick++
-	return Steer(self, c.planned)
+	in := Steer(self, c.planned)
+	if c.mustLift(self, tr) {
+		in.Throttle = 0
+	}
+	return in
+}
+
+// SetPhysics gives the bot what it needs to judge corner speed (from balance.json).
+func (c *Controller) SetPhysics(p sim.CarParams, ph *gamedata.Physics) {
+	c.params, c.ph = p, ph
+}
+
+// mustLift: coast when the corner ahead needs more turning than the car can do at this speed.
+func (c *Controller) mustLift(self *sim.CarState, tr *track.Track) bool {
+	if c.ph == nil || self.Speed < 15 {
+		return false
+	}
+	rate := c.params.SteerRate * (1 - c.ph.SteerHighSpeedFalloff*math.Min(self.Speed/c.ph.SteerRefSpeed, 1))
+	look := self.Speed*0.9 + 10
+	need := 0.0
+	for d := 4.0; d <= look; d += 4 {
+		need = math.Max(need, math.Abs(tr.Curvature(self.S+d))*self.Speed)
+	}
+	return need > rate*0.92
 }
 
 // avoid shifts the target when a car is close ahead in our lane.

@@ -87,6 +87,21 @@ func position_of(i: int) -> int:
 	return 0
 
 
+func flags_of(i: int) -> int:
+	if latest == null:
+		return 0
+	for c: Protocol.SnapCar in latest.cars:
+		if c.id == i:
+			return c.flags
+	return 0
+
+
+## Brief light flash on a car that used its ULT (telegraph; real VFX in M8).
+func flash(i: int) -> void:
+	if i >= 0 and i < cars.size():
+		cars[i].flash()
+
+
 func finished(i: int) -> bool:
 	if latest == null:
 		return false
@@ -116,7 +131,57 @@ func _process(delta: float) -> void:
 		_states[i] = st
 		if st != null:
 			cars[i].show_state(st, track)
+			cars[i].show_effects(flags_of(i), delta)
+	_update_hazards()
 	_update_camera(delta)
+
+
+var _hazards: Array[MeshInstance3D] = []
+
+
+## Traps and projectiles from the latest snapshot (placeholder visuals until M8).
+func _update_hazards() -> void:
+	var things: Array = []
+	if latest != null:
+		for t: Protocol.SnapThing in latest.traps:
+			things.append(t)
+		for p: Protocol.SnapThing in latest.proj:
+			things.append(p)
+	while _hazards.size() < things.size():
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		add_child(mi)
+		_hazards.append(mi)
+	for i: int in _hazards.size():
+		var mi: MeshInstance3D = _hazards[i]
+		mi.visible = i < things.size()
+		if not mi.visible:
+			continue
+		var th: Protocol.SnapThing = things[i] as Protocol.SnapThing
+		var is_proj: bool = i >= latest.traps.size()
+		var s_mid: float = th.s + th.length / 2.0
+		var key: String = "proj" if is_proj else ("ice" if th.kind == Protocol.TRAP_ICE else "goo")
+		if mi.get_meta("kind", "") != key:
+			mi.set_meta("kind", key)
+			var mat: StandardMaterial3D = StandardMaterial3D.new()
+			if is_proj:
+				var cyl: CylinderMesh = CylinderMesh.new()
+				cyl.top_radius = 1.6
+				cyl.bottom_radius = 0.3
+				cyl.height = 4.0
+				mi.mesh = cyl
+				mat.albedo_color = Color(0.75, 0.9, 0.9, 0.7)
+			else:
+				var box: BoxMesh = BoxMesh.new()
+				box.size = Vector3(6.0 if key == "ice" else 10.0, 0.06, th.length)
+				mi.mesh = box
+				mat.albedo_color = Color(0.7, 0.9, 1.0, 0.75) if key == "ice" else Color(0.55, 0.85, 0.15, 0.85)
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mi.material_override = mat
+		var p: Vector3 = track.world(s_mid if not is_proj else th.s, th.d, 2.0 if is_proj else 0.08)
+		var fwd: Vector3 = (track.world(s_mid + 1.0, th.d, 0.0) - track.world(s_mid, th.d, 0.0)).normalized()
+		mi.transform = Transform3D(Basis.looking_at(fwd, Vector3.UP), p)
+		if is_proj:
+			mi.rotate_object_local(Vector3.UP, float(Time.get_ticks_msec()) * 0.02)
 
 
 func _update_camera(delta: float) -> void:

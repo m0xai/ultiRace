@@ -50,7 +50,7 @@ func TestSnapshotRoundTripWithinQuantisation(t *testing.T) {
 		{ID: 0, S: 1234.5678, D: -9.876, YawRel: 0.4321, Y: 1.23, Speed: 39.99, Vy: -7.5, Lap: 2, Flags: FlagFinished},
 		{ID: 7, S: 0, D: 10.99, YawRel: -0.85, Y: 0, Speed: 0, Vy: 0, Lap: -1},
 	}
-	b := PatchAck(EncodeSnapshot(4242, cars), 99)
+	b := PatchAck(EncodeSnapshot(4242, cars, nil, nil), 99)
 	if len(b) != 10+2*18+2 {
 		t.Fatalf("size %d", len(b))
 	}
@@ -86,9 +86,11 @@ func TestPosInFlags(t *testing.T) {
 }
 
 func TestSnapshotBandwidthBudget(t *testing.T) {
-	// 8 cars at 20 Hz must stay ≤ 4 KB/s (GAME_PLAN §8), leaving room for events.
-	b := EncodeSnapshot(1, make([]SnapCar, 8))
-	if perSec := len(b) * 20; perSec > 3500 {
+	// 8 cars + a typical 1 tornado and 2 patches at 20 Hz must stay under 4 KB/s (GAME_PLAN §8),
+	// leaving room for events. Traps are static: if M12 measurements show pressure, move them
+	// to events instead of resending them in every snapshot.
+	b := EncodeSnapshot(1, make([]SnapCar, 8), make([]SnapProj, 1), make([]SnapTrap, 2))
+	if perSec := len(b) * 20; perSec > 3700 {
 		t.Fatalf("snapshots alone use %d B/s", perSec)
 	}
 }
@@ -120,6 +122,7 @@ func serverExamples() []any {
 		Select{T: TSelect, Claims: []Claim{{Vehicle: "bolt", PlayerID: "p1"}}, Previews: map[string]string{"p2": "goo"}, Deadline: 1700000020000},
 		RaceStart{T: TRaceStart, Seed: 42, Map: "neon", Laps: 3, Grid: []GridSlot{{Car: 0, PlayerID: "p1", Vehicle: "bolt", Name: "A"}}, StartAt: 1700000003000, Tick: 90, You: 0},
 		Ev{T: TEv, Kind: "lap", Tick: 1200, Car: 3, Value: 2},
+		Ev{T: TEv, Kind: "hit", Tick: 1300, Car: 2, Other: 5, Ult: "tornado"},
 		Results{T: TResults, Rows: []ResultRow{{Pos: 1, Car: 0, PlayerID: "p1", Name: "A", Vehicle: "bolt", Finished: true, TimeMs: 110000, BestLap: 35000}},
 			Verified: []Verified{{PlayerID: "p1", BestLap: 35000, TimeMs: 110000, Won: true}}},
 		Kicked{T: TKicked, Reason: "host"},
@@ -133,10 +136,12 @@ type protocolFixture struct {
 	Client   []json.RawMessage `json:"client"`
 	Server   []json.RawMessage `json:"server"`
 	Snapshot struct {
-		Base64 string    `json:"base64"`
-		Ack    uint32    `json:"ack"`
-		Tick   uint32    `json:"tick"`
-		Cars   []SnapCar `json:"cars"` // exact decoded (quantised) values
+		Base64 string     `json:"base64"`
+		Ack    uint32     `json:"ack"`
+		Tick   uint32     `json:"tick"`
+		Cars   []SnapCar  `json:"cars"` // exact decoded (quantised) values
+		Proj   []SnapProj `json:"proj"`
+		Traps  []SnapTrap `json:"traps"`
 	} `json:"snapshot"`
 }
 
@@ -151,12 +156,18 @@ func TestProtocolFixture(t *testing.T) {
 	}
 	cars := []SnapCar{
 		{ID: 0, S: 1234.5678, D: -9.876, YawRel: 0.4321, Y: 1.23, Speed: 39.99, Vy: -7.5, Lap: 2, Flags: WithPos(FlagFinished, 1)},
-		{ID: 5, S: 17.04, D: 3.3, YawRel: -0.2, Speed: 21.5, Lap: -1, Flags: WithPos(0, 6)},
+		{ID: 5, S: 17.04, D: 3.3, YawRel: -0.2, Speed: 21.5, Lap: -1, Flags: WithCharge(WithPos(1<<2|1<<4, 6), 0.6)},
 	}
-	b := PatchAck(EncodeSnapshot(4242, cars), 99)
-	dec, _ := DecodeSnapshot(b)
+	proj := []SnapProj{{Kind: ProjTornado, S: 512.34, D: -2.5}}
+	traps := []SnapTrap{{Kind: TrapIce, S: 100.5, D: 1.25, Len: 8}, {Kind: TrapGoo, S: 1300.01, D: -4, Len: 10}}
+	b := PatchAck(EncodeSnapshot(4242, cars, proj, traps), 99)
+	dec, err := DecodeSnapshot(b)
+	if err != nil || len(dec.Proj) != 1 || len(dec.Traps) != 2 {
+		t.Fatalf("decode: %v %+v", err, dec)
+	}
 	f.Snapshot.Base64 = base64.StdEncoding.EncodeToString(b)
 	f.Snapshot.Ack, f.Snapshot.Tick, f.Snapshot.Cars = dec.Ack, dec.Tick, dec.Cars
+	f.Snapshot.Proj, f.Snapshot.Traps = dec.Proj, dec.Traps
 	data, err := json.MarshalIndent(f, "", " ")
 	if err != nil {
 		t.Fatal(err)

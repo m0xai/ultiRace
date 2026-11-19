@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -25,6 +26,46 @@ type Balance struct {
 	Race     Race         `json:"race"`
 	Track    TrackParams  `json:"track"`
 	Rooms    Rooms        `json:"rooms"`
+	Effects  Effects      `json:"effects"`
+	Catchup  Catchup      `json:"catchup"`
+	// Ults holds each ULT's numbers by ult id (vehicles.json "ult"), e.g. Ults["nitro"]["cooldownS"].
+	Ults map[string]map[string]float64 `json:"ults"`
+}
+
+// Effects holds status-effect rules (GAME_PLAN §2.7).
+type Effects struct {
+	SpinoutSpeedFactor float64 `json:"spinoutSpeedFactor"`
+	CCImmunityS        float64 `json:"ccImmunityS"`
+	HardCCMinGapS      float64 `json:"hardCcMinGapS"`
+	SlowCap            float64 `json:"slowCap"`
+	BoostCap           float64 `json:"boostCap"`
+	UltLockS           float64 `json:"ultLockS"`
+	RampKnockD         float64 `json:"rampKnockD"`
+}
+
+// Catchup holds the subtle catch-up mechanics (GAME_PLAN §2.8).
+type Catchup struct {
+	RechargeFirst     float64 `json:"rechargeFirst"`
+	RechargeLast      float64 `json:"rechargeLast"`
+	DraftDistM        float64 `json:"draftDistM"`
+	DraftLateralM     float64 `json:"draftLateralM"`
+	DraftTimeS        float64 `json:"draftTimeS"`
+	DraftBonus        float64 `json:"draftBonus"`
+	ComebackGapM      float64 `json:"comebackGapM"`
+	ComebackBonus     float64 `json:"comebackBonus"`
+	StartBoostWindowS float64 `json:"startBoostWindowS"`
+	StartBoostSpeed   float64 `json:"startBoostSpeed"`
+	StartBoostAccel   float64 `json:"startBoostAccel"`
+	StartBoostS       float64 `json:"startBoostS"`
+}
+
+// Ult returns one number of a ULT; it panics on a missing key (caught by gamedata tests).
+func (b *Balance) Ult(id, key string) float64 {
+	v, ok := b.Ults[id][key]
+	if !ok {
+		panic("balance.json: ults." + id + "." + key + " missing")
+	}
+	return v
 }
 
 // Rooms holds lobby/room timing rules (GAME_PLAN §2.3, §2.3.1, §3.6). Durations in seconds.
@@ -75,6 +116,7 @@ type Physics struct {
 	CoastDecel              float64 `json:"coastDecel"`
 	OverspeedDecel          float64 `json:"overspeedDecel"`
 	SteerHighSpeedFalloff   float64 `json:"steerHighSpeedFalloff"`
+	SteerRefSpeed           float64 `json:"steerRefSpeed"` // falloff is relative to this absolute speed
 	AutoAlign               float64 `json:"autoAlign"`
 	MaxYawRel               float64 `json:"maxYawRel"`
 	AirSteerFactor          float64 `json:"airSteerFactor"`
@@ -143,6 +185,21 @@ func LoadBalance() (*Balance, error) {
 	var b Balance
 	if err := readJSON("balance.json", &b); err != nil {
 		return nil, err
+	}
+	return &b, nil
+}
+
+// LoadBalanceFile parses a balance.json from disk (used by the balance tuner).
+func LoadBalanceFile(path string) (*Balance, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var b Balance
+	dec := json.NewDecoder(strings.NewReader(string(data)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&b); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return &b, nil
 }

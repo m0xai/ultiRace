@@ -29,7 +29,8 @@
     "landingSpeedFactor": 0.97,
     "carRadius": 1.4,
     "carCollisionMaxDy": 1.5,
-    "collisionSpeedExchange": 0.3
+    "collisionSpeedExchange": 0.3,
+    "steerRefSpeed": 42.0
   },
   "race": {
     "defaultLaps": 3,
@@ -61,5 +62,90 @@
     "quickPlaySpectateMaxS": 30.0,
     "snapshotEveryNth": 3,
     "maxListedRooms": 80
+  },
+  "effects": {
+    "spinoutSpeedFactor": 0.4,
+    "ccImmunityS": 1.5,
+    "hardCcMinGapS": 4.0,
+    "slowCap": 0.5,
+    "boostCap": 0.5,
+    "ultLockS": 3.0,
+    "rampKnockD": 4.0
+  },
+  "catchup": {
+    "rechargeFirst": 0.85,
+    "rechargeLast": 1.35,
+    "draftDistM": 15.0,
+    "draftLateralM": 3.0,
+    "draftTimeS": 0.7,
+    "draftBonus": 0.08,
+    "comebackGapM": 150.0,
+    "comebackBonus": 0.04,
+    "startBoostWindowS": 0.25,
+    "startBoostSpeed": 0.3,
+    "startBoostAccel": 0.5,
+    "startBoostS": 1.0
+  },
+  "ults": {
+    "nitro": {
+      "cooldownS": 9.0,
+      "durationS": 2.0,
+      "speed": 0.35,
+      "accel": 0.6
+    },
+    "ram": {
+      "cooldownS": 10.0,
+      "durationS": 0.6,
+      "speed": 0.5,
+      "spinS": 1.0,
+      "knockD": 4.0
+    },
+    "ice": {
+      "cooldownS": 9.0,
+      "lengthM": 8.0,
+      "halfWidthM": 3.0,
+      "behindM": 6.0,
+      "lifeS": 8.0,
+      "max": 2,
+      "steerMul": 0.25,
+      "slow": 0.15,
+      "effectS": 1.2
+    },
+    "emp": {
+      "cooldownS": 11.0,
+      "radiusM": 18.0,
+      "slow": 0.35,
+      "durationS": 1.8
+    },
+    "grapple": {
+      "cooldownS": 10.0,
+      "rangeM": 70.0,
+      "durationS": 0.8,
+      "selfBoost": 0.4,
+      "targetSlow": 0.25
+    },
+    "goo": {
+      "cooldownS": 10.0,
+      "aheadM": 40.0,
+      "lengthM": 10.0,
+      "halfWidthM": 5.0,
+      "lifeS": 4.0,
+      "slow": 0.4,
+      "lingerS": 0.3
+    },
+    "phase": {
+      "cooldownS": 12.0,
+      "durationS": 2.5,
+      "speed": 0.1
+    },
+    "tornado": {
+      "cooldownS": 11.0,
+      "speedFactor": 1.3,
+      "minSpeed": 30.0,
+      "lifeS": 4.0,
+      "homingRate": 10.0,
+      "spinS": 1.2,
+      "hitRadiusM": 2.0
+    }
   }
 }
