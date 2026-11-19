@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M5 done** (2026-11-19). **M6 in progress** (ULTs & balance): effects.go + world integration written, abilities/bots/balance next.
+- **M0–M5, M7 done** (2026-11-19). **M6** open only for balance targets (tuning round 3 running). Next: **M8** art pass.
 
 ## M0 plan — Setup
 
@@ -114,15 +114,37 @@ Deferred from M5 on purpose: settings screen (M9 with haptics/audio), Browse Roo
 block/kick UI (M11), countdown start boost + ULT logic (M6), prediction (M7: own car still
 interpolated ~100 ms behind → steering feels laggy until M7).
 
+## M6 status — ULTs & balance (open: balance targets)
+
+- [x] effects (`internal/sim/effects.go`), world integration (ULT activation, traps, projectiles,
+      start boost, drafting, comeback, recharge by position, lead-change metric), 8 ULTs in
+      `internal/abilities/` (+ tests for every ULT and CC rule), bot ULT heuristics
+      (`internal/bots/ults.go`), bots lift for corners, absolute steering falloff (`steerRefSpeed`).
+- [x] protocol: effects + ULT charge in flags, traps/projectiles in snapshots, `ev.ult`; client
+      ULT button/ring, hit banners, placeholder effect/hazard visuals.
+- [x] `cmd/balance`: report (`make balance` → `docs/BALANCE_REPORT.md`), `-trial` (solo lap per
+      vehicle/map), `-tune-pace N` (stage 1), `-tune N [-tune-all]` (stage 2), `-balance file`.
+- [ ] Targets: 6/8 met (CC share, CC/lap, lead changes 5.5, gap 6.5 s, lap 40.7 s); win rate
+      per vehicle (0.2–33 %) and avg position (2.4–6.4) still fail. Glacier/Goo/Rhino lose,
+      Bolt/Phantom win. Round 3 (per-ULT cooldown/strength knobs) running:
+      `build/logs/tune3.txt` → `build/tuned3_balance.json`. If targets stay out of reach, the
+      likely root cause: equal-skill deterministic bots turn ~0.3 s/lap pace gaps into near-certain
+      wins; consider adding race-to-race bot "form" variance (difficulty noise) — record in DECISIONS.
+
+## M7 — done (prediction)
+
+Server input FIFO + exact ack; `godot/src/net/Prediction.gd`; RaceView renders own car predicted;
+e2e predicted driver under 150 ms ± 40 ms lag: avg correction 5.6 cm. Human feel check: HUMAN_TODO #11.
+
 ## Next steps
 
-1. M6 — ULTs & balance (Go only): `internal/sim/effects.go` (spinout, slow, slide, boost, ghost,
-   CC immunity 1.5 s, max 1 hard CC / 4 s, slow cap 50 %, no self-hits, no ULTs in first 3 s),
-   `internal/abilities/` (one file per ULT, numbers in balance.json `ults`), projectiles/traps in
-   snapshots (protocol: proj/trap counts are already reserved, bump fixtures), catch-up (ULT
-   recharge by position, drafting, comeback boost, start boost), bot ULT heuristics, `cmd/balance`
-   → `docs/BALANCE_REPORT.md` within §2.9 targets; client: show ULT cooldown ring + effect
-   visuals (placeholder) and the effects bitmask in Physics mods for M7.
+1. Finish M6 balance (apply tuned3 if better: copy to gamedata/balance.json, `make fixtures sync
+   test`, `make balance`), then tick M6.
+2. M8 — Art pass: `art/blender/lib/` helpers + `art/blender/cars/<id>.py` (8 parametric cars,
+   distinct silhouettes §2.6, LOD0 ≤ 6k tris, separate wheels), `art/export.sh` → `godot/assets/cars/*.glb`
+   + turntables `art/previews/`; CarView loads the glb per vehicle; props (trees/pines/buildings)
+   as glb + MultiMesh; baked LightmapGI per track; VFX (boost flames, sparks, ice, goo, tornado,
+   EMP ring, grapple cable, wind lines); cosmetic suspension; camera polish. Human approves visuals.
 
 ## Open questions
 
