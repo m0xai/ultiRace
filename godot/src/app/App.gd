@@ -9,7 +9,7 @@ extends Node
 const INPUT_HZ: float = 30.0
 const RECONNECT_TRIES: int = 5
 
-enum Screen { HOME, LOBBY, SELECT, RACE }
+enum Screen { HOME, LOBBY, SELECT, RACE, BROWSE }
 
 var _conn: Connection = null
 var _screen: Screen = Screen.HOME
@@ -18,6 +18,7 @@ var _lobby: LobbyScreen
 var _select: SelectScreen
 var _results: ResultsScreen
 var _settings: SettingsScreen
+var _browser: RoomBrowserScreen
 var _view: RaceView
 var _hud: RaceHud
 var _touch: TouchControls
@@ -49,9 +50,14 @@ func _ready() -> void:
 	_lobby = LobbyScreen.new()
 	_select = SelectScreen.new()
 	_results = ResultsScreen.new()
-	for c: Control in [_hud, _touch, _home, _lobby, _select, _results]:
+	_browser = RoomBrowserScreen.new()
+	for c: Control in [_hud, _touch, _home, _lobby, _select, _results, _browser]:
 		_ui.add_child(c)
 	_home.play.connect(_play)
+	_home.browse.connect(func() -> void: _show(Screen.BROWSE))
+	_browser.back.connect(func() -> void: _show(Screen.HOME))
+	_browser.join.connect(func(code: String) -> void: _play({"room": code}))
+	_browser.play.connect(_play)
 	_home.settings.connect(func() -> void:
 		_settings = SettingsScreen.new()
 		_ui.add_child(_settings)
@@ -71,6 +77,8 @@ func _ready() -> void:
 		_play({"quick": _auto == "quick", "practice": _auto == "practice"})
 	elif join != "":
 		_play({"quick": join == "quick", "practice": join == "practice"})
+	if Config.user_args().has("--browse"):
+		_show(Screen.BROWSE)
 	if Config.user_args().has("--settings"):
 		_home.settings.emit()
 
@@ -94,6 +102,7 @@ func _show(s: Screen) -> void:
 	elif s != Screen.RACE:
 		AudioDirector.play_music("menu")
 	_home.visible = s == Screen.HOME
+	_browser.visible = s == Screen.BROWSE
 	_lobby.visible = s == Screen.LOBBY
 	_select.visible = s == Screen.SELECT
 	var race: bool = s == Screen.RACE

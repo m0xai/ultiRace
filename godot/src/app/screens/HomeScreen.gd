@@ -6,6 +6,7 @@ extends Control
 
 signal play(opts: Dictionary)
 signal settings
+signal browse
 
 var _name: LineEdit
 var _code: LineEdit
@@ -50,6 +51,9 @@ func _ready() -> void:
 	quick.custom_minimum_size = Vector2(440, 120)
 	quick.pressed.connect(func() -> void: play.emit({"quick": true}))
 	right.add_child(quick)
+	var browse_btn: Button = Ui.button("Browse rooms")
+	browse_btn.pressed.connect(func() -> void: browse.emit())
+	right.add_child(browse_btn)
 	var practice: Button = Ui.button("Practice vs bots")
 	practice.pressed.connect(func() -> void: play.emit({"practice": true}))
 	right.add_child(practice)

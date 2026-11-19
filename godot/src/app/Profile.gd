@@ -43,3 +43,19 @@ static func auto_accelerate() -> bool:
 
 static func swap_sides() -> bool:
 	return bool(get_value("swap_sides", false))
+
+
+static func block(player_id: String) -> void:
+	var b: Array = blocked().duplicate()
+	if not b.has(player_id):
+		b.append(player_id)
+		set_value("blocked", b)
+
+
+static func is_blocked(player_id: String) -> bool:
+	return blocked().has(player_id)
+
+
+## Name to show for a player: blocked players appear as "Player" (GAME_PLAN §2.3.1).
+static func display_name(player_id: String, name: String) -> String:
+	return "Player" if is_blocked(player_id) else name

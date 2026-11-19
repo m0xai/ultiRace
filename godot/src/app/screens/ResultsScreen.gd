@@ -50,10 +50,24 @@ func show_results(m: Dictionary) -> void:
 		var pos: Label = Ui.label("%d." % int(rd["pos"]), 26, Ui.ACCENT if mine else Ui.TEXT)
 		pos.custom_minimum_size = Vector2(50, 0)
 		row.add_child(pos)
-		var nm: Label = Ui.label("%s%s" % [rd["name"], " (bot)" if rd.get("bot", false) else ""], 26, Ui.ACCENT if mine else Ui.TEXT)
+		var nm: Label = Ui.label("%s%s" % [Profile.display_name(str(rd["playerId"]), str(rd["name"])), " (bot)" if rd.get("bot", false) else ""], 26, Ui.ACCENT if mine else Ui.TEXT)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nm)
 		row.add_child(Ui.label(str(GameData.vehicle(rd["vehicle"] as String).get("name", "")), 22, Ui.MUTED))
 		var t: String = ("%.2f s" % (float(rd["timeMs"]) / 1000.0)) if rd["finished"] else "DNF"
 		row.add_child(Ui.label(t, 24))
+		if not mine and not rd.get("bot", false):
+			var pid: String = str(rd["playerId"])
+			var rep: Button = Ui.button("Report", false, 16)
+			rep.custom_minimum_size = Vector2(84, 52)
+			rep.pressed.connect(func() -> void:
+				send.emit(Protocol.report(pid, "name"))
+				rep.disabled = true)
+			var blk: Button = Ui.button("Block", false, 16)
+			blk.custom_minimum_size = Vector2(84, 52)
+			blk.pressed.connect(func() -> void:
+				Profile.block(pid)
+				blk.disabled = true)
+			row.add_child(rep)
+			row.add_child(blk)
 		_list.add_child(row)

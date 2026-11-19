@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M7, M9 done** (2026-11-19). **M8** waiting for human visual approval. Next: **M10** Game Center (needs paid Apple Developer Program) / **M11** public play & deploy.
+- **M0–M7, M9 done** (2026-11-19). **M8** waiting for human visual approval. M10 server side done (client blocked on paid program); M11 done in code (deploy blocked on human). Next: **M12** performance.
 
 ## M0 plan — Setup
 
@@ -148,9 +148,15 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
    `POST /api/auth/gamecenter`, env `APPLE_BUNDLE_ID`, tests). Client side BLOCKED on the paid
    Apple Developer Program (HUMAN_TODO #15/#16): GameServices.gd + plugin spike (GameCenterKit vs
    godot-ios-plugins vs migueldeicaza/GodotApplePlugins), leaderboards, achievements.
-2. M11 — public play & deploy: Room browser screen, report/block/kick UI, name filter in UI,
-   Quick Play rule 3, AASA + `/r/{code}` landing page, `bans.json` + SIGHUP, `deploy/`
-   (Dockerfile, compose.yaml, Caddyfile.snippet, DEPLOY.md with the exact commands for the human).
+2. M11 — public play & deploy: DONE in code (room browser `RoomBrowserScreen.gd`, report/block/
+   kick in lobby + results, share = copy link, AASA + `/r/{code}`, `bans.json` + SIGHUP, `deploy/`,
+   `docs/DEPLOY.md`, CI docker job). BLOCKED on the human: deploy to flappus (HUMAN_TODO #17),
+   Associated Domains + Team ID (paid program #15). After deploy: switch nothing (prod URL is
+   already the default in release builds), run `make e2e`-style public play test against
+   `wss://ultirace.flappus.com` with `cmd/botclient -url wss://ultirace.flappus.com`.
+3. M12 — performance: debug overlay (FPS, frame ms, draw calls, tris, tier, ping, kbps),
+   `Quality.gd` tiers (iPhone 11 low / 15 Pro Max high, adaptive render scale), server capacity
+   soak with `cmd/botclient -practice -clients N`, memory flat over 5 races, Bolt balance follow-up.
 
 ## Open questions
 

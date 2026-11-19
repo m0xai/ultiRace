@@ -4,6 +4,13 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ## Open
 
+### Blocking M11 (server live)
+
+17. [ ] **Deploy the server to flappus** following `docs/DEPLOY.md` (DNS record
+    `ultirace.flappus.com`, docker build, `.env` with a random `ID_SECRET`, compose up, Caddy
+    snippet + reload). Tell Claude when `https://ultirace.flappus.com/healthz` answers; Claude then
+    switches the app's default server and runs the public-play e2e against it.
+
 ### Blocking M10 (Game Center) and M13/M14 (TestFlight / App Store)
 
 15. [ ] **Join the paid Apple Developer Program** (99 USD/year): developer.apple.com → Account →

@@ -170,5 +170,6 @@ func _draw() -> void:
 			continue
 		used.append(r)
 		shown += 1
-		var name: String = str((view.grid[i] as Dictionary)["name"])
+		var gd: Dictionary = view.grid[i] as Dictionary
+		var name: String = Profile.display_name(str(gd["playerId"]), str(gd["name"]))
 		draw_string(ThemeDB.fallback_font, sp + Vector2(-80, 0), name, HORIZONTAL_ALIGNMENT_CENTER, 160, 20, Color(1, 1, 1, 0.9))

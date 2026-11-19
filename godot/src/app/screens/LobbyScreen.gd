@@ -37,7 +37,13 @@ func _ready() -> void:
 	_timer = Ui.label("", 34)
 	var back: Button = Ui.button("Leave")
 	back.pressed.connect(func() -> void: leave.emit())
+	var share: Button = Ui.button("Share link")
+	share.pressed.connect(func() -> void:
+		# native share sheet needs an iOS plugin (DECISIONS); copy the Universal Link for now
+		DisplayServer.clipboard_set("https://ultirace.flappus.com/r/%s" % str(_room.get("code", "")))
+		share.text = "Link copied!")
 	head.add_child(_title)
+	head.add_child(share)
 	head.add_child(_timer)
 	head.add_child(back)
 	col.add_child(head)
@@ -70,6 +76,39 @@ func _ready() -> void:
 	_start_btn.pressed.connect(func() -> void: send.emit(Protocol.start()))
 	side.add_child(_start_btn)
 	body.add_child(side)
+
+
+func _host_is_me(m: Dictionary) -> bool:
+	for p: Variant in m["players"] as Array:
+		var pd: Dictionary = p as Dictionary
+		if pd["id"] == my_id:
+			return pd.get("host", false) as bool
+	return false
+
+
+## Report / Block on every other player; Kick for the host (GAME_PLAN §2.3.1, App Store 1.2).
+func _add_moderation(row: HBoxContainer, pid: String, host: bool) -> void:
+	for spec: Array in [["Report", "report"], ["Block", "block"], ["Kick", "kick"]]:
+		if spec[1] == "kick" and not host:
+			continue
+		var b: Button = Ui.button(spec[0] as String, false, 18)
+		b.custom_minimum_size = Vector2(96, 60)
+		var action: String = spec[1] as String
+		b.pressed.connect(_moderate.bind(action, pid, b))
+		row.add_child(b)
+
+
+func _moderate(action: String, pid: String, b: Button) -> void:
+	if action == "report":
+		send.emit(Protocol.report(pid, "name"))
+		b.text = "Reported"
+		b.disabled = true
+	elif action == "block":
+		Profile.block(pid)
+		b.text = "Blocked"
+		b.disabled = true
+	elif action == "kick":
+		send.emit(Protocol.kick(pid))
 
 
 func _option(items: Array) -> OptionButton:
@@ -106,7 +145,7 @@ func update_room(m: Dictionary) -> void:
 		if not pd.get("ready", false) and not pd.get("spec", false):
 			all_ready = false
 		var row: HBoxContainer = Ui.hbox(12)
-		var name: String = str(pd["name"]) + ("  (you)" if mine else "")
+		var name: String = Profile.display_name(str(pd["id"]), str(pd["name"])) + ("  (you)" if mine else "")
 		if pd.get("host", false):
 			name = "★ " + name
 		var nl: Label = Ui.label(name, 26, Ui.ACCENT if mine else Ui.TEXT)
@@ -115,6 +154,8 @@ func update_room(m: Dictionary) -> void:
 		row.add_child(Ui.label("%d ms" % int(pd.get("pingMs", 0)), 20, Ui.MUTED))
 		row.add_child(Ui.label("READY" if pd.get("ready", false) else ("watching" if pd.get("spec", false) else "…"), 22,
 			Color(0.4, 1, 0.5) if pd.get("ready", false) else Ui.MUTED))
+		if not mine:
+			_add_moderation(row, str(pd["id"]), _host_is_me(m))
 		_list.add_child(row)
 	if m.get("bots", true):
 		_list.add_child(Ui.label("+ bots fill the empty seats", 20, Ui.MUTED))
