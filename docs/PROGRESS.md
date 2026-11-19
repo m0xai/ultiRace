@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0–M4 done**, **M5 implemented** (device check pending) (2026-11-19). Next: **M6** (ULTs & balance).
+- **M0–M5 done** (2026-11-19). **M6 in progress** (ULTs & balance): effects.go + world integration written, abilities/bots/balance next.
 
 ## M0 plan — Setup
 
@@ -105,8 +105,8 @@ Done when: touch controls, HUD, lobby, vehicle select, countdown, results; full 
       `src/input/TouchControls.gd` + `InputSetup.gd`; `src/render/RaceView.gd`.
 - [x] Desktop screenshots `docs/screenshots/m5_{home,lobby,select,race}.png`; tests: touch
       multi-touch, CarView placement (20 Godot tests).
-- [ ] On device: auto-played practice race screenshot `m5_device.png` (waiting: phone was
-      locked; a background retry loop launches when it's unlocked). Then tick M5.
+- [x] On device: auto-played practice race on the iPhone 15 Pro Max (`docs/screenshots/m5_device.png`:
+      1/8, lap 2/3, minimap, controls inside the safe area).
 - Dev args for the app (desktop `-- …` or device `DEV_ARGS=…`): `--auto quick|practice`,
   `--auto-nolock`, `--join quick|practice`, `--server <url>`, `--shot <png> --shot-delay <s>`.
 
@@ -116,8 +116,7 @@ interpolated ~100 ms behind → steering feels laggy until M7).
 
 ## Next steps
 
-1. Finish M5 device check (see above), tick M5.
-2. M6 — ULTs & balance (Go only): `internal/sim/effects.go` (spinout, slow, slide, boost, ghost,
+1. M6 — ULTs & balance (Go only): `internal/sim/effects.go` (spinout, slow, slide, boost, ghost,
    CC immunity 1.5 s, max 1 hard CC / 4 s, slow cap 50 %, no self-hits, no ULTs in first 3 s),
    `internal/abilities/` (one file per ULT, numbers in balance.json `ults`), projectiles/traps in
    snapshots (protocol: proj/trap counts are already reserved, bump fixtures), catch-up (ULT
