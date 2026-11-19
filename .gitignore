@@ -24,3 +24,6 @@
 
 # OS
 .DS_Store
+
+# gdUnit4 reports
+/godot/reports/

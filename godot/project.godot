@@ -1,0 +1,41 @@
+; Engine configuration file.
+; Godot version pinned in godot/VERSION.
+
+config_version=5
+
+[application]
+
+config/name="UltiRace"
+config/version="0.0.1"
+run/main_scene="res://src/app/Boot.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+config/icon="res://assets/icon.png"
+boot_splash/bg_color=Color(0.07, 0.08, 0.12, 1)
+
+[autoload]
+
+DevTools="*res://src/testing/DevTools.gd"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=1
+gdscript/warnings/unsafe_method_access=1
+gdscript/warnings/exclude_addons=true
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

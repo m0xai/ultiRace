@@ -5,38 +5,44 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
 
 ## Current status (2026-11-19)
 
-- Step 1 done: `docs/GAME_PLAN.md` (moved from root), `MILESTONES.md`, `DECISIONS.md`, this file.
-- Step 2 (toolchain preflight) mostly done: `scripts/doctor.sh`, `scripts/preflight.sh`,
-  `docs/TOOLCHAIN.md`.
-  - PASS: Go build + linux/amd64 static cross-compile; Godot headless script; Blender headless
-    bevelled cube → .glb + PNG → Godot headless import; Godot windowed screenshot (Metal 4,
-    Mobile renderer); Xcode 27.2 + iOS SDK + simulator runtime; Docker.
-  - Export templates installed by Claude; Godot iOS export → Xcode project PASSES (needs an
-    app icon + Team ID; see TOOLCHAIN gotchas).
-  - iOS Simulator: not possible with the official 4.7.2 templates (x86_64-only sim slice,
-    iOS 27 sim rejects x86_64). Decision: device-only testing (DECISIONS.md).
-  - **WAITING FOR HUMAN:** HUMAN_TODO item 0, turn on Developer Mode on the iPhone 15 Pro Max.
-    Signing uses the free Personal Team `R984A9U2G4` with
-    `-allowProvisioningUpdates -allowProvisioningDeviceRegistration -destination id=<UDID>`.
-- No game code yet.
+- Step 1 (docs) and Step 2 (toolchain preflight) done except the signed device install, which
+  is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
+  Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
+  TOOLCHAIN.md) → device-only testing.
+- **M0 in progress.**
+
+## M0 plan — Setup
+
+Done when: repo, Go module, Godot project pinned, Makefile, CI green; empty Godot scene runs
+on a real iPhone via Xcode.
+
+- [x] Go module `github.com/m0xai/ultiRace` (go 1.24), `cmd/server` with `/healthz`, flags
+      (`-test`, `-sim-lag`, `-sim-jitter`), graceful shutdown; `internal/server` test.
+- [x] `godot/` project: `VERSION` 4.7.2.stable, Mobile renderer, landscape, untyped
+      declarations = error, `Boot.tscn`, `DevTools` autoload (`-- --shot <png>`),
+      gdUnit4 6.2.3, iOS preset (team R984A9U2G4, `com.flappus.ultirace`, iOS 17.0),
+      placeholder icon.
+- [x] Makefile (`make help`), `scripts/ios.sh`, `.github/workflows/ci.yml` (Linux: lint, Go
+      race tests, fixtures/sync checks, Godot tests; macOS: iOS export + unsigned compile).
+- [x] Local: `make test`, `make lint`, `make check-sync`, `make ios-check`, `make screenshot`
+      (docs/screenshots/boot.png, looks right).
+- [ ] CI green on GitHub (repo is public: check via
+      `curl -s https://api.github.com/repos/m0xai/ultiRace/actions/runs?per_page=1`).
+- [ ] `make ios-run` installs + launches on the iPhone 15 Pro Max.
 
 ## Next steps
 
-1. When the human confirms Developer Mode: run `scripts/preflight.sh`; c and d2 must PASS
-   (d1 SKIPs by design). If codesign shows a
-   keychain dialog, tell the human in one short message and wait. Then update
-   `docs/TOOLCHAIN.md` (mark c/d verified, record the Team ID and min iOS version).
-2. M0: Go module + layout (§3.2), `godot/` project with `VERSION`, gdUnit4, iOS preset,
-   Makefile targets from TOOLCHAIN.md, `.github/workflows/ci.yml`, empty scene on the iPhone.
+1. Finish M0 (two boxes above), tick it in MILESTONES.md, commit + push.
+2. M1: sim core in Go (gamedata/balance.json, vehicles.json, 3 maps, mathx, track, sim,
+   laps/ranking, determinism test, fixtures).
 
 ## Open questions
 
 - Keep the iPhone 11 low tier (plan §1, §4.2, §8), or raise the minimum device now that the
-  high tier is the priority? Until answered, the plan stays as written, tuned on the 15 Pro Max.
-- Minimum iOS version: preflight uses 16.0; decide in M0 (plan §7.2).
-- Bundle ID: proposal `com.flappus.ultirace`.
+  high tier is the priority? Until answered the plan stays as written; tuning happens on the
+  15 Pro Max.
 - Repo name in the plan is `ultirace-ios`; the actual repo is `ultiRace` (github.com/m0xai/ultiRace).
 
 ## Blocked
 
-- iOS export / simulator / device steps: see HUMAN_TODO items 1–3.
+- Nothing blocked by the human right now (Developer Mode is on).

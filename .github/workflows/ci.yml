@@ -1,0 +1,104 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  linux:
+    name: Go + Godot tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Lint
+        run: make lint
+
+      - name: Go tests
+        run: make test-go
+
+      - name: Fixtures are up to date
+        run: |
+          make fixtures
+          git diff --exit-code -- gamedata/fixtures || { echo "::error::fixtures are stale, run make fixtures"; exit 1; }
+
+      - name: godot/gamedata is in sync
+        run: make check-sync
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-linux-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip && mv Godot_v*_linux.x86_64 godot && chmod +x godot
+
+      - name: Godot version matches godot/VERSION
+        run: |
+          v=$(~/godot-bin/godot --headless --version | tail -1)
+          case "$v" in "$(cat godot/VERSION)"*) echo "Godot $v";; *) echo "::error::Godot $v != $(cat godot/VERSION)"; exit 1;; esac
+
+      - name: Godot tests
+        run: make test-godot GODOT=$HOME/godot-bin/godot
+
+  ios:
+    name: iOS export + compile (macOS, unsigned)
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + iOS template
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-mac
+            ~/Library/Application Support/Godot/export_templates/${{ env.GODOT_VERSION }}.stable/ios.zip
+            ~/Library/Application Support/Godot/export_templates/${{ env.GODOT_VERSION }}.stable/version.txt
+          key: godot-macos-ios-${{ env.GODOT_VERSION }}
+
+      - name: Download Godot + iOS template
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-mac && cd ~/godot-mac
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSLo godot.zip "$base/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip && rm godot.zip
+          curl -sSLo tpl.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          T="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$T"
+          unzip -q -j tpl.tpz 'templates/ios.zip' 'templates/version.txt' -d "$T"
+          rm tpl.tpz
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: iOS export + unsigned compile
+        run: GODOT=$HOME/godot-mac/Godot.app/Contents/MacOS/Godot ./scripts/ios.sh compile-check
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-logs
+          path: build/logs/
