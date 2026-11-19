@@ -32,3 +32,6 @@ Key decisions D1–D10 from the original plan live in `docs/GAME_PLAN.md` §0.
 | 2026-11-19 | Simulated lag delays each message by lag±jitter from its own send time, in order (no reordering) | Per-message sleeps serialised the stream (30 msgs/s × 150 ms) | Sleep per message |
 | 2026-11-19 | `bump` and `land` events are not sent to clients | Cosmetic; clients derive them from snapshots; saves bandwidth | Send everything |
 | 2026-11-19 | Test-mode `-time-scale` is a server flag (applies to all rooms), not a per-room protocol field | No protocol change; enough for e2e | `create{timeScale}` in hello |
+| 2026-11-19 | GDScript mirror uses plain `float` (64-bit) everywhere, never `Vector3`, and a 16-bit-split `imul32` for mulberry32 | Standard Godot builds store Vector3 as 32-bit floats; Godot ints are signed 64-bit | Double-precision Godot build |
+| 2026-11-19 | Track visuals are generated at runtime by `TrackBuilder.gd` (no saved `.tscn` per track yet); themed placeholder look | Fast iteration in M3; saving scenes with baked lightmaps is part of the M8 art pass | Save `tracks/*.tscn` now |
+| 2026-11-19 | Neon uses bridge pillars instead of skirts; Sunny/Frosty use skirts from the road edge to the ground | Skirts would block the figure-8 underpass | Terrain mesh |

@@ -9,7 +9,7 @@ A new session must be able to continue from this file alone. Read `CLAUDE.md` an
   is waiting for Xcode to finish "Preparing Kerem's iPhone" (developer disk image) after
   Developer Mode was enabled. Simulator is impossible with official 4.7.2 templates (see
   TOOLCHAIN.md) → device-only testing.
-- **M0, M1, M2 done** (2026-11-19). Next: **M3** (Godot mirror + map rendering).
+- **M0–M3 done** (2026-11-19). Next: **M4** (Godot client connects and watches a race).
 
 ## M0 plan — Setup
 
@@ -69,12 +69,25 @@ Not done in M2 (deliberately later): Quick Play rule 3 (spectate a running race 
 within 30 s) → M11; Game Center auth → M10; AASA/`/r/{code}` links and `bans.json` → M11;
 server capacity soak (≥ 300 rooms/vCPU) → M12; ULTs and effects → M6.
 
+## M3 plan — Mirror (Godot)
+
+Done when: `Track.gd` + `Physics.gd` pass all fixtures; 3 maps render from JSON with a free camera.
+
+- [x] `godot/src/sim/`: `MathX.gd`, `Rng.gd` (mulberry32), `GameData.gd`, `Track.gd`, `Physics.gd`.
+- [x] Conformance (gdUnit4): track samples incl. wrap, 6 physics scenarios with events, rng → all within 1e-4.
+- [x] `godot/src/render/TrackBuilder.gd` (road, curbs, walls, skirts/pillars, ramps, start
+      line/gate, ground, placeholder scenery, themed sky/sun/fog) + `MapViewer.tscn` free camera.
+- [x] Screenshots `docs/screenshots/m3_{sunny,neon,frosty}_{overview,start}.png`, `m3_neon_bridge.png`.
+      Budgets: ≤ 38 draw calls, ≤ 113k triangles per view (`DevTools --shot` prints PERF).
+
 ## Next steps
 
-1. M3 — Mirror (Godot): `godot/src/sim/Track.gd` + `Physics.gd` (typed GDScript) passing
-   `gamedata/fixtures/track_*.json` and `physics_*.json` within 1e-4 (gdUnit4); `TrackBuilder.gd`
-   generates road/walls/curbs/start gate from map JSON; a free-camera viewer scene renders all
-   3 maps; screenshots in `docs/screenshots/`.
+1. M4 — Connect & watch: `godot/src/net/` (`Protocol.gd` mirroring internal/protocol incl.
+   binary snapshots, passing `fixtures/protocol/messages.json`; `Connection.gd` (WebSocketPeer,
+   hello/welcome, reconnect); `Snapshot.gd`; `Interpolation.gd` (≈100 ms buffer, s-wrap, adaptive
+   to 160 ms)); a watch scene that joins a room and renders all 8 cars (placeholder boxes) on the
+   track with a chase/spectator camera; `testing/BotClient.gd` headless client for e2e; verify on
+   the iPhone against the Mac's dev server (LAN IP).
 
 ## Open questions
 

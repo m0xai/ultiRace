@@ -1,0 +1,429 @@
+class_name TrackBuilder
+extends RefCounted
+
+## Builds the visual track from map JSON via Track.gd (GAME_PLAN §2.4, §4.3): road, curbs,
+## walls, skirts or bridge pillars, start gate, ramps, ground, simple scenery and the theme's
+## environment. M8 replaces the placeholder look (baked lighting, Blender props).
+
+const STEP: float = 2.0
+const WALL_H: float = 1.1
+const WALL_GAP: float = 0.25
+const CURB_W: float = 1.2
+const CURB_SEG: float = 4.0
+const ROAD_LIFT: float = 0.02
+
+
+class TrackTheme:
+	extends RefCounted
+	var road: Color
+	var curb_a: Color
+	var curb_b: Color
+	var wall: Color
+	var wall_emission: Color
+	var ground: Color
+	var skirt: Color
+	var sky_top: Color
+	var sky_horizon: Color
+	var sun_color: Color
+	var sun_energy: float
+	var sun_rot: Vector3
+	var ambient: float
+	var fog: Color
+	var fog_density: float
+	var pillars: bool
+	var prop_color: Color
+	var prop_emission: Color
+
+
+static func theme_for(theme_id: String) -> TrackTheme:
+	var t: TrackTheme = TrackTheme.new()
+	match theme_id:
+		"neon":
+			t.road = Color(0.09, 0.09, 0.12)
+			t.curb_a = Color(0.95, 0.2, 0.75)
+			t.curb_b = Color(0.15, 0.85, 1.0)
+			t.wall = Color(0.12, 0.12, 0.18)
+			t.wall_emission = Color(0.2, 0.9, 1.0)
+			t.ground = Color(0.04, 0.04, 0.07)
+			t.skirt = Color(0.1, 0.1, 0.14)
+			t.sky_top = Color(0.02, 0.02, 0.08)
+			t.sky_horizon = Color(0.25, 0.08, 0.35)
+			t.sun_color = Color(0.6, 0.6, 1.0)
+			t.sun_energy = 0.35
+			t.sun_rot = Vector3(-50, 30, 0)
+			t.ambient = 0.6
+			t.fog = Color(0.12, 0.05, 0.2)
+			t.fog_density = 0.0008
+			t.pillars = true
+			t.prop_color = Color(0.1, 0.1, 0.16)
+			t.prop_emission = Color(1.0, 0.3, 0.8)
+		"frosty":
+			t.road = Color(0.26, 0.28, 0.32)
+			t.curb_a = Color(0.85, 0.15, 0.15)
+			t.curb_b = Color(0.95, 0.95, 0.97)
+			t.wall = Color(0.75, 0.82, 0.9)
+			t.wall_emission = Color(0, 0, 0)
+			t.ground = Color(0.9, 0.93, 0.97)
+			t.skirt = Color(0.55, 0.58, 0.64)
+			t.sky_top = Color(0.35, 0.5, 0.75)
+			t.sky_horizon = Color(0.82, 0.88, 0.95)
+			t.sun_color = Color(1.0, 0.95, 0.9)
+			t.sun_energy = 1.1
+			t.sun_rot = Vector3(-35, -40, 0)
+			t.ambient = 0.6
+			t.fog = Color(0.85, 0.9, 0.96)
+			t.fog_density = 0.0009
+			t.pillars = false
+			t.prop_color = Color(0.13, 0.3, 0.2)
+			t.prop_emission = Color(0, 0, 0)
+		_:
+			t.road = Color(0.24, 0.24, 0.26)
+			t.curb_a = Color(0.9, 0.15, 0.12)
+			t.curb_b = Color(0.97, 0.97, 0.97)
+			t.wall = Color(0.95, 0.95, 0.95)
+			t.wall_emission = Color(0, 0, 0)
+			t.ground = Color(0.35, 0.62, 0.25)
+			t.skirt = Color(0.45, 0.36, 0.25)
+			t.sky_top = Color(0.25, 0.5, 0.9)
+			t.sky_horizon = Color(0.75, 0.85, 0.95)
+			t.sun_color = Color(1.0, 0.92, 0.78)
+			t.sun_energy = 1.2
+			t.sun_rot = Vector3(-40, 50, 0)
+			t.ambient = 0.5
+			t.fog = Color(0.75, 0.85, 0.95)
+			t.fog_density = 0.0005
+			t.pillars = false
+			t.prop_color = Color(0.18, 0.5, 0.2)
+			t.prop_emission = Color(0, 0, 0)
+	return t
+
+
+static func _mat(c: Color, emission: Color = Color(0, 0, 0), vertex_colors: bool = false) -> StandardMaterial3D:
+	var m: StandardMaterial3D = StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.85
+	if vertex_colors:
+		m.vertex_color_use_as_albedo = true
+		m.albedo_color = Color(1, 1, 1)
+	if emission.r + emission.g + emission.b > 0.0:
+		m.emission_enabled = true
+		m.emission = emission
+		m.emission_energy_multiplier = 2.0
+	return m
+
+
+static func _two_sided(m: StandardMaterial3D) -> StandardMaterial3D:
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+static func _mesh_instance(name: String, st: SurfaceTool, mat: Material) -> MeshInstance3D:
+	st.generate_normals()
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = name
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	return mi
+
+
+## A quad strip along the track between lateral offsets d0 → d1 at heights h0/h1 (above road).
+static func _strip(st: SurfaceTool, tr: Track, d0: float, d1: float, h0: float, h1: float, color_fn: Callable = Callable()) -> void:
+	var n: int = int(ceil(tr.length / STEP))
+	for i: int in n:
+		var sa: float = tr.length * float(i) / float(n)
+		var sb: float = tr.length * float(i + 1) / float(n)
+		var a0: Vector3 = tr.world(sa, d0, h0)
+		var a1: Vector3 = tr.world(sa, d1, h1)
+		var b0: Vector3 = tr.world(sb, d0, h0)
+		var b1: Vector3 = tr.world(sb, d1, h1)
+		if color_fn.is_valid():
+			st.set_color(color_fn.call(sa) as Color)
+		st.add_vertex(a0)
+		st.add_vertex(a1)
+		st.add_vertex(b0)
+		st.add_vertex(a1)
+		st.add_vertex(b1)
+		st.add_vertex(b0)
+
+
+## Builds the full track scene under a new Node3D.
+static func build(tr: Track) -> Node3D:
+	var th: TrackTheme = theme_for(tr.theme)
+	var root: Node3D = Node3D.new()
+	root.name = "Track_" + tr.id
+	var hw_max: float = 0.0
+	var n: int = int(ceil(tr.length / STEP))
+	var min_y: float = INF
+	var aabb_min: Vector3 = Vector3(INF, INF, INF)
+	var aabb_max: Vector3 = Vector3(-INF, -INF, -INF)
+	for i: int in n:
+		var smp: Track.Sample = tr.at(tr.length * float(i) / float(n))
+		hw_max = maxf(hw_max, smp.half_width)
+		min_y = minf(min_y, smp.py)
+		var p: Vector3 = Vector3(smp.px, smp.py, smp.pz)
+		aabb_min = aabb_min.min(p)
+		aabb_max = aabb_max.max(p)
+
+	# Road (variable width: build per-sample with the local half width)
+	var road: SurfaceTool = SurfaceTool.new()
+	road.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i: int in n:
+		var sa: float = tr.length * float(i) / float(n)
+		var sb: float = tr.length * float(i + 1) / float(n)
+		var ha: float = tr.half_width(sa)
+		var hb: float = tr.half_width(sb)
+		var a0: Vector3 = tr.world(sa, -ha, ROAD_LIFT)
+		var a1: Vector3 = tr.world(sa, ha, ROAD_LIFT)
+		var b0: Vector3 = tr.world(sb, -hb, ROAD_LIFT)
+		var b1: Vector3 = tr.world(sb, hb, ROAD_LIFT)
+		road.add_vertex(a0)
+		road.add_vertex(a1)
+		road.add_vertex(b0)
+		road.add_vertex(a1)
+		road.add_vertex(b1)
+		road.add_vertex(b0)
+	root.add_child(_mesh_instance("Road", road, _mat(th.road)))
+
+	# Curbs + walls + skirts, both sides, following the local half width
+	var curbs: SurfaceTool = SurfaceTool.new()
+	curbs.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var walls: SurfaceTool = SurfaceTool.new()
+	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var wall_tops: SurfaceTool = SurfaceTool.new()
+	wall_tops.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var skirts: SurfaceTool = SurfaceTool.new()
+	skirts.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i: int in n:
+		var sa: float = tr.length * float(i) / float(n)
+		var sb: float = tr.length * float(i + 1) / float(n)
+		var ha: float = tr.half_width(sa)
+		var hb: float = tr.half_width(sb)
+		var curb_col: Color = th.curb_a if int(sa / CURB_SEG) % 2 == 0 else th.curb_b
+		for side: float in [-1.0, 1.0]:
+			# curb: inner strip just inside the road edge, slightly raised
+			_quad(curbs, tr.world(sa, side * (ha - CURB_W), ROAD_LIFT + 0.03), tr.world(sb, side * (hb - CURB_W), ROAD_LIFT + 0.03),
+				tr.world(sa, side * ha, ROAD_LIFT + 0.03), tr.world(sb, side * hb, ROAD_LIFT + 0.03), curb_col)
+			# wall: vertical face at the edge
+			var wa: float = side * (ha + WALL_GAP)
+			var wb: float = side * (hb + WALL_GAP)
+			_quad(walls, tr.world(sa, wa, 0.0), tr.world(sb, wb, 0.0), tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), th.wall)
+			_quad(wall_tops, tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), tr.world(sa, wa + side * 0.35, WALL_H), tr.world(sb, wb + side * 0.35, WALL_H), th.wall)
+			# skirt: from the wall foot down to the ground (not on bridge themes)
+			if not th.pillars:
+				var fa: Vector3 = tr.world(sa, wa + side * 0.35, 0.0)
+				var fb: Vector3 = tr.world(sb, wb + side * 0.35, 0.0)
+				if fa.y > min_y + 0.05 or fb.y > min_y + 0.05:
+					_quad(skirts, fa, fb, Vector3(fa.x + side * 0.0, min_y - 0.5, fa.z), Vector3(fb.x, min_y - 0.5, fb.z), th.skirt)
+	root.add_child(_mesh_instance("Curbs", curbs, _mat(Color.WHITE, Color(0, 0, 0), true)))
+	root.add_child(_mesh_instance("Walls", walls, _two_sided(_mat(th.wall))))
+	root.add_child(_mesh_instance("WallTops", wall_tops, _two_sided(_mat(th.wall, th.wall_emission))))
+	if not th.pillars:
+		root.add_child(_mesh_instance("Skirts", skirts, _two_sided(_mat(th.skirt))))
+
+	# Bridge pillars where the road is high above the ground
+	if th.pillars:
+		var pillar_mesh: BoxMesh = BoxMesh.new()
+		pillar_mesh.size = Vector3(1.6, 1.0, 1.6)
+		var pillars: MultiMesh = MultiMesh.new()
+		pillars.transform_format = MultiMesh.TRANSFORM_3D
+		pillars.mesh = pillar_mesh
+		var xforms: Array[Transform3D] = []
+		var s: float = 0.0
+		while s < tr.length:
+			var smp: Track.Sample = tr.at(s)
+			var h: float = smp.py - min_y
+			if h > 3.0:
+				for side: float in [-1.0, 1.0]:
+					var top: Vector3 = tr.world(s, side * (smp.half_width - 1.5), -0.3)
+					var basis: Basis = Basis.from_scale(Vector3(1, h, 1))
+					xforms.append(Transform3D(basis, Vector3(top.x, min_y + (top.y - min_y) / 2.0, top.z)))
+			s += 22.0
+		pillars.instance_count = xforms.size()
+		for i: int in xforms.size():
+			pillars.set_instance_transform(i, xforms[i])
+		var pmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+		pmi.name = "Pillars"
+		pmi.multimesh = pillars
+		pmi.material_override = _mat(th.skirt)
+		root.add_child(pmi)
+
+	# Ramps: wedges rising to 0.8 m at the ramp end
+	var ramps: SurfaceTool = SurfaceTool.new()
+	ramps.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for r: Dictionary in tr.ramps:
+		var s0: float = float(r["s"])
+		var s1: float = s0 + float(r["length"])
+		var hw0: float = tr.half_width(s0) - 2.0
+		var steps: int = 6
+		for k: int in steps:
+			var sa: float = lerpf(s0, s1, float(k) / steps)
+			var sb: float = lerpf(s0, s1, float(k + 1) / steps)
+			var ya: float = 0.8 * float(k) / steps + ROAD_LIFT + 0.01
+			var yb: float = 0.8 * float(k + 1) / steps + ROAD_LIFT + 0.01
+			_quad(ramps, tr.world(sa, -hw0, ya), tr.world(sb, -hw0, yb), tr.world(sa, hw0, ya), tr.world(sb, hw0, yb), Color(1, 0.75, 0.1))
+		_quad(ramps, tr.world(s1, -hw0, 0.8), tr.world(s1, hw0, 0.8), tr.world(s1, -hw0, 0.0), tr.world(s1, hw0, 0.0), Color(0.3, 0.3, 0.3))
+	if tr.ramps.size() > 0:
+		root.add_child(_mesh_instance("Ramps", ramps, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))))
+
+	# Start line (checkered) + gate
+	var line: SurfaceTool = SurfaceTool.new()
+	line.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hw_s: float = tr.half_width(0.0)
+	var cells: int = 12
+	for row: int in 2:
+		for k: int in cells:
+			var d0: float = lerpf(-hw_s, hw_s, float(k) / cells)
+			var d1: float = lerpf(-hw_s, hw_s, float(k + 1) / cells)
+			var c: Color = Color.WHITE if (k + row) % 2 == 0 else Color(0.05, 0.05, 0.05)
+			_quad(line, tr.world(float(row), d0, ROAD_LIFT + 0.04), tr.world(float(row + 1), d0, ROAD_LIFT + 0.04),
+				tr.world(float(row), d1, ROAD_LIFT + 0.04), tr.world(float(row + 1), d1, ROAD_LIFT + 0.04), c)
+	root.add_child(_mesh_instance("StartLine", line, _mat(Color.WHITE, Color(0, 0, 0), true)))
+	root.add_child(_gate(tr, th))
+
+	# Ground
+	var ground: MeshInstance3D = MeshInstance3D.new()
+	ground.name = "Ground"
+	var plane: PlaneMesh = PlaneMesh.new()
+	var size: Vector3 = aabb_max - aabb_min
+	plane.size = Vector2(size.x + 600.0, size.z + 600.0)
+	ground.mesh = plane
+	ground.position = Vector3((aabb_min.x + aabb_max.x) / 2.0, min_y - 0.5, (aabb_min.z + aabb_max.z) / 2.0)
+	ground.material_override = _mat(th.ground)
+	root.add_child(ground)
+
+	root.add_child(_scenery(tr, th, min_y))
+	root.add_child(_environment(th))
+	return root
+
+
+static func _quad(st: SurfaceTool, a0: Vector3, b0: Vector3, a1: Vector3, b1: Vector3, c: Color) -> void:
+	st.set_color(c)
+	st.add_vertex(a0)
+	st.add_vertex(a1)
+	st.add_vertex(b0)
+	st.add_vertex(a1)
+	st.add_vertex(b1)
+	st.add_vertex(b0)
+
+
+static func _gate(tr: Track, th: TrackTheme) -> Node3D:
+	var gate: Node3D = Node3D.new()
+	gate.name = "StartGate"
+	var hw: float = tr.half_width(0.0) + WALL_GAP + 0.6
+	var post: BoxMesh = BoxMesh.new()
+	post.size = Vector3(0.8, 7.0, 0.8)
+	var mat: StandardMaterial3D = _mat(Color(0.15, 0.15, 0.18), th.wall_emission)
+	for side: float in [-1.0, 1.0]:
+		var p: Vector3 = tr.world(0.0, side * hw, 3.5)
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		mi.mesh = post
+		mi.material_override = mat
+		mi.position = p
+		gate.add_child(mi)
+	var bar: BoxMesh = BoxMesh.new()
+	bar.size = Vector3(2.0 * hw + 0.8, 1.2, 0.8)
+	var mb: MeshInstance3D = MeshInstance3D.new()
+	mb.mesh = bar
+	mb.material_override = _mat(Color(0.95, 0.75, 0.1), th.wall_emission)
+	var center: Vector3 = tr.world(0.0, 0.0, 7.0)
+	var lat: Vector3 = tr.lateral(0.0)
+	mb.transform = Transform3D(Basis.looking_at(lat.cross(Vector3.UP).normalized(), Vector3.UP), center)
+	gate.add_child(mb)
+	return gate
+
+
+## Deterministic placeholder scenery (trees / pines / towers) kept clear of the track.
+static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
+	var node: Node3D = Node3D.new()
+	node.name = "Scenery"
+	var mesh: Mesh
+	if tr.theme == "neon":
+		var box: BoxMesh = BoxMesh.new()
+		box.size = Vector3(1, 1, 1)
+		mesh = box
+	else:
+		var cone: CylinderMesh = CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 1.0
+		cone.height = 1.0
+		cone.radial_segments = 7
+		mesh = cone
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	var rng: Rng = Rng.new(hash(tr.id) & 0x7FFFFFFF)
+	var xforms: Array[Transform3D] = []
+	var s: float = 0.0
+	while s < tr.length:
+		var smp: Track.Sample = tr.at(s)
+		for side: float in [-1.0, 1.0]:
+			if rng.next_float() < 0.55:
+				continue
+			var dist: float = smp.half_width + 12.0 + rng.next_float() * 60.0
+			var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, min_y - 0.5, smp.pz + smp.nz * side * dist)
+			if _too_close(tr, p, 14.0):
+				continue
+			var h: float
+			var w: float
+			if tr.theme == "neon":
+				h = 15.0 + rng.next_float() * 45.0
+				w = 8.0 + rng.next_float() * 10.0
+			else:
+				h = 6.0 + rng.next_float() * 7.0
+				w = 1.8 + rng.next_float() * 1.2
+			xforms.append(Transform3D(Basis.from_scale(Vector3(w, h, w)), p + Vector3(0, h / 2.0, 0)))
+		s += 9.0
+	mm.instance_count = xforms.size()
+	for i: int in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = _mat(th.prop_color, th.prop_emission * 0.15)
+	node.add_child(mmi)
+	return node
+
+
+static func _too_close(tr: Track, p: Vector3, margin: float) -> bool:
+	var s: float = 0.0
+	while s < tr.length:
+		var smp: Track.Sample = tr.at(s)
+		var dx: float = p.x - smp.px
+		var dz: float = p.z - smp.pz
+		if dx * dx + dz * dz < (smp.half_width + margin) * (smp.half_width + margin):
+			return true
+		s += 6.0
+	return false
+
+
+static func _environment(th: TrackTheme) -> Node3D:
+	var node: Node3D = Node3D.new()
+	node.name = "Lighting"
+	var sun: DirectionalLight3D = DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.light_color = th.sun_color
+	sun.light_energy = th.sun_energy
+	sun.rotation_degrees = th.sun_rot
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 120.0
+	node.add_child(sun)
+	var env: Environment = Environment.new()
+	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = th.sky_top
+	sky_mat.sky_horizon_color = th.sky_horizon
+	sky_mat.ground_horizon_color = th.sky_horizon
+	sky_mat.ground_bottom_color = th.ground
+	var sky: Sky = Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = th.ambient
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.fog_enabled = true
+	env.fog_light_color = th.fog
+	env.fog_density = th.fog_density
+	env.glow_enabled = th.wall_emission.r + th.wall_emission.g + th.wall_emission.b > 0.0
+	var we: WorldEnvironment = WorldEnvironment.new()
+	we.environment = env
+	node.add_child(we)
+	return node

@@ -77,6 +77,15 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
 }
 ```
 
+### Reviews (not blocking)
+
+7. [ ] **Review M3 visuals** (placeholder look, final art comes in M8): `docs/screenshots/m3_*.png`.
+   Try it yourself: `/Applications/Godot.app/Contents/MacOS/Godot --path godot res://src/render/MapViewer.tscn`
+   (WASD/QE fly, right-drag look, keys 1/2/3 switch maps). Tell Claude anything about track
+   shapes, widths, corners or the bridge you want changed.
+8. [ ] **Decide:** keep the iPhone 11 "low" graphics tier, or target only recent iPhones
+   (you said high-end graphics matter more)? Until answered the plan stays as written.
+
 ## Done
 
 (none yet)

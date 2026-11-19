@@ -6,7 +6,7 @@ Each milestone ends with a demo and an updated `docs/PROGRESS.md`.
 - [x] **M0 — Setup.** (done 2026-11-19: CI green on 930f1e8, Boot scene runs on iPhone 15 Pro Max) Repo, Go module, Godot project pinned, Makefile, CI green; empty Godot scene runs on a real iPhone via Xcode
 - [x] **M1 — Sim core (Go).** (done 2026-11-19) Track building + car physics + laps/ranking, determinism test, fixtures written
 - [x] **M2 — Rooms & bots (Go).** (done 2026-11-19) Protocol, rooms, state machine, bots, public/private visibility, room directory API, matchmaker; Go bot clients Quick Play into rooms and finish races over WebSocket
-- [ ] **M3 — Mirror (Godot).** `Track.gd` + `Physics.gd` pass all fixtures; 3 maps render from JSON with a free camera
+- [x] **M3 — Mirror (Godot).** (done 2026-11-19) `Track.gd` + `Physics.gd` pass all fixtures; 3 maps render from JSON with a free camera
 - [ ] **M4 — Connect & watch.** Godot client joins a room; all cars interpolated (no prediction); protocol fixtures pass
 - [ ] **M5 — Play.** Touch controls, HUD, lobby, vehicle select, countdown, results; full race vs bots on device
 - [ ] **M6 — ULTs & balance.** All 8 ULTs, effects, CC rules, catch-up; balance report within targets
