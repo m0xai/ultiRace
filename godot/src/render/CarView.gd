@@ -26,6 +26,7 @@ func configure(vehicle: String, display_name: String, is_you: bool) -> void:
 	_cabin.material_override = cab
 	_tag.text = ("▼ " if is_you else "") + display_name
 	_tag.modulate = Color(1, 0.9, 0.3) if is_you else Color(1, 1, 1)
+	_tag.visible = false # names are drawn by the 2D HUD (≤ 4 nearest); kept for spectator/debug use
 
 
 ## Places the car from a track-space state (rendering only; no game rules).

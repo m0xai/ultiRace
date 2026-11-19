@@ -753,9 +753,13 @@ func (c *Core) driveCars() {
 
 func (c *Core) sendSnapshot() {
 	cars := make([]protocol.SnapCar, len(c.world.Cars))
+	pos := make([]int, len(c.world.Cars))
+	for p, id := range c.world.Ranking() {
+		pos[id] = p + 1
+	}
 	for i, car := range c.world.Cars {
 		s := car.State
-		var flags uint16
+		flags := protocol.WithPos(0, pos[i])
 		if car.Finished {
 			flags |= protocol.FlagFinished
 		}

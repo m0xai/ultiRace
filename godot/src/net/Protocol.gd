@@ -14,6 +14,11 @@ const QS: float = 0.01
 const QYAW: float = 0.0001
 const QSPEED: float = 0.01
 const FLAG_FINISHED: int = 1
+const POS_SHIFT: int = 12 # flags bits 12–15: race position from the server (0 = unknown)
+
+
+static func pos_of(flags: int) -> int:
+	return (flags >> POS_SHIFT) & 0xF
 
 # client → server
 const T_HELLO: String = "hello"

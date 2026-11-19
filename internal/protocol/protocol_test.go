@@ -75,6 +75,16 @@ func TestSnapshotRoundTripWithinQuantisation(t *testing.T) {
 	}
 }
 
+func TestPosInFlags(t *testing.T) {
+	f := WithPos(FlagFinished, 7)
+	if Pos(f) != 7 || f&FlagFinished == 0 {
+		t.Fatalf("flags %b", f)
+	}
+	if Pos(WithPos(f, 3)) != 3 {
+		t.Fatal("overwrite failed")
+	}
+}
+
 func TestSnapshotBandwidthBudget(t *testing.T) {
 	// 8 cars at 20 Hz must stay ≤ 4 KB/s (GAME_PLAN §8), leaving room for events.
 	b := EncodeSnapshot(1, make([]SnapCar, 8))
@@ -140,8 +150,8 @@ func TestProtocolFixture(t *testing.T) {
 		f.Server = append(f.Server, Encode(m))
 	}
 	cars := []SnapCar{
-		{ID: 0, S: 1234.5678, D: -9.876, YawRel: 0.4321, Y: 1.23, Speed: 39.99, Vy: -7.5, Lap: 2, Flags: FlagFinished},
-		{ID: 5, S: 17.04, D: 3.3, YawRel: -0.2, Speed: 21.5, Lap: -1},
+		{ID: 0, S: 1234.5678, D: -9.876, YawRel: 0.4321, Y: 1.23, Speed: 39.99, Vy: -7.5, Lap: 2, Flags: WithPos(FlagFinished, 1)},
+		{ID: 5, S: 17.04, D: 3.3, YawRel: -0.2, Speed: 21.5, Lap: -1, Flags: WithPos(0, 6)},
 	}
 	b := PatchAck(EncodeSnapshot(4242, cars), 99)
 	dec, _ := DecodeSnapshot(b)

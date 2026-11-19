@@ -21,7 +21,8 @@ import (
 // car (18 bytes):
 //
 //	id u8 | s u32 (cm) | d i16 (cm) | yawRel i16 (1e-4 rad) | y u16 (cm) | speed u16 (cm/s)
-//	| vy i16 (cm/s) | lap i8 | flags u16 (bit0 finished, bits 1.. effects from M6)
+//	| vy i16 (cm/s) | lap i8 | flags u16 (bit0 finished, bits 1–11 effects from M6,
+//	  bits 12–15 race position 1–8, 0 = unknown; ranking is computed only by the server)
 const (
 	SnapKind     byte = 1
 	snapHeader        = 10
@@ -39,7 +40,17 @@ const (
 // Car flags.
 const (
 	FlagFinished uint16 = 1 << 0
+	PosShift            = 12
+	PosMask      uint16 = 0xF << PosShift
 )
+
+// WithPos stores a 1-based race position (1–15) in the flags.
+func WithPos(flags uint16, pos int) uint16 {
+	return flags&^PosMask | uint16(pos&0xF)<<PosShift
+}
+
+// Pos extracts the race position from flags (0 = unknown).
+func Pos(flags uint16) int { return int(flags&PosMask) >> PosShift }
 
 // SnapCar is one car's quantised state.
 type SnapCar struct {

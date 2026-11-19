@@ -77,6 +77,12 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
 }
 ```
 
+### Dev-session convenience (not blocking)
+
+9. [ ] While Claude works on the app, keep the iPhone **unlocked, on the same Wi-Fi and
+   connected** (e.g. *Settings → Display & Brightness → Auto-Lock → Never* while charging, set it
+   back afterwards). iOS refuses to launch apps on a locked phone, so on-device checks wait.
+
 ### Reviews (not blocking)
 
 7. [ ] **Review M3 visuals** (placeholder look, final art comes in M8): `docs/screenshots/m3_*.png`.

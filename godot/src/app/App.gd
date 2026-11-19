@@ -1,0 +1,226 @@
+extends Node
+
+## Client app state machine (GAME_PLAN §2.3):
+## Home → Lobby → Vehicle Select → Countdown → Race → Results → (Rematch → Lobby).
+## The server drives every transition; this only shows the right screen and forwards input.
+## Dev args: --auto quick|practice  (auto-play the flow for screenshots / device checks)
+##           --auto-nolock (with --auto: stay on vehicle select), --join quick|practice (connect only)
+
+const INPUT_HZ: float = 30.0
+const RECONNECT_TRIES: int = 5
+
+enum Screen { HOME, LOBBY, SELECT, RACE }
+
+var _conn: Connection = null
+var _screen: Screen = Screen.HOME
+var _home: HomeScreen
+var _lobby: LobbyScreen
+var _select: SelectScreen
+var _results: ResultsScreen
+var _view: RaceView
+var _hud: RaceHud
+var _touch: TouchControls
+var _ui: CanvasLayer
+var _seq: int = 0
+var _input_t: float = 0.0
+var _racing: bool = false
+var _leaving: bool = false
+var _reconnect_left: int = 0
+var _last_opts: Dictionary = {}
+var _names: Dictionary = {}
+var _laps: int = 3
+var _auto: String = ""
+var _auto_locked: bool = false
+
+
+func _ready() -> void:
+	InputSetup.ensure()
+	_view = RaceView.new()
+	add_child(_view)
+	_ui = CanvasLayer.new()
+	add_child(_ui)
+	_hud = RaceHud.new()
+	_touch = TouchControls.new()
+	_home = HomeScreen.new()
+	_lobby = LobbyScreen.new()
+	_select = SelectScreen.new()
+	_results = ResultsScreen.new()
+	for c: Control in [_hud, _touch, _home, _lobby, _select, _results]:
+		_ui.add_child(c)
+	_home.play.connect(_play)
+	_lobby.send.connect(_send)
+	_lobby.leave.connect(_leave)
+	_select.send.connect(_send)
+	_results.send.connect(_send)
+	_results.leave.connect(_leave)
+	_show(Screen.HOME)
+	_auto = Config.arg("--auto", "")
+	var join: String = Config.arg("--join", "")
+	if _auto != "":
+		_play({"quick": _auto == "quick", "practice": _auto == "practice"})
+	elif join != "":
+		_play({"quick": join == "quick", "practice": join == "practice"})
+
+
+func _show(s: Screen) -> void:
+	_screen = s
+	_home.visible = s == Screen.HOME
+	_lobby.visible = s == Screen.LOBBY
+	_select.visible = s == Screen.SELECT
+	var race: bool = s == Screen.RACE
+	_view.visible = race
+	_hud.visible = race
+	_touch.visible = race
+	if not race:
+		_results.visible = false
+
+
+func _play(opts: Dictionary) -> void:
+	_last_opts = opts
+	_leaving = false
+	_reconnect_left = RECONNECT_TRIES
+	_connect(opts)
+
+
+func _connect(opts: Dictionary) -> void:
+	if _conn != null:
+		_conn.queue_free()
+	_conn = Connection.new()
+	add_child(_conn)
+	_conn.message.connect(_on_message)
+	_conn.snapshot.connect(_view.push_snapshot)
+	_conn.closed.connect(_on_closed)
+	var hello_opts: Dictionary = opts.duplicate()
+	hello_opts["token"] = Profile.token()
+	hello_opts["blocked"] = Profile.blocked()
+	var name: String = Profile.player_name()
+	if _conn.connect_to(Config.server_url(), Protocol.hello(name if name != "" else "Guest", hello_opts)) != OK:
+		_home.show_error("Cannot reach the server.")
+
+
+func _send(msg: Dictionary) -> void:
+	if _conn != null:
+		_conn.send(msg)
+
+
+func _leave() -> void:
+	_leaving = true
+	if _conn != null:
+		_conn.close()
+	_racing = false
+	_view.clear()
+	_show(Screen.HOME)
+
+
+func _on_closed(_code: int, _reason: String) -> void:
+	if _leaving:
+		return
+	var room: String = _conn.room_code if _conn != null else ""
+	if room != "" and _reconnect_left > 0:
+		_reconnect_left -= 1
+		_hud.reconnecting = true
+		await get_tree().create_timer(1.0).timeout
+		_connect({"room": room})
+		return
+	_racing = false
+	_view.clear()
+	_show(Screen.HOME)
+	_home.show_error("Connection lost.")
+
+
+func _on_message(m: Dictionary) -> void:
+	match m["t"] as String:
+		Protocol.T_WELCOME:
+			Profile.set_value("token", m["token"])
+			_lobby.my_id = _conn.player_id
+			_select.my_id = _conn.player_id
+			_results.my_id = _conn.player_id
+			_hud.reconnecting = false
+			_reconnect_left = RECONNECT_TRIES
+		Protocol.T_ROOM:
+			_on_room(m)
+		Protocol.T_SELECT:
+			if _screen != Screen.SELECT:
+				_select.reset()
+				_auto_locked = false
+				_show(Screen.SELECT)
+			_select.names = _names
+			_select.update_select(m)
+			if _auto != "" and not _auto_locked and not Config.user_args().has("--auto-nolock"):
+				_auto_locked = true
+				_auto_lock(m)
+		Protocol.T_RACE_START:
+			_laps = int(m["laps"])
+			_view.start_race(m)
+			_hud.setup(_view, _laps)
+			_results.visible = false
+			_racing = true
+			_show(Screen.RACE)
+		Protocol.T_RESULTS:
+			_results.show_results(m)
+			_results.visible = true
+			_racing = false
+		Protocol.T_KICKED:
+			_leaving = true
+			_view.clear()
+			_show(Screen.HOME)
+			_home.show_error("Removed from the room (%s)." % m.get("reason", ""))
+		Protocol.T_ERR:
+			match str(m.get("code", "")):
+				"version":
+					_leaving = true
+					_show(Screen.HOME)
+					_home.show_error("Please update UltiRace to play.")
+				"no_room", "banned", "room_full":
+					_leaving = true
+					_show(Screen.HOME)
+					_home.show_error("Could not join that room.")
+				_:
+					print("server: ", m)
+
+
+func _on_room(m: Dictionary) -> void:
+	_names.clear()
+	for p: Variant in m["players"] as Array:
+		var pd: Dictionary = p as Dictionary
+		_names[pd["id"]] = pd["name"]
+	if m["state"] == "LOBBY":
+		_racing = false
+		if _screen != Screen.LOBBY:
+			_view.clear()
+			_show(Screen.LOBBY)
+		_lobby.update_room(m)
+		if _auto != "":
+			_auto_lobby(m)
+
+
+func _auto_lobby(m: Dictionary) -> void:
+	for p: Variant in m["players"] as Array:
+		var pd: Dictionary = p as Dictionary
+		if pd["id"] == _conn.player_id:
+			if not pd.get("ready", false):
+				_send(Protocol.ready(true))
+			elif pd.get("host", false) and m["visibility"] == Protocol.PRIVATE:
+				_send(Protocol.start())
+
+
+func _auto_lock(m: Dictionary) -> void:
+	var taken: Dictionary = {}
+	for c: Variant in m["claims"] as Array:
+		taken[(c as Dictionary)["vehicle"]] = true
+	for v: Variant in GameData.vehicles():
+		var vid: String = (v as Dictionary)["id"] as String
+		if not taken.has(vid):
+			_send(Protocol.lock(vid))
+			return
+
+
+func _process(delta: float) -> void:
+	if not _racing or _view.you < 0:
+		return
+	_input_t += delta
+	if _input_t < 1.0 / INPUT_HZ:
+		return
+	_input_t = 0.0
+	_seq += 1
+	_send(Protocol.input(_seq, _touch.steer, _touch.throttle, false))

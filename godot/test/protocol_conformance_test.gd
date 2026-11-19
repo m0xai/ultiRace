@@ -82,6 +82,7 @@ func test_snapshot_decodes_like_go() -> void:
 		assert_int(g.id).is_equal(int(w["ID"]))
 		assert_int(g.lap).is_equal(int(w["Lap"]))
 		assert_int(g.flags).is_equal(int(w["Flags"]))
+		assert_int(Protocol.pos_of(g.flags)).is_equal((int(w["Flags"]) >> 12) & 0xF)
 		for pair: Array in [[g.s, w["S"]], [g.d, w["D"]], [g.yaw_rel, w["YawRel"]], [g.y, w["Y"]], [g.speed, w["Speed"]], [g.vy, w["Vy"]]]:
 			assert_float(absf(float(pair[0]) - float(pair[1]))).is_less(1e-9)
 

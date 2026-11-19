@@ -181,7 +181,7 @@
   }
  ],
  "snapshot": {
-  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBAAWoBgAASgEw+AAAZggAAP8AAAAA",
+  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBEAWoBgAASgEw+AAAZggAAP8AYAAA",
   "ack": 99,
   "tick": 4242,
   "cars": [
@@ -194,7 +194,7 @@
     "Speed": 39.99,
     "Vy": -7.5,
     "Lap": 2,
-    "Flags": 1
+    "Flags": 4097
    },
    {
     "ID": 5,
@@ -205,7 +205,7 @@
     "Speed": 21.5,
     "Vy": 0,
     "Lap": -1,
-    "Flags": 0
+    "Flags": 24576
    }
   ]
  }
