@@ -58,6 +58,9 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 		for _, r := range tr.Ramps {
 			end := r.S + r.Length
 			if (prevS < end && newS >= end) || (prevS < end+tr.Length && newS >= end+tr.Length) {
+				// leave from the lip: on the wedge the car is drawn on its surface (ramp height
+				// is rendering only); in the air it starts from the lip, not from road level
+				c.Y = math.Max(c.Y, r.Height)
 				c.Vy = r.Vy
 				ev.Launched = true
 				break

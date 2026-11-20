@@ -105,10 +105,13 @@ static func _shared(kind: String) -> Material:
 func show_state(st: Physics.CarState, tr: Track) -> void:
 	_animate_wheels(st, tr)
 	var smp: Track.Sample = tr.at(st.s)
-	var p: Vector3 = tr.world(st.s, st.d, st.y + RIDE_HEIGHT)
+	var grounded: bool = st.y <= 0.0 and st.vy <= 0.0
+	var ramp: float = tr.ramp_height(st.s) if grounded else 0.0 # drive up the wedge, not through it
+	var p: Vector3 = tr.world(st.s, st.d, st.y + ramp + RIDE_HEIGHT)
 	var cy: float = cos(st.yaw_rel)
 	var sy: float = sin(st.yaw_rel)
-	var fwd: Vector3 = Vector3(smp.tx * cy + smp.nx * sy, smp.ty, smp.tz * cy + smp.nz * sy).normalized()
+	var pitch: float = tr.ramp_slope(st.s) if grounded else 0.0
+	var fwd: Vector3 = Vector3(smp.tx * cy + smp.nx * sy, smp.ty + pitch, smp.tz * cy + smp.nz * sy).normalized()
 	var up: Vector3 = tr.lateral(st.s).cross(fwd).normalized()
 	if up.y < 0.0:
 		up = -up

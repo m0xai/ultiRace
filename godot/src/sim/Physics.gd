@@ -160,6 +160,7 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 		for r: Dictionary in tr.ramps:
 			var end_s: float = float(r["s"]) + float(r["length"])
 			if (prev_s < end_s and new_s >= end_s) or (prev_s < end_s + tr.length and new_s >= end_s + tr.length):
+				c.y = maxf(c.y, float(r["height"]))
 				c.vy = float(r["vy"])
 				ev.launched = true
 				break

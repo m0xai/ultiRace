@@ -186,7 +186,7 @@ func TestRampLaunchAndLanding(t *testing.T) {
 	if !launched || !landed {
 		t.Fatalf("launched=%v landed=%v", launched, landed)
 	}
-	wantPeak := r.Vy * r.Vy / (2 * f.bal.Physics.Gravity)
+	wantPeak := r.Height + r.Vy*r.Vy/(2*f.bal.Physics.Gravity) // leaves from the lip
 	if math.Abs(maxY-wantPeak) > 0.25 {
 		t.Errorf("peak height %.2f, want ≈ %.2f", maxY, wantPeak)
 	}

@@ -49,7 +49,7 @@ func _init(map: Dictionary, samples_per_segment: int) -> void:
 		_pts.append(PackedFloat64Array([float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]), float(arr[4])]))
 	for r: Variant in map.get("ramps", []) as Array:
 		var rd: Dictionary = r as Dictionary
-		ramps.append({"s": float(rd["s"]), "length": float(rd["length"]), "vy": float(rd["vy"])})
+		ramps.append({"s": float(rd["s"]), "length": float(rd["length"]), "vy": float(rd["vy"]), "height": float(rd["height"])})
 	_k = samples_per_segment
 	var n: int = _pts.size()
 	_sample_s.resize(n * _k + 1)
@@ -160,6 +160,24 @@ func half_width(s: float) -> float:
 
 
 ## Track-space (s, d, y above road) → world position (bank tilts the lateral axis; render only).
+## Rendering only: height of the ramp surface at s (0 off ramps) and its slope (rise per metre).
+## Physics keeps grounded cars at y = 0 on the wedge and launches them from the lip.
+func ramp_height(s: float) -> float:
+	for r: Dictionary in ramps:
+		var u: float = MathX.wrap_delta(float(r["s"]), s, length) / float(r["length"])
+		if u >= 0.0 and u <= 1.0:
+			return float(r["height"]) * u
+	return 0.0
+
+
+func ramp_slope(s: float) -> float:
+	for r: Dictionary in ramps:
+		var u: float = MathX.wrap_delta(float(r["s"]), s, length) / float(r["length"])
+		if u >= 0.0 and u <= 1.0:
+			return float(r["height"]) / float(r["length"])
+	return 0.0
+
+
 func world(s: float, d: float, y: float) -> Vector3:
 	var smp: Sample = at(s)
 	var cb: float = cos(smp.bank)

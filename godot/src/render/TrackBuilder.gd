@@ -278,21 +278,22 @@ static func build(tr: Track) -> Node3D:
 		pmi.material_override = _mat(th.skirt)
 		root.add_child(pmi)
 
-	# Ramps: wedges rising to 0.8 m at the ramp end
+	# Ramps: full-width wedges rising to the ramp's height (physics launches every car from the lip)
 	var ramps: SurfaceTool = SurfaceTool.new()
 	ramps.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for r: Dictionary in tr.ramps:
 		var s0: float = float(r["s"])
 		var s1: float = s0 + float(r["length"])
-		var hw0: float = tr.half_width(s0) - 2.0
+		var hw0: float = tr.half_width(s0) - 0.3
+		var h: float = float(r["height"])
 		var steps: int = 6
 		for k: int in steps:
 			var sa: float = lerpf(s0, s1, float(k) / steps)
 			var sb: float = lerpf(s0, s1, float(k + 1) / steps)
-			var ya: float = 0.8 * float(k) / steps + ROAD_LIFT + 0.01
-			var yb: float = 0.8 * float(k + 1) / steps + ROAD_LIFT + 0.01
+			var ya: float = h * float(k) / steps + ROAD_LIFT + 0.01
+			var yb: float = h * float(k + 1) / steps + ROAD_LIFT + 0.01
 			_quad(ramps, tr.world(sa, -hw0, ya), tr.world(sb, -hw0, yb), tr.world(sa, hw0, ya), tr.world(sb, hw0, yb), Color(1, 0.75, 0.1))
-		_quad(ramps, tr.world(s1, -hw0, 0.8), tr.world(s1, hw0, 0.8), tr.world(s1, -hw0, 0.0), tr.world(s1, hw0, 0.0), Color(0.3, 0.3, 0.3))
+		_quad(ramps, tr.world(s1, -hw0, h + ROAD_LIFT + 0.01), tr.world(s1, hw0, h + ROAD_LIFT + 0.01), tr.world(s1, -hw0, 0.0), tr.world(s1, hw0, 0.0), Color(0.3, 0.3, 0.3))
 	if tr.ramps.size() > 0:
 		root.add_child(_mesh_instance("Ramps", ramps, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))))
 

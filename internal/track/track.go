@@ -71,7 +71,7 @@ func New(m *gamedata.Map, samplesPerSegment int) (*Track, error) {
 	t.sampleS[n*samplesPerSegment] = acc
 	t.Length = acc
 	for _, r := range m.Ramps {
-		if r.S < 0 || r.S+r.Length >= acc || r.Length <= 0 {
+		if r.S < 0 || r.S+r.Length >= acc || r.Length <= 0 || r.Height <= 0 {
 			return nil, fmt.Errorf("track %s: ramp at s=%v len=%v outside track length %.1f", m.ID, r.S, r.Length, acc)
 		}
 	}

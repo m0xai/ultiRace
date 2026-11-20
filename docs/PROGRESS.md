@@ -203,6 +203,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       horizon. Trees chunked in 200 m cells (culling). High ≤ 278 k tris / 160 draws, low ≤ 140 k
       / 107 (low tier: a third fewer trees). Screens `docs/screenshots/a3_*.png`.
 - [x] A3 open item done: neon signs now sit on building faces (sign bands).
+- [x] Harder tracks (human: "too easy"): new Sunny/Frosty/Neon layouts with hairpins, chicanes,
+      S-bends (`scripts/trackgen.py`, previews `docs/screenshots/a3_layouts.png`); steering +
+      trims rebalanced (wins 10.5–13.5 %, winner lap 42.9 s). Ramps fixed: cars ride up the
+      wedge and leave from the lip (Go + mirror, fixtures regenerated, test).
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

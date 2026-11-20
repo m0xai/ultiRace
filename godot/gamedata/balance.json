@@ -6,8 +6,8 @@
     "topSpeedPerStat": 0.8,
     "accelTimeBase": 4.4,
     "accelTimePerStat": 0.234,
-    "steerRateBase": 0.447,
-    "steerRatePerStat": 0.103,
+    "steerRateBase": 0.72,
+    "steerRatePerStat": 0.045,
     "wallReflectBase": 0.55,
     "wallReflectPerStat": 0.067,
     "massBase": 0.7,
@@ -17,7 +17,7 @@
   "physics": {
     "coastDecel": 9.843,
     "overspeedDecel": 12,
-    "steerHighSpeedFalloff": 0.473,
+    "steerHighSpeedFalloff": 0.23,
     "steerRefSpeed": 42,
     "autoAlign": 1.6,
     "maxYawRel": 0.85,
@@ -91,14 +91,14 @@
     "startBoostS": 1
   },
   "vehicleTrim": {
-    "bolt": -0.009,
-    "glacier": 0.027,
-    "goo": 0.033,
-    "hook": -0.012,
-    "phantom": -0.032,
-    "rhino": 0.029,
-    "twister": -0.013,
-    "volt": -0.016
+    "bolt": -0.032,
+    "glacier": 0.031,
+    "goo": 0.05,
+    "hook": -0.005,
+    "phantom": -0.038,
+    "rhino": 0.04,
+    "twister": -0.024,
+    "volt": -0.015
   },
   "ults": {
     "emp": {

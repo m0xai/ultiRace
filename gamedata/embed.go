@@ -176,6 +176,7 @@ type Ramp struct {
 	S      float64 `json:"s"`      // start of the ramp along the centreline (m)
 	Length float64 `json:"length"` // ramp length (m); launch happens at S+Length
 	Vy     float64 `json:"vy"`     // launch vertical speed (m/s)
+	Height float64 `json:"height"` // height of the ramp lip (m): cars drive up the wedge and leave it from there
 }
 
 // Map is one track file in maps/.
