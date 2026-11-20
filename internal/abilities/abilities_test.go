@@ -26,6 +26,7 @@ func world(t *testing.T, ids ...string) *sim.World {
 		}
 	}
 	tr, _ := track.Load("sunny", bal.Track.ArcSamplesPerSegment)
+	tr.Hazards, tr.Blocks = nil, nil // ULT tests run on a clean road (map hazards have their own tests)
 	w := sim.NewWorld(tr, bal, vs, 3)
 	w.Ults = New(bal)
 	w.Tick = bal.Ticks(bal.Effects.UltLockS) + 1
@@ -187,8 +188,8 @@ func TestGrappleNeedsTarget(t *testing.T) {
 
 func TestIceTrapSlidesOthersNotOwner(t *testing.T) {
 	w := world(t, "glacier", "bolt")
-	place(w, 0, 200, 0)
-	place(w, 1, 150, 0)
+	place(w, 0, 300, 0) // on the back straight
+	place(w, 1, 250, 0)
 	fire(w, 0)
 	if len(w.Traps) != 1 {
 		t.Fatal("no ice patch")

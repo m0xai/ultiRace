@@ -691,6 +691,9 @@ func (c *Core) startRace() {
 		p.ctrl.SetPhysics(sim.ParamsForVehicle(vehicles[i], c.data.Bal), &c.data.Bal.Physics)
 	}
 	c.world = sim.NewWorld(c.data.Tracks[c.Map], c.data.Bal, vehicles, c.Laps)
+	for i, p := range c.grid {
+		c.world.Cars[i].Bot = p.Bot
+	}
 	c.world.Ults = abilities.New(c.data.Bal)
 	c.State = Countdown
 	c.goTick = c.tick + c.ticks(c.data.Bal.Race.CountdownS)

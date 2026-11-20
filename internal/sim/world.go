@@ -12,6 +12,9 @@ import (
 	"github.com/m0xai/ultiRace/internal/track"
 )
 
+// wallEventGapS is the minimum time between two "wallHit" events of one car.
+const wallEventGapS = 0.25
+
 // Car is one participant in a race.
 type Car struct {
 	ID       int
@@ -27,6 +30,9 @@ type Car struct {
 	UltLeft  float64 // seconds of cooldown left (0 = ready)
 	UltUses  int
 	Finished bool
+	Bot      bool // driven by a bot (bot catch-up applies only when a human races)
+
+	lastWallEvent int // tick of the last "wallHit" event (rate limit)
 	// PrevThrottle/prevAbility detect rising edges (start boost, ULT button).
 	PrevThrottle int
 	prevAbility  bool
@@ -146,7 +152,10 @@ func (w *World) Step() {
 		c.Flags = flags
 		c.Mods = mods
 		ev := StepCar(&c.State, in, c.Params, mods, w.Track, ph, w.dt)
-		if ev.WallHit {
+		// at most one wallHit event per car per wallEventGapS: a car scraping along a wall hits
+		// it every tick, and one event per tick flooded clients (sparks/haptics need far fewer)
+		if ev.WallHit && (c.lastWallEvent == 0 || w.Tick-c.lastWallEvent >= w.Bal.Ticks(wallEventGapS)) {
+			c.lastWallEvent = w.Tick
 			w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "wallHit", Car: c.ID, Value: ev.WallImpact})
 		}
 		if ev.Launched {
@@ -157,6 +166,7 @@ func (w *World) Step() {
 		}
 	}
 	w.collide()
+	w.hazards()
 	if w.Ults != nil {
 		w.Ults.Tick(w)
 	}
@@ -224,6 +234,13 @@ func (w *World) catchup() {
 	n := len(w.Cars)
 	L := w.Track.Length
 	leader := w.Cars[w.rank[0]]
+	bestHuman := -1 // best-placed human (rank order)
+	for _, id := range w.rank {
+		if !w.Cars[id].Bot {
+			bestHuman = id
+			break
+		}
+	}
 	for p, id := range w.rank {
 		c := w.Cars[id]
 		f := 0.0
@@ -253,6 +270,11 @@ func (w *World) catchup() {
 		}
 		st.drafting = st.draftTicks >= w.Bal.Ticks(cu.DraftTimeS)
 		st.comeback = leader.State.Progress(L)-c.State.Progress(L) > cu.ComebackGapM
+		st.botBoost = 0
+		if c.Bot && bestHuman >= 0 && cu.BotRampM > 0 {
+			gap := w.Cars[bestHuman].State.Progress(L) - c.State.Progress(L) - cu.BotGapM
+			st.botBoost = cu.BotBonus * mathx.Clamp(gap/cu.BotRampM, 0, 1)
+		}
 	}
 	if w.Tick > w.Bal.Ticks(5) && w.EndTick == 0 && w.rank[0] != w.lastLeader {
 		if w.lastLeader >= 0 {
@@ -432,4 +454,45 @@ func (w *World) Hash() string {
 		}
 	}
 	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+// hazards applies the map's surface hazards: ice/oil make a car slide once per pass, water
+// slows it while it is on the puddle. Airborne and ghosted cars pass over. Solid blocks are
+// handled in StepCar (they are track geometry, mirrored by the client).
+func (w *World) hazards() {
+	L := w.Track.Length
+	hz := &w.Bal.Hazards
+	for i, h := range w.Track.Hazards {
+		if h.Kind == gamedata.HazardBlock || i >= 64 {
+			continue
+		}
+		bit := uint64(1) << uint(i)
+		for o, c := range w.Cars {
+			st := &c.Status
+			ds := mathx.WrapDelta(h.S, c.State.S, L)
+			on := ds >= 0 && ds <= h.Len && math.Abs(c.State.D-h.D) <= h.HalfW && c.State.Y < 0.5 && !st.Ghost(w.Tick)
+			if !on {
+				st.onHazard &^= bit
+				continue
+			}
+			first := st.onHazard&bit == 0
+			st.onHazard |= bit
+			switch h.Kind {
+			case gamedata.HazardIce, gamedata.HazardOil:
+				if first {
+					e := hz.Ice
+					if h.Kind == gamedata.HazardOil {
+						e = hz.Oil
+					}
+					w.Slide(o, e.SteerMul, e.Slow, e.EffectS)
+					w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "hazard", Car: c.ID, Ult: h.Kind})
+				}
+			case gamedata.HazardWater:
+				w.Slow(o, hz.Water.Slow, hz.Water.LingerS)
+				if first {
+					w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "hazard", Car: c.ID, Ult: h.Kind})
+				}
+			}
+		}
+	}
 }

@@ -72,11 +72,16 @@ type Controller struct {
 	ph      *gamedata.Physics
 	dodge   float64 // current avoidance offset
 	planned float64
+	seed    uint32
 }
+
+// slickAvoidPct: how often (per hazard and lap) a bot steers around an ice/oil/water patch;
+// road blocks are always avoided.
+const slickAvoidPct = 75
 
 // NewController creates a bot; seed makes it deterministic.
 func NewController(line *RacingLine, diff Difficulty, seed uint32) *Controller {
-	return &Controller{line: line, diff: diff, rng: mathx.NewRng(seed)}
+	return &Controller{line: line, diff: diff, rng: mathx.NewRng(seed), seed: seed}
 }
 
 // Decide returns this tick's input. others are the other cars' states (any order).
@@ -90,6 +95,7 @@ func (c *Controller) Decide(self *sim.CarState, others []*sim.CarState, tr *trac
 		c.planned = c.line.TargetD(look) + c.offset + c.dodge
 		hw := tr.HalfWidth(look) - 2
 		c.planned = mathx.Clamp(c.planned, -hw, hw)
+		c.planned = c.aroundHazards(self, c.planned, tr)
 	}
 	c.tick++
 	in := Steer(self, c.planned)
@@ -115,7 +121,44 @@ func (c *Controller) mustLift(self *sim.CarState, tr *track.Track) bool {
 	for d := 4.0; d <= look; d += 4 {
 		need = math.Max(need, math.Abs(tr.Curvature(self.S+d))*self.Speed)
 	}
-	return need > rate*0.92
+	// humans on auto-accelerate never lift; only coast when the corner clearly needs it (the
+	// heading buffer and the track width absorb the rest)
+	return need > rate*LiftFactor
+}
+
+// LiftFactor: a bot coasts only when the corner needs more than LiftFactor × its turn rate.
+// Humans on auto-accelerate never lift and plough through with the heading buffer and the
+// track width, so bots that lifted early lost every race to them.
+var LiftFactor = 1.8
+
+// aroundHazards moves the planned line beside a hazard ahead (blocks always, slick patches
+// most of the time) on the side nearer to the plan that still fits on the road.
+func (c *Controller) aroundHazards(self *sim.CarState, planned float64, tr *track.Track) float64 {
+	reach := math.Max(self.Speed*1.3, 25)
+	for i, h := range tr.Hazards {
+		ds := mathx.WrapDelta(self.S, h.S, tr.Length)
+		if ds < -h.Len || ds > reach {
+			continue
+		}
+		if h.Kind != gamedata.HazardBlock {
+			key := uint32(i)*7919 + uint32(max(self.Lap, 0))*104729 + c.seed
+			if key%100 >= slickAvoidPct {
+				continue
+			}
+		}
+		margin := h.HalfW + 1.9
+		if math.Abs(planned-h.D) >= margin {
+			continue
+		}
+		hw := tr.HalfWidth(h.S) - 1.5
+		left, right := h.D-margin, h.D+margin
+		if planned < h.D && left >= -hw || right > hw {
+			planned = left
+		} else {
+			planned = right
+		}
+	}
+	return planned
 }
 
 // avoid shifts the target when a car is close ahead in our lane.

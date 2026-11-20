@@ -107,6 +107,8 @@ func scenarios() []scenario {
 			}},
 		{"jumps", "frosty", "phantom", CarState{S: 60, Speed: 30}, NeutralMods,
 			func(_ int, c *CarState, tr *track.Track, _ *mathx.Rng) Input { return autopilot(c, tr, 0) }},
+		{"road_block", "sunny", "bolt", CarState{S: 236, D: 6.5, Speed: 30}, NeutralMods,
+			func(_ int, c *CarState, tr *track.Track, _ *mathx.Rng) Input { return autopilot(c, tr, 6.5) }},
 		{"random_inputs_slowed", "neon", "goo", CarState{S: 600, D: 3, Speed: 15}, Mods{SpeedMul: 0.8, AccelMul: 1.2, SteerMul: 0.7},
 			func(_ int, _ *CarState, _ *track.Track, rng *mathx.Rng) Input {
 				return Input{Steer: rng.Intn(3) - 1, Throttle: boolInt(rng.Float() < 0.8)}
@@ -253,6 +255,10 @@ func checkScenarioCoverage(t *testing.T, pf physicsFixture) {
 	case "wall_hits":
 		if walls < 2 {
 			t.Errorf("wall_hits: only %v wall hits", walls)
+		}
+	case "road_block":
+		if walls < 1 {
+			t.Errorf("road_block: never hit the block")
 		}
 	case "jumps":
 		if launches < 1 || lands < 1 {

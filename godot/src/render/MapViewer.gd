@@ -3,7 +3,7 @@ extends Node3D
 ## M3 map viewer: builds a map from JSON and flies a free camera.
 ## Desktop: WASD/QE move, right mouse look, Shift fast, 1/2/3 switch map.
 ## Touch: one finger looks, two fingers move forward/back.
-## User args (after `--`): --map <id>  --cam overview|start|bridge  (+ DevTools --shot <png>)
+## User args (after `--`): --map <id>  --cam overview|start|bridge  --at <s>  (+ DevTools --shot <png>)
 
 const SPEED: float = 40.0
 const LOOK_SENS: float = 0.004
@@ -73,8 +73,10 @@ func _set_cam(mode: String) -> void:
 			_cam.position = p + lat * 45.0 + Vector3(0, -6, 0)
 			_cam.look_at(p + Vector3(0, -3, 0), Vector3.UP)
 		_:
-			var behind: Vector3 = _track.world(-30.0, 0.0, 6.0)
-			var ahead: Vector3 = _track.world(25.0, 0.0, 1.0)
+			# --at <s>: chase-camera view of that point (hazards, ramps); default: the start line
+			var at: float = float(_arg(OS.get_cmdline_user_args(), "--at", "0"))
+			var behind: Vector3 = _track.world(at - 30.0, 0.0, 6.0)
+			var ahead: Vector3 = _track.world(at + 25.0, 0.0, 1.0)
 			_cam.position = behind
 			_cam.look_at(ahead, Vector3.UP)
 	_yaw = _cam.rotation.y

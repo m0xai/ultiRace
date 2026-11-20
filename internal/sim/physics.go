@@ -100,6 +100,32 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 		}
 	}
 
+	// 4b. Road blocks (map hazards): a short solid barrier; a grounded car overlapping it is
+	// pushed out to the nearer side, loses speed and is turned away (like a wall).
+	if c.Y < 0.5 {
+		for _, b := range tr.Blocks {
+			ds := mathx.WrapDelta(b.S, c.S, tr.Length)
+			if ds < -ph.CarHalfLength || ds > b.Len+ph.CarHalfLength {
+				continue
+			}
+			off := c.D - b.D
+			reach := b.HalfW + ph.CarHalfWidth
+			if math.Abs(off) >= reach {
+				continue
+			}
+			side := 1.0
+			if off < 0 {
+				side = -1
+			}
+			c.D = b.D + side*reach
+			ev.WallHit = true
+			ev.WallImpact = c.Speed * 0.5
+			c.Speed *= ph.BlockSpeedFactor
+			c.YawRel = side * math.Max(math.Abs(c.YawRel)*0.5, ph.WallMinYawOut)
+			break
+		}
+	}
+
 	// 6b. Vertical motion.
 	if c.Y > 0 || c.Vy > 0 {
 		c.Vy -= ph.Gravity * dt

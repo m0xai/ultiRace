@@ -65,6 +65,9 @@ func RunRace(d *room.Data, mapID string, laps int, seed uint32) Race {
 	}
 	tr := d.Tracks[mapID]
 	w := sim.NewWorld(tr, d.Bal, vs, laps)
+	for _, c := range w.Cars {
+		c.Bot = true // all-bot races: bot catch-up never applies (no human)
+	}
 	w.Ults = abilities.New(d.Bal)
 	ctrls := make([]*bots.Controller, len(vs))
 	delay := make([]int, len(vs))

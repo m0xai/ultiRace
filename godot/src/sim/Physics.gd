@@ -73,6 +73,8 @@ class Constants:
 	var wall_min_yaw_out: float
 	var min_curvature_denominator: float
 	var landing_speed_factor: float
+	var car_half_length: float
+	var block_speed_factor: float
 
 	func _init(ph: Dictionary) -> void:
 		coast_decel = float(ph["coastDecel"])
@@ -88,6 +90,8 @@ class Constants:
 		wall_min_yaw_out = float(ph["wallMinYawOut"])
 		min_curvature_denominator = float(ph["minCurvatureDenominator"])
 		landing_speed_factor = float(ph["landingSpeedFactor"])
+		car_half_length = float(ph["carHalfLength"])
+		block_speed_factor = float(ph["blockSpeedFactor"])
 
 
 static func constants() -> Constants:
@@ -192,6 +196,26 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 			ev.wall_impact = -c.speed * sin(c.yaw_rel)
 			c.speed *= ph.wall_speed_factor
 			c.yaw_rel = maxf(-c.yaw_rel * p.wall_reflect, ph.wall_min_yaw_out)
+
+	# 4b. Road blocks (map hazards): pushed out to the nearer side, speed loss, turned away
+	if c.y < 0.5:
+		for b: Dictionary in tr.blocks:
+			var ds: float = MathX.wrap_delta(float(b["s"]), c.s, tr.length)
+			if ds < -ph.car_half_length or ds > float(b["len"]) + ph.car_half_length:
+				continue
+			var off: float = c.d - float(b["d"])
+			var reach: float = float(b["halfW"]) + ph.car_half_width
+			if absf(off) >= reach:
+				continue
+			var side: float = 1.0
+			if off < 0.0:
+				side = -1.0
+			c.d = float(b["d"]) + side * reach
+			ev.wall_hit = true
+			ev.wall_impact = c.speed * 0.5
+			c.speed *= ph.block_speed_factor
+			c.yaw_rel = side * maxf(absf(c.yaw_rel) * 0.5, ph.wall_min_yaw_out)
+			break
 
 	# 6b. Vertical motion
 	if c.y > 0.0 or c.vy > 0.0:

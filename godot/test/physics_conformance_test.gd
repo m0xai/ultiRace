@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## Physics.gd must replay every gamedata/fixtures/physics_*.json within 1e-4 of Go.
 
 const TOL: float = 1e-4
-const SCENARIOS: PackedStringArray = ["straight_full_throttle", "slalom", "wall_hits", "coast_and_lap_wrap", "jumps", "random_inputs_slowed"]
+const SCENARIOS: PackedStringArray = ["straight_full_throttle", "slalom", "wall_hits", "coast_and_lap_wrap", "jumps", "random_inputs_slowed", "road_block"]
 
 
 func _replay(name: String) -> Dictionary:

@@ -23,13 +23,15 @@ LAYOUTS = {
     # Sunny: long straight, fast right, chicane, hairpin, esses (flat, 20 m). Pieces found by a
     # constrained search (closes, 1100-1500 m, no overlap, max tight-corner degrees).
     "sunny": dict(width=20, start_heading=0.0, pieces=[
-        ("S", 193.0), ("A", 69.6, -60.4), ("S?",), ("A", 38.8, 48.4), ("A", 47.5, -38.9), ("S", 62.2),
-        ("A", 36.5, -160.9), ("S", 137.0), ("A", 63.8, 69.4), ("A", 47.8, -79.9), ("S?",), ("A", 50.6, -137.8),
+        ("S", 147.8), ("A", 61.0, -70.0), ("S?",), ("A", 41.9, 54.7), ("A", 40.0, -48.8), ("S", 42.6),
+        ("A", 39.5, -177.3), ("S", 73.7), ("A", 48.8, 76.9), ("A", 44.5, -107.4), ("A", 46.8, 59.2), ("S?",),
+        ("A", 40.7, -147.3),
     ]),
-    # Frosty: climbs to a snowy crest and back, two ramps, a hairpin, tight right-left sequence
+    # Frosty: climbs to a snowy crest and back, two ramps, a hairpin, right-left-right sequences
     "frosty": dict(width=19, start_heading=0.0, pieces=[
-        ("S", 168.9), ("A", 56.6, -62.7), ("S", 75.2), ("A", 40.0, -84.4), ("A", 45.0, 73.4), ("S?",),
-        ("A", 38.6, -143.0), ("S", 128.1), ("A", 50.7, 42.8), ("A", 48.9, -69.9), ("S?",), ("A", 75.5, -116.2),
+        ("S", 145.8), ("A", 48.9, -69.8), ("S", 45.5), ("A", 40.0, -61.4), ("A", 45.9, 74.9), ("S?",),
+        ("A", 37.7, -166.1), ("S", 86.6), ("A", 42.5, 35.1), ("A", 44.9, -88.3), ("A", 46.0, 50.0), ("S?",),
+        ("A", 46.7, -134.4),
     ]),
     # Neon: figure-8; this lobe (x > 0) is mirrored for the other one, flyover at the crossing.
     # Hand-placed: chicane on the top run, hairpin at the far end, kink on the way back.
@@ -142,7 +144,8 @@ def main():
             f.write('  "points": [\n')
             f.write(",\n".join("    " + json.dumps(p) for p in pts))
             f.write("\n  ],\n")
-            f.write(f'  "ramps": {json.dumps(m.get("ramps", []))}\n}}\n')
+            f.write(f'  "ramps": {json.dumps(m.get("ramps", []))},\n')
+            f.write(f'  "hazards": {json.dumps(m.get("hazards", []))}\n}}\n')
 
 
 if __name__ == "__main__":

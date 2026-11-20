@@ -207,6 +207,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       S-bends (`scripts/trackgen.py`, previews `docs/screenshots/a3_layouts.png`); steering +
       trims rebalanced (wins 10.5–13.5 %, winner lap 42.9 s). Ramps fixed: cars ride up the
       wedge and leave from the lip (Go + mirror, fixtures regenerated, test).
+- [x] Challenge pass (human: "I win too easily"): twistier Sunny/Frosty layouts, map hazards
+      (water/ice/oil patches, red-white road blocks; `docs/screenshots/a3_hazards.png`), braver
+      bots (less lifting, avoid hazards), bot catch-up behind a human. Expert-vs-bots sim: wins
+      84 % → ≈ 17 %. Balance all ✅ (lead changes 4.0). MapViewer `--at <s>`.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

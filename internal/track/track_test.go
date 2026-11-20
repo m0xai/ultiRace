@@ -142,3 +142,17 @@ func TestNeonBridgeClearance(t *testing.T) {
 	}
 	t.Logf("neon bridge clearance %.2f m", minClear)
 }
+
+// A road block must leave a lane free.
+func TestBlockMustLeaveALane(t *testing.T) {
+	b, _ := gamedata.LoadBalance()
+	m, _ := gamedata.LoadMap("sunny")
+	m.Hazards = []gamedata.Hazard{{Kind: gamedata.HazardBlock, S: 300, D: 0, Len: 3, HalfW: 7}}
+	if _, err := New(m, b.Track.ArcSamplesPerSegment); err == nil {
+		t.Fatal("accepted a block across the whole road")
+	}
+	m.Hazards = []gamedata.Hazard{{Kind: "lava", S: 300, Len: 3, HalfW: 2}}
+	if _, err := New(m, b.Track.ArcSamplesPerSegment); err == nil {
+		t.Fatal("accepted an unknown hazard kind")
+	}
+}

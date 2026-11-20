@@ -24,6 +24,9 @@ type Track struct {
 	ID     string
 	Length float64
 	Ramps  []gamedata.Ramp
+	// Hazards are the map's fixed hazards; Blocks the solid ones among them (physics).
+	Hazards []gamedata.Hazard
+	Blocks  []gamedata.Hazard
 
 	pts     [][5]float64
 	k       int       // arc samples per segment
@@ -50,7 +53,7 @@ func New(m *gamedata.Map, samplesPerSegment int) (*Track, error) {
 	if samplesPerSegment < 2 {
 		return nil, fmt.Errorf("track %s: samplesPerSegment must be ≥ 2", m.ID)
 	}
-	t := &Track{ID: m.ID, Ramps: m.Ramps, pts: m.Points, k: samplesPerSegment}
+	t := &Track{ID: m.ID, Ramps: m.Ramps, Hazards: m.Hazards, pts: m.Points, k: samplesPerSegment}
 	t.sampleS = make([]float64, n*samplesPerSegment+1)
 	acc := 0.0
 	prev := t.posAt(0, 0)
@@ -73,6 +76,24 @@ func New(m *gamedata.Map, samplesPerSegment int) (*Track, error) {
 	for _, r := range m.Ramps {
 		if r.S < 0 || r.S+r.Length >= acc || r.Length <= 0 || r.Height <= 0 {
 			return nil, fmt.Errorf("track %s: ramp at s=%v len=%v outside track length %.1f", m.ID, r.S, r.Length, acc)
+		}
+	}
+	for _, h := range m.Hazards {
+		switch h.Kind {
+		case gamedata.HazardIce, gamedata.HazardOil, gamedata.HazardWater, gamedata.HazardBlock:
+		default:
+			return nil, fmt.Errorf("track %s: unknown hazard kind %q", m.ID, h.Kind)
+		}
+		if h.S < 0 || h.S+h.Len >= acc || h.Len <= 0 || h.HalfW <= 0 {
+			return nil, fmt.Errorf("track %s: hazard %s at s=%v outside the track", m.ID, h.Kind, h.S)
+		}
+		if h.Kind == gamedata.HazardBlock {
+			// a block must leave a lane free: ≥ 4.5 m between it and one of the walls
+			hw := t.HalfWidth(h.S + h.Len/2)
+			if math.Max(hw-(h.D+h.HalfW), (h.D-h.HalfW)+hw) < 4.5 {
+				return nil, fmt.Errorf("track %s: block at s=%v leaves no lane free", m.ID, h.S)
+			}
+			t.Blocks = append(t.Blocks, h)
 		}
 	}
 	return t, nil

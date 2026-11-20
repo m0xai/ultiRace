@@ -311,6 +311,8 @@ static func build(tr: Track) -> Node3D:
 				tr.world(float(row), d1, ROAD_LIFT + 0.04), tr.world(float(row + 1), d1, ROAD_LIFT + 0.04), c)
 	root.add_child(_mesh_instance("StartLine", line, _mat(Color.WHITE, Color(0, 0, 0), true)))
 	root.add_child(_gate(tr, th))
+	for hz: Node3D in _hazards(tr):
+		root.add_child(hz)
 
 	# Ground
 	var ground: MeshInstance3D = MeshInstance3D.new()
@@ -939,3 +941,86 @@ static func _environment(th: TrackTheme) -> Node3D:
 	we.environment = env
 	node.add_child(we)
 	return node
+
+
+## Map hazards (A3): glossy patches on the road (ice, water, oil; one mesh + material per
+## kind) and red/white striped concrete road blocks (one vertex-coloured mesh).
+static func _hazards(tr: Track) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	var looks: Dictionary = {
+		"ice": [Color(0.78, 0.92, 1.0, 0.78), 0.04, 0.15],
+		"water": [Color(0.12, 0.24, 0.36, 0.72), 0.02, 0.35],
+		"oil": [Color(0.02, 0.02, 0.03, 0.88), 0.06, 0.25],
+	}
+	for kind: String in looks:
+		var st: SurfaceTool = SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var any: bool = false
+		for h: Dictionary in tr.hazards:
+			if h["kind"] != kind:
+				continue
+			any = true
+			_patch(st, tr, h)
+		if not any:
+			continue
+		var look: Array = looks[kind] as Array
+		var m: StandardMaterial3D = StandardMaterial3D.new()
+		m.albedo_color = look[0] as Color
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = float(look[1])
+		m.metallic = float(look[2])
+		m.specular = 0.9
+		var mi: MeshInstance3D = _mesh_instance("Hazard_" + kind, st, m)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		out.append(mi)
+	var blocks: SurfaceTool = SurfaceTool.new()
+	blocks.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for b: Dictionary in tr.blocks:
+		_block(blocks, tr, b)
+	if not tr.blocks.is_empty():
+		var bm: StandardMaterial3D = _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))
+		bm.roughness = 0.6
+		out.append(_mesh_instance("RoadBlocks", blocks, bm))
+	return out
+
+
+## Irregular rounded puddle/patch hugging the road: rows across s, width tapering at the ends.
+static func _patch(st: SurfaceTool, tr: Track, h: Dictionary) -> void:
+	var s0: float = float(h["s"])
+	var L: float = float(h["len"])
+	var d: float = float(h["d"])
+	var hw: float = float(h["halfW"])
+	var rows: int = 10
+	var lift: float = ROAD_LIFT + 0.035 # above the lane markings
+	for k: int in rows:
+		var ua: float = float(k) / rows
+		var ub: float = float(k + 1) / rows
+		var wa: float = hw * (0.55 + 0.45 * sin(PI * ua)) * (1.0 + 0.08 * sin(ua * 17.0 + s0))
+		var wb: float = hw * (0.55 + 0.45 * sin(PI * ub)) * (1.0 + 0.08 * sin(ub * 17.0 + s0))
+		var sa: float = s0 + L * ua
+		var sb: float = s0 + L * ub
+		_quad(st, tr.world(sa, d - wa, lift), tr.world(sb, d - wb, lift), tr.world(sa, d + wa, lift), tr.world(sb, d + wb, lift), Color.WHITE)
+
+
+## Concrete road block: 1 m high box over the block's footprint, red/white chevron stripes on
+## the faces drivers see, grey top.
+static func _block(st: SurfaceTool, tr: Track, b: Dictionary) -> void:
+	var s0: float = float(b["s"])
+	var s1: float = s0 + float(b["len"])
+	var d0: float = float(b["d"]) - float(b["halfW"])
+	var d1: float = float(b["d"]) + float(b["halfW"])
+	var y0: float = ROAD_LIFT
+	var y1: float = 1.0
+	var stripes: int = maxi(4, int((d1 - d0) / 0.9))
+	var red: Color = Color(0.85, 0.12, 0.1)
+	for k: int in stripes:
+		var da: float = lerpf(d0, d1, float(k) / stripes)
+		var db: float = lerpf(d0, d1, float(k + 1) / stripes)
+		var c: Color = red if k % 2 == 0 else Color(0.95, 0.95, 0.95)
+		# front (faces oncoming cars) and back
+		_quad(st, tr.world(s0, da, y0), tr.world(s0, da, y1), tr.world(s0, db, y0), tr.world(s0, db, y1), c)
+		_quad(st, tr.world(s1, db, y0), tr.world(s1, db, y1), tr.world(s1, da, y0), tr.world(s1, da, y1), c)
+		_quad(st, tr.world(s0, da, y1), tr.world(s1, da, y1), tr.world(s0, db, y1), tr.world(s1, db, y1), Color(0.6, 0.6, 0.62))
+	# sides
+	_quad(st, tr.world(s0, d0, y0), tr.world(s1, d0, y0), tr.world(s0, d0, y1), tr.world(s1, d0, y1), Color(0.9, 0.9, 0.9))
+	_quad(st, tr.world(s1, d1, y0), tr.world(s0, d1, y0), tr.world(s1, d1, y1), tr.world(s0, d1, y1), Color(0.9, 0.9, 0.9))

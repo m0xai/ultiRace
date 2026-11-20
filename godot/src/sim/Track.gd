@@ -26,6 +26,8 @@ class Sample:
 var id: String = ""
 var length: float = 0.0
 var ramps: Array[Dictionary] = []
+var hazards: Array[Dictionary] = [] # {kind, s, d, len, halfW} (gamedata maps "hazards")
+var blocks: Array[Dictionary] = [] # the solid ones (physics mirror)
 var theme: String = ""
 var display_name: String = ""
 
@@ -50,6 +52,12 @@ func _init(map: Dictionary, samples_per_segment: int) -> void:
 	for r: Variant in map.get("ramps", []) as Array:
 		var rd: Dictionary = r as Dictionary
 		ramps.append({"s": float(rd["s"]), "length": float(rd["length"]), "vy": float(rd["vy"]), "height": float(rd["height"])})
+	for hz: Variant in map.get("hazards", []) as Array:
+		var hd: Dictionary = hz as Dictionary
+		var h: Dictionary = {"kind": str(hd["kind"]), "s": float(hd["s"]), "d": float(hd["d"]), "len": float(hd["len"]), "halfW": float(hd["halfW"])}
+		hazards.append(h)
+		if h["kind"] == "block":
+			blocks.append(h)
 	_k = samples_per_segment
 	var n: int = _pts.size()
 	_sample_s.resize(n * _k + 1)

@@ -34,7 +34,8 @@
     "carHalfLength": 2,
     "collisionRestitution": 0.35,
     "sideBounceYaw": 0.12,
-    "sideScrub": 0.03
+    "sideScrub": 0.03,
+    "blockSpeedFactor": 0.55
   },
   "race": {
     "defaultLaps": 3,
@@ -88,17 +89,36 @@
     "startBoostWindowS": 0.25,
     "startBoostSpeed": 0.325,
     "startBoostAccel": 0.5,
-    "startBoostS": 1
+    "startBoostS": 1,
+    "botGapM": 35,
+    "botRampM": 120,
+    "botBonus": 0.14
+  },
+  "hazards": {
+    "ice": {
+      "steerMul": 0.35,
+      "slow": 0.12,
+      "effectS": 1.1
+    },
+    "oil": {
+      "steerMul": 0.45,
+      "slow": 0.06,
+      "effectS": 0.9
+    },
+    "water": {
+      "slow": 0.3,
+      "lingerS": 0.4
+    }
   },
   "vehicleTrim": {
-    "bolt": -0.032,
-    "glacier": 0.031,
-    "goo": 0.05,
-    "hook": -0.005,
-    "phantom": -0.038,
-    "rhino": 0.04,
-    "twister": -0.024,
-    "volt": -0.015
+    "bolt": -0.044,
+    "glacier": 0.022,
+    "goo": 0.032,
+    "hook": 0.01,
+    "phantom": -0.036,
+    "rhino": 0.026,
+    "twister": 0.009,
+    "volt": -0.014
   },
   "ults": {
     "emp": {

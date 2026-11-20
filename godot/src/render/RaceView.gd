@@ -343,6 +343,12 @@ func on_event(m: Dictionary) -> void:
 				shake(clampf(float(m.get("value", 5.0)) / 20.0, 0.1, 0.6))
 				AudioDirector.sfx("wall", -4.0)
 				Haptics.wall(float(m.get("value", 5.0)))
+		"hazard":
+			if car == you:
+				AudioDirector.sfx("ice" if str(m.get("ult", "")) == "ice" else "splat", -6.0)
+				Haptics.tap_light()
+				if car == follow:
+					shake(0.15)
 		"lap":
 			if car == you:
 				AudioDirector.sfx("lap")

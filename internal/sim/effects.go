@@ -31,6 +31,8 @@ type Status struct {
 	draftTicks   int
 	drafting     bool
 	comeback     bool
+	botBoost     float64 // bot catch-up speed bonus (fraction), see World.catchup
+	onHazard     uint64  // bit i: car is on surface hazard i (slides trigger once per pass)
 
 	HardCCTicks    int // ticks spent hard-CC'd (balance metrics)
 	HardCCReceived int
@@ -153,6 +155,7 @@ func (w *World) mods(i int) (Mods, uint16) {
 	if st.comeback {
 		boost += w.Bal.Catchup.ComebackBonus
 	}
+	boost += st.botBoost
 	boost = math.Min(boost, e.BoostCap)
 	accel = math.Min(accel, e.BoostCap*2)
 

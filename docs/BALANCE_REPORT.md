@@ -5,22 +5,22 @@ shuffled grid (every vehicle every race), maps rotated, 3 laps. Targets: GAME_PL
 
 | Metric | Value | Target | |
 |---|---|---|---|
-| Win rate per vehicle | 10.5–13.5 % | 12.5 % ± 4 % | ✅ |
-| Average finish position per vehicle | 4.03–4.74 | 4.5 ± 0.6 | ✅ |
+| Win rate per vehicle | 10.2–14.6 % | 12.5 % ± 4 % | ✅ |
+| Average finish position per vehicle | 4.21–4.72 | 4.5 ± 0.6 | ✅ |
 | Share of race time hard-CC'd (avg) | 1.3 % | ≤ 8 % | ✅ |
-| Share of race time hard-CC'd (worst player) | 9.8 % | ≤ 15 % | ✅ |
-| Hard CCs received per player per lap | 0.53 | ≤ 1.5 | ✅ |
-| Lead changes per race (avg) | 2.6 | ≥ 3 | ❌ |
+| Share of race time hard-CC'd (worst player) | 8.6 % | ≤ 15 % | ✅ |
+| Hard CCs received per player per lap | 0.48 | ≤ 1.5 | ✅ |
+| Lead changes per race (avg) | 4.0 | ≥ 3 | ✅ |
 | Gap 1st → last at the finish (median) | 6.9 s | ≤ 12 s | ✅ |
-| Winner's lap time (plan: 35–45 s) | 42.9 s | 33–45 s | ✅ |
+| Winner's lap time (plan: 35–45 s) | 36.2 s | 33–45 s | ✅ |
 
 | Vehicle | Win rate | Avg position | ULT uses / race |
 |---|---|---|---|
-| bolt | 13.1 % | 4.69 | 12.1 |
-| glacier | 12.1 % | 4.69 | 12.4 |
-| goo | 13.0 % | 4.63 | 4.8 |
-| hook | 13.5 % | 4.74 | 7.3 |
-| phantom | 12.6 % | 4.21 | 9.5 |
-| rhino | 10.5 % | 4.03 | 6.8 |
-| twister | 11.8 % | 4.47 | 11.3 |
-| volt | 13.5 % | 4.55 | 8.2 |
+| bolt | 13.2 % | 4.46 | 10.1 |
+| glacier | 12.4 % | 4.63 | 10.0 |
+| goo | 12.4 % | 4.69 | 5.0 |
+| hook | 14.6 % | 4.72 | 7.0 |
+| phantom | 11.7 % | 4.29 | 8.3 |
+| rhino | 10.2 % | 4.21 | 6.3 |
+| twister | 13.6 % | 4.45 | 9.9 |
+| volt | 11.8 % | 4.56 | 6.7 |

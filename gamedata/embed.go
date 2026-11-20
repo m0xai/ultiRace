@@ -19,15 +19,16 @@ var FS embed.FS
 
 // Balance holds every tunable number. Only cmd/balance tuning may change balance.json.
 type Balance struct {
-	Version  int          `json:"version"`
-	TickRate int          `json:"tickRate"`
-	Stats    StatsMapping `json:"stats"`
-	Physics  Physics      `json:"physics"`
-	Race     Race         `json:"race"`
-	Track    TrackParams  `json:"track"`
-	Rooms    Rooms        `json:"rooms"`
-	Effects  Effects      `json:"effects"`
-	Catchup  Catchup      `json:"catchup"`
+	Version  int           `json:"version"`
+	TickRate int           `json:"tickRate"`
+	Stats    StatsMapping  `json:"stats"`
+	Physics  Physics       `json:"physics"`
+	Race     Race          `json:"race"`
+	Track    TrackParams   `json:"track"`
+	Rooms    Rooms         `json:"rooms"`
+	Effects  Effects       `json:"effects"`
+	Catchup  Catchup       `json:"catchup"`
+	Hazards  HazardEffects `json:"hazards"`
 	// VehicleTrim is a small per-vehicle top-speed adjustment (fraction, e.g. 0.02 = +2 %) set by
 	// the balance tuner; stats define character, trims fine-tune fairness.
 	VehicleTrim map[string]float64 `json:"vehicleTrim"`
@@ -60,6 +61,11 @@ type Catchup struct {
 	StartBoostSpeed   float64 `json:"startBoostSpeed"`
 	StartBoostAccel   float64 `json:"startBoostAccel"`
 	StartBoostS       float64 `json:"startBoostS"`
+	// Bot catch-up (only when a human races): a bot more than BotGapM behind the best human
+	// gains up to BotBonus extra top speed, reached BotRampM further back. Keeps races close.
+	BotGapM  float64 `json:"botGapM"`
+	BotRampM float64 `json:"botRampM"`
+	BotBonus float64 `json:"botBonus"`
 }
 
 // Ult returns one number of a ULT; it panics on a missing key (caught by gamedata tests).
@@ -136,6 +142,7 @@ type Physics struct {
 	CollisionRestitution    float64 `json:"collisionRestitution"` // bounciness of rear-end hits (0–1)
 	SideBounceYaw           float64 `json:"sideBounceYaw"`        // heading kick away on side contact (rad)
 	SideScrub               float64 `json:"sideScrub"`            // speed lost on side contact (fraction)
+	BlockSpeedFactor        float64 `json:"blockSpeedFactor"`     // speed kept after hitting a road block
 }
 
 // Race holds race-flow numbers.
@@ -186,6 +193,46 @@ type Map struct {
 	Theme  string       `json:"theme"`
 	Points [][5]float64 `json:"points"` // [x, y, z, width, bank(rad)]
 	Ramps  []Ramp       `json:"ramps"`
+	// Hazards are fixed road features (A3 "roadblocks"): surface patches that slide or slow
+	// cars and solid blocks that act like a short wall segment.
+	Hazards []Hazard `json:"hazards"`
+}
+
+// Hazard kinds.
+const (
+	HazardIce   = "ice"   // slide (steering ×, small slow) once per pass
+	HazardOil   = "oil"   // like ice, milder
+	HazardWater = "water" // slow while on it (lingers briefly)
+	HazardBlock = "block" // solid barrier: cars are pushed out to the nearer side and lose speed
+)
+
+// Hazard is a fixed map hazard in track space: from S to S+Len, centred at D, ±HalfW wide.
+type Hazard struct {
+	Kind  string  `json:"kind"`
+	S     float64 `json:"s"`
+	D     float64 `json:"d"`
+	Len   float64 `json:"len"`
+	HalfW float64 `json:"halfW"`
+}
+
+// HazardEffects holds the numbers of the surface hazards (balance.json "hazards").
+type HazardEffects struct {
+	Ice   SlideHazard `json:"ice"`
+	Oil   SlideHazard `json:"oil"`
+	Water SlowHazard  `json:"water"`
+}
+
+// SlideHazard: steering multiplier and speed loss for effectS seconds, once per pass.
+type SlideHazard struct {
+	SteerMul float64 `json:"steerMul"`
+	Slow     float64 `json:"slow"`
+	EffectS  float64 `json:"effectS"`
+}
+
+// SlowHazard: speed fraction removed while on it, lingering lingerS after leaving.
+type SlowHazard struct {
+	Slow    float64 `json:"slow"`
+	LingerS float64 `json:"lingerS"`
 }
 
 // LoadBalance parses balance.json.
