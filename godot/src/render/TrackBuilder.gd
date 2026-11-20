@@ -18,6 +18,7 @@ const LANE_W: float = 3.6
 const RAIL_Z0: float = 0.45
 const RAIL_Z1: float = 0.8
 const POST_EVERY: float = 4.0
+const LAMP_EVERY: float = 36.0
 
 
 class TrackTheme:
@@ -448,11 +449,9 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
 		cone.height = 1.0
 		cone.radial_segments = 7
 		mesh = cone
-	var mm: MultiMesh = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
 	var rng: Rng = Rng.new(hash(tr.id) & 0x7FFFFFFF)
 	var xforms: Array[Transform3D] = []
+	var trunks: Array[Transform3D] = []
 	var s: float = 0.0
 	while s < tr.length:
 		var smp: Track.Sample = tr.at(s)
@@ -471,16 +470,84 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
 			else:
 				h = 6.0 + rng.next_float() * 7.0
 				w = 1.8 + rng.next_float() * 1.2
-			xforms.append(Transform3D(Basis.from_scale(Vector3(w, h, w)), p + Vector3(0, h / 2.0, 0)))
+			if tr.theme == "neon":
+				xforms.append(Transform3D(Basis.from_scale(Vector3(w, h, w)), p + Vector3(0, h / 2.0, 0)))
+			else:
+				# conifer: short trunk, canopy starts above it
+				var trunk_h: float = h * 0.22
+				trunks.append(Transform3D(Basis.from_scale(Vector3(w * 0.13, trunk_h, w * 0.13)), p + Vector3(0, trunk_h / 2.0, 0)))
+				var ch: float = h * 0.85
+				xforms.append(Transform3D(Basis.from_scale(Vector3(w, ch, w)), p + Vector3(0, trunk_h * 0.7 + ch / 2.0, 0)))
 		s += 9.0
+	node.add_child(_multimesh("Props", mesh, xforms, _mat(th.prop_color, th.prop_emission * 0.15)))
+	if not trunks.is_empty():
+		var trunk_mesh: CylinderMesh = CylinderMesh.new()
+		trunk_mesh.top_radius = 0.8
+		trunk_mesh.bottom_radius = 1.0
+		trunk_mesh.height = 1.0
+		trunk_mesh.radial_segments = 5
+		trunk_mesh.rings = 0
+		node.add_child(_multimesh("Trunks", trunk_mesh, trunks, _mat(Color(0.33, 0.24, 0.17))))
+	node.add_child(_lamps(tr, th))
+	return node
+
+
+static func _multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], mat: Material) -> MultiMeshInstance3D:
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
 	mm.instance_count = xforms.size()
 	for i: int in xforms.size():
 		mm.set_instance_transform(i, xforms[i])
 	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	mmi.name = name
 	mmi.multimesh = mm
-	mmi.material_override = _mat(th.prop_color, th.prop_emission * 0.15)
-	node.add_child(mmi)
-	return node
+	mmi.material_override = mat
+	return mmi
+
+
+## Street lamps behind the rails, alternating sides, arm reaching toward the road.
+static func _lamps(tr: Track, th: TrackTheme) -> MultiMeshInstance3D:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pole: Color = Color(0.42, 0.44, 0.48)
+	var head: Color = Color(1.0, 0.95, 0.8)
+	_box(st, Vector3(0, 3.6, 0), Vector3(0.09, 3.6, 0.09), pole) # pole, 7.2 m
+	_box(st, Vector3(0.9, 7.15, 0), Vector3(0.9, 0.06, 0.06), pole) # arm along +X (toward road)
+	_box(st, Vector3(1.75, 7.05, 0), Vector3(0.32, 0.06, 0.14), head) # lamp head
+	st.generate_normals()
+	var mesh: ArrayMesh = st.commit()
+	var xforms: Array[Transform3D] = []
+	var count: int = int(tr.length / LAMP_EVERY)
+	for i: int in count:
+		var sv: float = float(i) * LAMP_EVERY + 7.0
+		var side: float = 1.0 if i % 2 == 0 else -1.0
+		var h: float = tr.half_width(sv)
+		var p: Vector3 = tr.world(sv, side * (h + WALL_GAP + 1.0), 0.0)
+		var q: Vector3 = tr.world(sv, side * (h + WALL_GAP), 0.0)
+		var x: Vector3 = Vector3(q.x - p.x, 0.0, q.z - p.z).normalized()
+		var z: Vector3 = x.cross(Vector3.UP)
+		xforms.append(Transform3D(Basis(x, Vector3.UP, z), p))
+	var mat: StandardMaterial3D = _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))
+	if th.wall_emission != Color(0, 0, 0):
+		mat.emission_enabled = true
+		mat.emission = th.wall_emission * 0.25
+	var mmi: MultiMeshInstance3D = _multimesh("Lamps", mesh, xforms, mat)
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mmi
+
+
+## Axis-aligned box (centre c, half extents h) into a vertex-coloured SurfaceTool.
+static func _box(st: SurfaceTool, c: Vector3, h: Vector3, col: Color) -> void:
+	var v: Array[Vector3] = []
+	for k: int in 8:
+		v.append(c + Vector3(h.x * (1.0 if k & 1 else -1.0), h.y * (1.0 if k & 2 else -1.0), h.z * (1.0 if k & 4 else -1.0)))
+	_quad(st, v[0], v[4], v[2], v[6], col)
+	_quad(st, v[1], v[3], v[5], v[7], col)
+	_quad(st, v[0], v[1], v[4], v[5], col)
+	_quad(st, v[2], v[6], v[3], v[7], col)
+	_quad(st, v[0], v[2], v[1], v[3], col)
+	_quad(st, v[4], v[5], v[6], v[7], col)
 
 
 static func _too_close(tr: Track, p: Vector3, margin: float) -> bool:

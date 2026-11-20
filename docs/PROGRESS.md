@@ -166,7 +166,9 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] A3 road pass toward the references: noise-textured asphalt, white edge lines + dashed lane
       dividers, steel guard rails on posts (Sunny/Frosty; Neon keeps glowing barriers). Draw calls
       108–111 (markings/posts cast no shadows). Screens: `docs/screenshots/a3_*.png`.
-- [ ] A3 next: roadside scenery (lamp posts, signs, buildings/trees variety), sky.
+- [x] A3 scenery pass: conifers get trunks, street lamps every 36 m alternating sides (one
+      MultiMesh, no shadows; tinted glow on Neon). Race draw calls: Sunny 128, Neon 153 (high ≤ 250).
+- [ ] A3 next: signs/billboards, sky gradient + clouds, low-tier draw-call check on Neon.
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 
