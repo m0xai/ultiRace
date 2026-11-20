@@ -32,7 +32,9 @@ func test_wheels_spin_around_axle_only() -> void:
 	var cv: CarView = (load("res://src/render/CarView.tscn") as PackedScene).instantiate() as CarView
 	root.add_child(cv)
 	cv.configure("bolt", "Tester", true)
-	assert_int(cv._wheels.size()).is_equal(4)
+	# 4 wheels per detail level (LOD0 + LOD1 both animate, so switching never shows a jump)
+	assert_int(cv._wheels.size()).is_equal(8)
+	assert_int(cv._front.size()).is_equal(4)
 	var st: Physics.CarState = Physics.CarState.new()
 	for i: int in 90:
 		st.s = 100.0 + float(i) * 1.1
