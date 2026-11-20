@@ -30,6 +30,10 @@ gdscript/warnings/unsafe_property_access=1
 gdscript/warnings/unsafe_method_access=1
 gdscript/warnings/exclude_addons=true
 
+[gui]
+
+theme/custom_font="res://assets/fonts/LilitaOne-Regular.ttf"
+
 [display]
 
 window/size/viewport_width=1280

@@ -11,11 +11,7 @@ const SUPPORT_CONTACT: String = "" # App Store 1.2 abuse contact — set by the 
 
 func _ready() -> void:
 	var root: MarginContainer = Ui.safe_root(self)
-	var bg: ColorRect = ColorRect.new()
-	bg.color = Color(0.05, 0.06, 0.09, 1.0)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	move_child(bg, 0)
+	Ui.background(self)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	root.add_child(scroll)

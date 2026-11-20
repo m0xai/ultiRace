@@ -10,3 +10,8 @@ used. Licence: **CC0** (created for UltiRace). Regenerate with
 | `sfx_*.wav` | gen_audio.py `sfx()` | CC0, own work |
 | `engine_<class>_<layer>.wav` | gen_audio.py `engine_loop()` | CC0, own work |
 | `music_*.wav` | gen_audio.py `music()` | CC0, own work |
+
+## Fonts
+
+- `godot/assets/fonts/LilitaOne-Regular.ttf` — Lilita One by Juan Montoreano, SIL Open Font
+  License 1.1 (`godot/assets/fonts/OFL.txt`), from github.com/google/fonts (ofl/lilitaone).

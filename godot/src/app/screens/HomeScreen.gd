@@ -18,18 +18,14 @@ var _poll: float = 0.0
 
 func _ready() -> void:
 	var root: MarginContainer = Ui.safe_root(self)
-	var bg: ColorRect = ColorRect.new()
-	bg.color = Color(0.07, 0.08, 0.12)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	move_child(bg, 0)
+	Ui.background(self)
 	var row: HBoxContainer = Ui.hbox(40)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_child(row)
 
 	var left: VBoxContainer = Ui.vbox(10)
 	left.alignment = BoxContainer.ALIGNMENT_CENTER
-	left.add_child(Ui.label("UltiRace", 96, Ui.ACCENT))
+	left.add_child(Ui.label("UltiRace", 110, Ui.ACCENT))
 	_online = Ui.label("", 22, Ui.MUTED)
 	left.add_child(_online)
 	left.add_child(Ui.label("Your name", 22, Ui.MUTED))
@@ -43,6 +39,7 @@ func _ready() -> void:
 	set_btn.pressed.connect(func() -> void: settings.emit())
 	left.add_child(set_btn)
 	row.add_child(left)
+	Ui.pop_in(left, 0.05)
 
 	var right: VBoxContainer = Ui.vbox(16)
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -84,6 +81,7 @@ func _ready() -> void:
 	join_row.add_child(join)
 	right.add_child(join_row)
 	row.add_child(right)
+	Ui.pop_in(right, 0.15)
 
 	_http = HTTPRequest.new()
 	add_child(_http)

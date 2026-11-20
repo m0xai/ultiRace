@@ -215,3 +215,11 @@ animated buttons and transitions, 3D car showroom on Home/Select, juicy countdow
 ## Blocked
 
 - Nothing blocked by the human right now (Developer Mode is on).
+
+## A2 — Game UI & feel (started 2026-11-20)
+
+- [x] Style guide `docs/UI_STYLE.md` (references + rules); Lilita One display font (OFL) as default.
+- [x] `Ui.gd`: chunky lip buttons (yellow primary / blue secondary), outlined text, bordered
+      panels and inputs, gradient + speed-stripe backgrounds on all screens, squash-on-press and
+      pop-in animations. Screens: `docs/screenshots/a2_*.png`.
+- [ ] Settings toggles/rows, 3D car showroom (Home + Select), juicy countdown/results, human approval.

@@ -27,11 +27,7 @@ var _locked: bool = false
 
 func _ready() -> void:
 	var root: MarginContainer = Ui.safe_root(self)
-	var bg: ColorRect = ColorRect.new()
-	bg.color = Color(0.07, 0.08, 0.12)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	move_child(bg, 0)
+	Ui.background(self)
 	var col: VBoxContainer = Ui.vbox(12)
 	root.add_child(col)
 	var head: HBoxContainer = Ui.hbox(20)
