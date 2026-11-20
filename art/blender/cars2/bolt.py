@@ -32,7 +32,8 @@ def build():
     k.cut_arches(body, wheels)
     k.finalize_body(body)
     parts = k.standard_details(P, front=(0.5, 1.96, 0.6), rear=(0.58, -2.0, 0.78), mirror=(0.88, 0.62, 0.98),
-                               grille=(0.5, 2.07, 0.45), bumper_w=1.35, bumper_z=0.42)
+                               grille=(0.5, 2.07, 0.45), bumper_w=1.35,
+                               doors=dict(x=1.0, z0=0.42, z1=0.9, seams=[0.82, -0.62], handles=[-0.4]), bumper_z=0.42)
     wing = k.rounded_box("wing", (1.9, 0.42, 0.06), (0, -1.85, 1.32), P["Accent"], bevel=0.02)
     struts = [k.rounded_box("strut", (0.06, 0.22, 0.34), (0.55, -1.8, 1.12), P["Accent"], bevel=0.01)]
     struts += k.mirror_x(struts)

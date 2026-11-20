@@ -28,7 +28,7 @@ def build():
     k.finalize_body(body)
     Y = P["Accent"]
     parts = k.standard_details(P, front=(0.55, 2.04, 0.8), rear=(0.7, -2.06, 0.85), mirror=(0.98, 1.3, 1.35),
-                               grille=(0.6, 2.1, 0.62), bumper_w=1.7, bumper_z=0.52)
+                               grille=(0.6, 2.1, 0.62), bumper_w=1.7, bumper_z=0.52, doors=dict(x=1.02, z0=0.52, z1=1.02, seams=[1.5, 0.22], handles=[0.38]))
     crane = [k.rounded_box("crane_base", (0.55, 0.55, 0.3), (0, -0.9, 1.2), Y, bevel=0.05),
              k.tube("crane_arm", (0, -0.9, 1.3), (0, -1.9, 2.5), 0.12, Y),
              k.tube("crane_tip", (0, -1.9, 2.5), (0, -2.45, 2.45), 0.09, Y),

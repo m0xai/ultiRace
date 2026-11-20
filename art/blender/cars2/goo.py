@@ -33,7 +33,7 @@ def build():
     tank.location = (0, 0, 1.55)
     bands = [k.disc("band", 0.9, 0.08, (0, y, 1.55), P["Accent"], axis="Y", verts=28) for y in (-1.3, -0.4)]
     drips = [k.blob("drip", r, (x, y, z), P["Paint"]) for (x, y, z, r) in ((0.5, -0.9, 2.3, 0.16), (-0.3, -1.5, 2.25, 0.12), (0.1, -0.2, 2.38, 0.1))]
-    parts = k.standard_details(P, front=(0.55, 2.13, 1.05), rear=(0.7, -2.06, 0.7), mirror=(0.99, 1.7, 1.4), grille=(0.6, 2.17, 0.95), bumper_w=1.7, bumper_z=0.55)
+    parts = k.standard_details(P, front=(0.55, 2.13, 1.05), rear=(0.7, -2.06, 0.7), mirror=(0.99, 1.7, 1.4), grille=(0.6, 2.17, 0.95), bumper_w=1.7, bumper_z=0.55, doors=dict(x=0.96, z0=0.86, z1=1.6, seams=[1.0], handles=[1.18]))
     k.join(frame, [cab_paint, tank] + bands + drips + parts)
 
 

@@ -29,7 +29,7 @@ def build():
     wheels = k.four_wheels(0.88, 1.25, -1.25, 0.42, 0.42, 0.38, 0.38, P, rim="Accent", spokes=4)
     k.cut_arches(body, wheels)
     k.finalize_body(body)
-    parts = k.standard_details(P, front=(0.45, 1.92, 0.66), rear=(0.55, -1.92, 0.78), mirror=(0.86, 0.95, 1.05), bumper_w=1.3, bumper_z=0.5)
+    parts = k.standard_details(P, front=(0.45, 1.92, 0.66), rear=(0.55, -1.92, 0.78), mirror=(0.86, 0.95, 1.05), bumper_w=1.3, bumper_z=0.5, doors=dict(x=1.02, z0=0.48, z1=0.98, seams=[0.72, -0.62], handles=[-0.46]))
     fins = [k.rounded_box("fin", (0.06, 0.6, 0.32), (0, -1.45, 1.15), P["Accent"], bevel=0.02)]
     skirt = [k.rounded_box("skirt", (0.08, 1.4, 0.12), (0.99, 0, 0.42), P["Accent"], bevel=0.04)]
     skirt += k.mirror_x(skirt)

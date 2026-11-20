@@ -159,8 +159,11 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       0.22 m), shadow bias raised. Diagnosed with `DevTools --burst N` (consecutive frames in memory).
 - [x] Collisions: car-sized boxes + impact response (server); remote cars displayed at the predicted
       time (dead reckoning + smoothing) so contacts look solid. Tests for rear-end and side contact.
-- [ ] Quality pass toward the human's references (Traffic Racer trailers, `build/refs/`): more
-      realistic proportions and detail (see A1 next steps).
+- [x] Quality pass 1 toward the references (Traffic Racer trailers): window frames + black
+      B-pillar, dished alloys with radial spokes, dark brake discs and centre caps, chrome headlamp
+      bezels, taillight surrounds, number plates, mirrors on stalks, door seams + handles.
+- [ ] Quality pass 2 (next): more realistic proportions per car (longer/lower bodies, smaller
+      wheels), and A3 environment toward the references (asphalt lanes, guard rails, scenery).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 

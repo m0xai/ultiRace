@@ -28,7 +28,7 @@ def build():
     k.cut_arches(body, wheels)
     k.finalize_body(body)
     tip = k.glow("Tip", "#ffe14a", 6.0)
-    parts = k.standard_details(P, front=(0.5, 2.0, 0.55), rear=(0.62, -2.04, 0.8), mirror=(0.86, 0.7, 0.98), bumper_w=1.4, bumper_z=0.45)
+    parts = k.standard_details(P, front=(0.5, 2.0, 0.55), rear=(0.62, -2.04, 0.8), mirror=(0.86, 0.7, 0.98), bumper_w=1.4, bumper_z=0.45, doors=dict(x=1.0, z0=0.42, z1=0.86, seams=[0.82, -0.6], handles=[-0.44]))
     ants = [k.tube("ant", (0.55, -1.55, 0.95), (0.62, -1.75, 2.35), 0.025, P["Trim"]),
             k.blob("ant_tip", 0.09, (0.62, -1.75, 2.42), tip)]
     ants += k.mirror_x(ants)

@@ -28,7 +28,7 @@ def build():
     wheels = k.four_wheels(0.85, 1.35, -1.35, 0.40, 0.42, 0.34, 0.38, P, spokes=10)
     k.cut_arches(body, wheels)
     k.finalize_body(body)
-    parts = k.standard_details(P, front=(0.45, 2.08, 0.5), rear=(0.6, -2.12, 0.72), mirror=(0.82, 0.75, 0.92), bumper_w=1.2, bumper_z=0.4)
+    parts = k.standard_details(P, front=(0.45, 2.08, 0.5), rear=(0.6, -2.12, 0.72), mirror=(0.82, 0.75, 0.92), bumper_w=1.2, bumper_z=0.4, doors=dict(x=0.98, z0=0.36, z1=0.8, seams=[0.72, -0.72], handles=[-0.56]))
     fins = [k.rounded_box("fin", (0.05, 0.75, 0.36), (0.42, -1.8, 0.98), P["Paint"], bevel=0.025, rot=(-0.35, 0.12, 0))]
     fins += k.mirror_x(fins)
     glow = [k.rounded_box("glow_side", (0.03, 2.6, 0.04), (0.985, 0.0, 0.55), cyan, bevel=0.01, segs=1)]

@@ -61,6 +61,8 @@ def palette(paint, accent):
         "Rubber": material("Rubber", srgb("#141414"), rough=0.92),
         "Light": material("Light", srgb("#fff6d8"), emission=srgb("#fff2c8"), strength=4.0, rough=0.1),
         "TailLight": material("TailLight", srgb("#c4141c"), emission=srgb("#ff2a2a"), strength=3.0, rough=0.2),
+        "Plate": material("Plate", srgb("#f1f2ee"), rough=0.4),
+        "Brake": material("Brake", srgb("#2a2c31"), metallic=0.6, rough=0.45),
     }
 
 
@@ -132,16 +134,24 @@ def cabin(name, sections, P, roof_from=0.82, sink=0.22):
     """Greenhouse: lofted canopy; faces below roof_from of its height are glass, the roof is paint.
     The canopy is sunk `sink` m into the body so its walls cross the body surface steeply:
     nearly tangent/coplanar overlaps z-fight (visible flicker in motion)."""
-    mats = [P["Paint"], P["Glass"]]
+    mats = [P["Paint"], P["Glass"], P["Trim"]]
     split_zb = min(s["zb"] for s in sections)
     sections = [dict(s, zb=s["zb"] - sink) for s in sections]
     obj = loft(name, sections, mats, ring=24)
     zb = split_zb
     zt = max(s["zt"] for s in sections)
     split = zb + (zt - zb) * roof_from
+    y0, y1 = sections[0]["y"], sections[-1]["y"]
+    span = y1 - y0
+    b_pillar = y0 + span * 0.52
     for f in obj.data.polygons:
         if f.center.z < split and abs(f.normal.z) < 0.97:
             f.material_index = 1
+            side = abs(f.normal.x) > 0.55 and abs(f.normal.y) < 0.6
+            if side and abs(f.center.y - b_pillar) < span * 0.05:
+                f.material_index = 2  # black B-pillar: separate front/rear side windows
+            elif f.center.z > split - (zt - zb) * 0.07:
+                f.material_index = 2  # black window frame along the roof edge
     return obj
 
 
@@ -214,21 +224,28 @@ def lathe(name, profile, mats_idx, mats, segments=22):
 
 
 def wheel(name, x, y, r, width, P, rim_mat="Chrome", spokes=5, inner=False):
-    """Tyre (rubber, rounded sidewalls) + rim with spokes; axle along X, origin at the hub."""
+    """Tyre (rounded sidewalls) + dished alloy: rim barrel with lip, radial spokes, brake disc and
+    centre cap. Axle along X, origin at the hub (Godot spins it about X)."""
     w = width / 2
     side = -1 if x < 0 else 1  # outer face points away from the car
-    prof = [(r * 0.62, -w), (r * 0.86, -w * 1.02), (r * 0.97, -w * 0.85), (r, -w * 0.45), (r, w * 0.45),
-            (r * 0.97, w * 0.85), (r * 0.86, w * 1.02), (r * 0.62, w)]
+    prof = [(r * 0.64, -w), (r * 0.86, -w * 1.02), (r * 0.97, -w * 0.85), (r, -w * 0.45), (r, w * 0.45),
+            (r * 0.97, w * 0.85), (r * 0.86, w * 1.02), (r * 0.64, w)]
     tyre = lathe(name, prof, [0] * 7, [P["Rubber"]])
-    rim_r = r * 0.64
-    rim = disc(name + "_rim", rim_r, width * 0.7, (0, 0, 0), P[rim_mat], axis="X", verts=18)
-    hub = disc(name + "_hub", rim_r * 0.28, width * 0.82, (0, 0, 0), P["Trim"], axis="X", verts=12)
-    parts = [rim, hub]
+    rr = r * 0.66
+    barrel = lathe(name + "_barrel", [(rr * 0.9, -w * 0.8), (rr, -w * 0.7), (rr, w * 0.6), (rr * 1.04, w * 0.72), (rr * 0.93, w * 0.78)],
+                   [0, 0, 0, 0], [P[rim_mat]], segments=22)
+    if side < 0:
+        barrel.scale = (-1, 1, 1)
+    brake = disc(name + "_brake", rr * 0.78, 0.05, (-side * w * 0.2, 0, 0), P["Brake"], axis="X", verts=18)
+    cap = disc(name + "_cap", rr * 0.24, 0.08, (side * w * 0.62, 0, 0), P[rim_mat], axis="X", verts=12)
+    hubface = disc(name + "_hubface", rr * 0.32, 0.06, (side * w * 0.52, 0, 0), P["Trim"], axis="X", verts=12)
+    parts = [barrel, brake, cap, hubface]
     for k in range(spokes):
         a = 2 * math.pi * k / spokes
-        sp = rounded_box(name + f"_sp{k}", (0.06, rim_r * 0.95, 0.09), (side * width * 0.38, 0, 0), P["Trim"], bevel=0.01, segs=1,
-                         rot=(a, 0, 0))
-        sp.location = (side * width * 0.37, math.sin(a) * rim_r * 0.0, 0)
+        # long axis along local Z, rotated about X so it points radially outward at angle a
+        sp = rounded_box(name + f"_sp{k}", (0.07, 0.07 if spokes > 7 else 0.1, rr * 0.72),
+                         (side * w * 0.5, math.sin(a) * rr * 0.55, math.cos(a) * rr * 0.55), P[rim_mat], bevel=0.015, segs=1,
+                         rot=(-a, 0, 0))
         parts.append(sp)
     join(tyre, parts)
     tyre.location = (x, y, r)
@@ -258,7 +275,7 @@ def mirror_x(objs):
     return out
 
 
-def blob(name, radius, loc, mat, scale=(1, 1, 1), segs=16, rings=10):
+def blob(name, radius, loc, mat, scale=(1, 1, 1), segs=12, rings=8):
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=segs, v_segments=rings, radius=radius)
     obj = to_object(name, bm, [mat])
@@ -268,20 +285,34 @@ def blob(name, radius, loc, mat, scale=(1, 1, 1), segs=16, rings=10):
     return obj
 
 
-def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z=0.42):
-    """Lights/mirrors/bumpers embedded into the body. front/rear: (x, y, z) of the right lamp,
-    mirror: (x, y, z); grille: (w, y, z) or None. Lamps are flattened ellipsoids sunk into the
-    shell so they read as part of the car, not stuck-on boxes."""
+def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z=0.42, doors=None, plates=True):
+    """Lights, mirrors, bumpers, plates, door seams. front/rear: (x, y, z) of the right lamp;
+    mirror: (x, y, z); grille: (w, y, z); doors: dict(x=side x, z0, z1, seams=[y…], handles=[y…]).
+    Lamps sit in bezels sunk into the shell so they read as part of the car."""
     parts = []
-    hl = blob("headlight", 0.17, front, P["Light"], scale=(1.25, 0.55, 0.62))
-    tl = blob("taillight", 0.15, rear, P["TailLight"], scale=(1.4, 0.45, 0.55))
-    mi = blob("mirror", 0.11, mirror, P["Paint"], scale=(1.1, 0.8, 0.75))
-    parts += [hl, tl, mi] + mirror_x([hl, tl, mi])
+    hl = blob("headlight", 0.15, front, P["Light"], scale=(1.25, 0.55, 0.62))
+    bezel = blob("hl_bezel", 0.18, (front[0], front[1] - 0.03, front[2]), P["Chrome"], scale=(1.25, 0.5, 0.62))
+    tl = blob("taillight", 0.14, rear, P["TailLight"], scale=(1.4, 0.45, 0.55))
+    tl_s = blob("tl_surround", 0.17, (rear[0], rear[1] + 0.03, rear[2]), P["Trim"], scale=(1.4, 0.45, 0.6))
+    mx, my, mz = mirror
+    mi = blob("mirror", 0.11, (mx + 0.06, my, mz), P["Paint"], scale=(1.0, 0.75, 0.7))
+    stalk = tube("mirror_stalk", (mx - 0.12, my + 0.02, mz - 0.06), (mx + 0.02, my, mz), 0.025, P["Trim"], verts=6)
+    group = [hl, bezel, tl, tl_s, mi, stalk]
+    if doors:
+        for yv in doors.get("seams", []):
+            group.append(rounded_box("seam", (0.012, 0.014, doors["z1"] - doors["z0"]), (doors["x"], yv, (doors["z0"] + doors["z1"]) / 2),
+                                     P["Trim"], bevel=0.0))
+        for yv in doors.get("handles", []):
+            group.append(rounded_box("handle", (0.02, 0.16, 0.035), (doors["x"] + 0.008, yv, doors["z1"] - 0.08), P["Chrome"], bevel=0.008, segs=1))
+    parts += group + mirror_x(group)
     if grille:
         gw, gy, gz = grille
         parts.append(rounded_box("grille", (gw, 0.08, 0.13), (0, gy, gz), P["Trim"], bevel=0.04))
     parts.append(rounded_box("bumper_f", (bumper_w, 0.12, 0.07), (0, front[1] - 0.02, bumper_z), P["Trim"], bevel=0.03))
     parts.append(rounded_box("bumper_r", (bumper_w, 0.12, 0.07), (0, rear[1] + 0.02, bumper_z), P["Trim"], bevel=0.03))
+    if plates:
+        parts.append(rounded_box("plate_f", (0.46, 0.02, 0.11), (0, front[1] + 0.04, bumper_z + 0.12), P["Plate"], bevel=0.008, segs=1))
+        parts.append(rounded_box("plate_r", (0.46, 0.02, 0.11), (0, rear[1] - 0.04, bumper_z + 0.13), P["Plate"], bevel=0.008, segs=1))
     return parts
 
 

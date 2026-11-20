@@ -28,7 +28,7 @@ def build():
     k.cut_arches(body, wheels, width=0.8)
     k.finalize_body(body)
     parts = k.standard_details(P, front=(0.62, 2.04, 0.98), rear=(0.75, -2.07, 1.0), mirror=(1.06, 1.15, 1.45),
-                               grille=(0.7, 2.08, 0.82), bumper_w=1.9, bumper_z=0.64)
+                               grille=(0.7, 2.08, 0.82), bumper_w=1.9, bumper_z=0.64, doors=dict(x=1.1, z0=0.62, z1=1.22, seams=[1.32, 0.12], handles=[0.28]))
     bed = k.rounded_box("bed", (1.9, 1.7, 0.08), (0, -1.1, 1.26), P["Trim"], bevel=0.03)
     stripe = k.rounded_box("stripe", (2.22, 1.3, 0.1), (0, 0.6, 0.95), P["Accent"], bevel=0.03)
     bar = [k.tube("bar_top", (-0.85, 2.25, 1.05), (0.85, 2.25, 1.05), 0.07, P["Chrome"]),
