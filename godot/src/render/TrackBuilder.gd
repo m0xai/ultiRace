@@ -59,7 +59,7 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.sky_top = Color(0.02, 0.02, 0.08)
 			t.sky_horizon = Color(0.25, 0.08, 0.35)
 			t.sun_color = Color(0.6, 0.6, 1.0)
-			t.sun_energy = 0.6
+			t.sun_energy = 1.0 # bluish moonlight key: cars keep their shape at night
 			t.sun_rot = Vector3(-50, 30, 0)
 			t.ambient = 1.1
 			t.fog = Color(0.12, 0.05, 0.2)
@@ -76,12 +76,12 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.wall_emission = Color(0, 0, 0)
 			t.ground = Color(0.9, 0.93, 0.97)
 			t.skirt = Color(0.55, 0.58, 0.64)
-			t.sky_top = Color(0.35, 0.5, 0.75)
+			t.sky_top = Color(0.22, 0.42, 0.8)
 			t.sky_horizon = Color(0.82, 0.88, 0.95)
 			t.sun_color = Color(1.0, 0.95, 0.9)
-			t.sun_energy = 1.1
+			t.sun_energy = 1.35
 			t.sun_rot = Vector3(-35, -40, 0)
-			t.ambient = 0.6
+			t.ambient = 0.45
 			t.fog = Color(0.85, 0.9, 0.96)
 			t.fog_density = 0.0009
 			t.pillars = false
@@ -96,12 +96,12 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.wall_emission = Color(0, 0, 0)
 			t.ground = Color(0.35, 0.62, 0.25)
 			t.skirt = Color(0.45, 0.36, 0.25)
-			t.sky_top = Color(0.25, 0.5, 0.9)
-			t.sky_horizon = Color(0.75, 0.85, 0.95)
+			t.sky_top = Color(0.12, 0.4, 0.95) # deeper blue: AgX desaturates bright sky
+			t.sky_horizon = Color(0.62, 0.8, 0.98)
 			t.sun_color = Color(1.0, 0.92, 0.78)
-			t.sun_energy = 1.2
+			t.sun_energy = 1.45
 			t.sun_rot = Vector3(-40, 50, 0)
-			t.ambient = 0.5
+			t.ambient = 0.4
 			t.fog = Color(0.75, 0.85, 0.95)
 			t.fog_density = 0.0005
 			t.pillars = false
@@ -930,8 +930,14 @@ static func _environment(th: TrackTheme) -> Node3D:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = th.ambient
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# AgX: natural highlight roll-off (bright snow/sky no longer clip; matte cars keep their
+	# colour instead of the glossy "plastic" look), a touch of contrast for shape on the boxes
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.15
 	env.fog_enabled = true
+	env.fog_sky_affect = 0.25 # fog greyed the whole sky (worse under AgX); keep it near the horizon
 	env.fog_light_color = th.fog
 	env.fog_density = th.fog_density
 	env.glow_enabled = th.wall_emission.r + th.wall_emission.g + th.wall_emission.b > 0.0

@@ -60,7 +60,15 @@ func _load_model(vehicle: String) -> void:
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for i: int in m.mesh.get_surface_count():
 			var mat: Material = m.mesh.surface_get_material(i)
-			if mat != null and mat.resource_name in ["Detail", "Lamp", "GlassClear"]:
+			if mat != null and mat.resource_name == "Body": # boxy cars (boxkit): one matte surface per car
+				if _body_mat == null:
+					_body_mat = ShaderMaterial.new()
+					_body_mat.shader = preload("res://src/render/car_body.gdshader")
+					_ghost_mat = ShaderMaterial.new()
+					_ghost_mat.shader = preload("res://src/render/car_body_ghost.gdshader")
+				m.set_surface_override_material(i, _body_mat)
+				_body_surfaces.append([m, i])
+			elif mat != null and mat.resource_name in ["Detail", "Lamp", "GlassClear"]:
 				m.set_surface_override_material(i, _shared(mat.resource_name))
 			elif mat != null and mat.resource_name == "Paint" and mat is StandardMaterial3D:
 				if _paint == null:
@@ -77,6 +85,10 @@ func _load_model(vehicle: String) -> void:
 
 
 var _paint: StandardMaterial3D = null
+var _body_mat: ShaderMaterial = null # boxy cars: this car's body material (effects stay per car)
+var _ghost_mat: ShaderMaterial = null
+var _body_surfaces: Array = [] # [MeshInstance3D, surface index]
+var _ghosted: bool = false
 
 static var _shared_mats: Dictionary = {}
 
@@ -133,10 +145,23 @@ func show_effects(flags: int, delta: float) -> void:
 	_cabin.rotation.y = _spin
 	if _model != null:
 		_model.rotation.y = _spin
+	var ghost: bool = (flags & Protocol.EFF_GHOST) != 0
+	_flash_t = maxf(_flash_t - delta, 0.0) if _body_mat != null else _flash_t
+	if _body_mat != null:
+		if ghost != _ghosted:
+			_ghosted = ghost
+			for e: Array in _body_surfaces:
+				(e[0] as MeshInstance3D).set_surface_override_material(int(e[1]), _ghost_mat if ghost else _body_mat)
+		var g: float = _flash_t * 3.0
+		if flags & Protocol.EFF_BOOST:
+			g = maxf(g, 0.6)
+		var gc: Color = Color(1.0, 0.7, 0.2) * g
+		_body_mat.set_shader_parameter("glow", gc)
+		_ghost_mat.set_shader_parameter("glow", gc)
+		return
 	var mat: StandardMaterial3D = _paint if _paint != null else _body.material_override as StandardMaterial3D
 	if mat == null:
 		return
-	var ghost: bool = (flags & Protocol.EFF_GHOST) != 0
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if ghost else BaseMaterial3D.TRANSPARENCY_DISABLED
 	mat.albedo_color.a = 0.35 if ghost else 1.0
 	_flash_t = maxf(_flash_t - delta, 0.0)

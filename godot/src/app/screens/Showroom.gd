@@ -29,7 +29,10 @@ func _init() -> void:
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.62, 0.66, 0.85)
 	e.ambient_light_energy = 0.9
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_mode = Environment.TONE_MAPPER_AGX
+	e.adjustment_enabled = true # same grade as the tracks (AgX alone looked washed out)
+	e.adjustment_contrast = 1.08
+	e.adjustment_saturation = 1.2
 	# reflections only (background stays transparent): chrome and paint need something to mirror
 	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color(0.35, 0.5, 0.85)

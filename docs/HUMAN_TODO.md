@@ -121,7 +121,11 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     mountains and hills on the horizon, grass texture), asphalt, lane lines, guard rails, lamps,
     clouds, billboards. Say what to change (colours, density, anything that looks off).
 
-20. [ ] **Review the car detail pass** on the phone or in `docs/screenshots/a1_detail.png` /
+21. [ ] **Review the boxy cars (v3)** on the phone or `docs/screenshots/a1_boxy.png` and
+    `art/previews/*.png`: proportions per car, colours, how boxy/voxel they should be, lighting.
+    (The old smooth cars can still be built with `CARS_DIR=cars2 make assets`.)
+
+20. [ ] (superseded by 21) **Review the car detail pass** on the phone or in `docs/screenshots/a1_detail.png` /
     `art/previews/*.png`: headlights, tail lights, grilles, plates, panel lines, mirrors,
     wipers, calipers. Also tell Claude whether the cars still flicker in races (and when:
     near/far cars, in turns, on which map).

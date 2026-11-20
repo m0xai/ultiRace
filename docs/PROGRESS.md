@@ -211,6 +211,9 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       (water/ice/oil patches, red-white road blocks; `docs/screenshots/a3_hazards.png`), braver
       bots (less lifting, avoid hazards), bot catch-up behind a human. Expert-vs-bots sim: wins
       84 % → ≈ 17 %. Balance all ✅ (lead changes 4.0). MapViewer `--at <s>`.
+- [x] Cars v3 boxy style (human: "more boxy", "plastic-ish"): boxkit + 8 new car scripts, baked
+      AO, matte body shader; lighting: AgX + grade. `docs/screenshots/a1_boxy*.png`,
+      `art/previews/`. Race scene triangles ≈ 250 k → 120 k.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
