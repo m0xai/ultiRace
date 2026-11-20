@@ -489,7 +489,45 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
 		trunk_mesh.rings = 0
 		node.add_child(_multimesh("Trunks", trunk_mesh, trunks, _mat(Color(0.33, 0.24, 0.17))))
 	node.add_child(_lamps(tr, th))
+	if tr.theme != "neon":
+		node.add_child(_clouds(tr, rng))
 	return node
+
+
+## Flattened cloud puffs on a ring around the track (one unshaded MultiMesh, no shadows).
+static func _clouds(tr: Track, rng: Rng) -> MultiMeshInstance3D:
+	var cx: float = 0.0
+	var cz: float = 0.0
+	var k: int = 0
+	var s: float = 0.0
+	while s < tr.length:
+		var smp: Track.Sample = tr.at(s)
+		cx += smp.px
+		cz += smp.pz
+		k += 1
+		s += 20.0
+	cx /= float(k)
+	cz /= float(k)
+	var puff: SphereMesh = SphereMesh.new()
+	puff.radial_segments = 10
+	puff.rings = 5
+	var xforms: Array[Transform3D] = []
+	for i: int in 22:
+		var a: float = TAU * (float(i) + rng.next_float() * 0.6) / 22.0
+		var r: float = 380.0 + rng.next_float() * 260.0
+		var base: Vector3 = Vector3(cx + cos(a) * r, 90.0 + rng.next_float() * 60.0, cz + sin(a) * r)
+		var size: float = 22.0 + rng.next_float() * 22.0
+		for j: int in 3: # each cloud = 3 overlapping puffs
+			var off: Vector3 = Vector3((float(j) - 1.0) * size * 0.8, rng.next_float() * size * 0.15, (rng.next_float() - 0.5) * size * 0.6)
+			var sc: float = size * (1.0 if j == 1 else 0.7)
+			xforms.append(Transform3D(Basis.from_scale(Vector3(sc, sc * 0.32, sc * 0.7)), base + off))
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.0, 1.0, 1.0)
+	mat.disable_fog = true
+	var mmi: MultiMeshInstance3D = _multimesh("Clouds", puff, xforms, mat)
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mmi
 
 
 static func _multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], mat: Material) -> MultiMeshInstance3D:

@@ -168,7 +168,9 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       108–111 (markings/posts cast no shadows). Screens: `docs/screenshots/a3_*.png`.
 - [x] A3 scenery pass: conifers get trunks, street lamps every 36 m alternating sides (one
       MultiMesh, no shadows; tinted glow on Neon). Race draw calls: Sunny 128, Neon 153 (high ≤ 250).
-- [ ] A3 next: signs/billboards, sky gradient + clouds, low-tier draw-call check on Neon.
+- [x] Clouds on Sunny/Frosty (one unshaded MultiMesh). Low-tier check: 77–108 draw calls on all
+      maps (no sun shadows on low), high 115–162 (≤ 250).
+- [ ] A3 next: signs/billboards along the straights.
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 
