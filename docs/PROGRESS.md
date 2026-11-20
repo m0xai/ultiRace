@@ -194,7 +194,16 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       frames 25.5 % → 10.4 %, input latency 8.3 → 5.9 ticks avg over the whole run (≈ 3 before AFK).
 - [x] Windows: see-through tinted Fresnel glass, interior (seats, headrests, dash, wheel),
       chrome window line. Race high ≈ 288 k tris / 147 draws, low ≈ 131 k / 108.
-- [ ] A3 open: Neon billboards on building faces (overpass has no ground beside it); human
+- [x] **Known-good tag `v0.5-smooth-race`** (2026-11-20, commit 844f375): human: "works
+      flawlessly". Return with `git checkout v0.5-smooth-race` (or compare: `git diff v0.5-smooth-race`).
+- [x] A3 world pass 2: Neon city buildings with procedural lit windows + neon sign bands
+      (`city_building.gdshader`, one MultiMesh) and a distant skyline ring; night sky with stars
+      and city glow (`night_sky.gdshader`). Day maps: tiered pines (snow caps on Frosty), round
+      broadleaf trees on Sunny, textured grass/snow, hills + snow-capped mountain rings on the
+      horizon. Trees chunked in 200 m cells (culling). High ≤ 278 k tris / 160 draws, low ≤ 140 k
+      / 107 (low tier: a third fewer trees). Screens `docs/screenshots/a3_*.png`.
+- [x] A3 open item done: neon signs now sit on building faces (sign bands).
+- [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).

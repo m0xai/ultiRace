@@ -116,9 +116,10 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     showroom, countdown, results with confetti) or `docs/screenshots/a2_*.png`. Say what to
     change (font, colours, button style, animations).
 
-18. [ ] **Review the A3 track look** on the phone or in `docs/screenshots/a3_*.png`: textured
-    asphalt, lane lines, steel guard rails, street lamps, tree trunks, clouds, billboards (day
-    maps). Say what to change (colours, density, rail height, anything that looks off).
+18. [ ] **Review the A3 track look** on the phone or in `docs/screenshots/a3_*.png`: Neon city
+    (lit windows, neon signs, skyline, stars), day maps (pine/leafy trees, snow-capped
+    mountains and hills on the horizon, grass texture), asphalt, lane lines, guard rails, lamps,
+    clouds, billboards. Say what to change (colours, density, anything that looks off).
 
 20. [ ] **Review the car detail pass** on the phone or in `docs/screenshots/a1_detail.png` /
     `art/previews/*.png`: headlights, tail lights, grilles, plates, panel lines, mirrors,

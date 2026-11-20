@@ -41,6 +41,8 @@ class TrackTheme:
 	var pillars: bool
 	var prop_color: Color
 	var prop_emission: Color
+	var night: bool = false
+	var snow: bool = false
 
 
 static func theme_for(theme_id: String) -> TrackTheme:
@@ -65,6 +67,7 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.pillars = true
 			t.prop_color = Color(0.1, 0.1, 0.16)
 			t.prop_emission = Color(1.0, 0.3, 0.8)
+			t.night = true
 		"frosty":
 			t.road = Color(0.26, 0.28, 0.32)
 			t.curb_a = Color(0.85, 0.15, 0.15)
@@ -84,6 +87,7 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.pillars = false
 			t.prop_color = Color(0.13, 0.3, 0.2)
 			t.prop_emission = Color(0, 0, 0)
+			t.snow = true
 		_:
 			t.road = Color(0.24, 0.24, 0.26)
 			t.curb_a = Color(0.9, 0.15, 0.12)
@@ -311,11 +315,12 @@ static func build(tr: Track) -> Node3D:
 	var ground: MeshInstance3D = MeshInstance3D.new()
 	ground.name = "Ground"
 	var plane: PlaneMesh = PlaneMesh.new()
-	var size: Vector3 = aabb_max - aabb_min
-	plane.size = Vector2(size.x + 600.0, size.z + 600.0)
+	var bounds: Vector4 = _bounds(tr)
+	var gs: float = 2.0 * (bounds.w + MOUNTAIN_FAR + 250.0) # reaches under the far mountains
+	plane.size = Vector2(gs, gs)
 	ground.mesh = plane
-	ground.position = Vector3((aabb_min.x + aabb_max.x) / 2.0, min_y - 0.5, (aabb_min.z + aabb_max.z) / 2.0)
-	ground.material_override = _mat(th.ground)
+	ground.position = Vector3(bounds.x, min_y - 0.5, bounds.z)
+	ground.material_override = _ground_mat(th)
 	root.add_child(ground)
 
 	root.add_child(_scenery(tr, th, min_y))
@@ -437,62 +442,314 @@ static func _gate(tr: Track, th: TrackTheme) -> Node3D:
 static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
 	var node: Node3D = Node3D.new()
 	node.name = "Scenery"
-	var mesh: Mesh
-	if tr.theme == "neon":
-		var box: BoxMesh = BoxMesh.new()
-		box.size = Vector3(1, 1, 1)
-		mesh = box
-	else:
-		var cone: CylinderMesh = CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 1.0
-		cone.height = 1.0
-		cone.radial_segments = 7
-		mesh = cone
 	var rng: Rng = Rng.new(hash(tr.id) & 0x7FFFFFFF)
-	var xforms: Array[Transform3D] = []
-	var trunks: Array[Transform3D] = []
-	var s: float = 0.0
-	while s < tr.length:
-		var smp: Track.Sample = tr.at(s)
-		for side: float in [-1.0, 1.0]:
-			if rng.next_float() < 0.55:
-				continue
-			var dist: float = smp.half_width + 12.0 + rng.next_float() * 60.0
-			var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, min_y - 0.5, smp.pz + smp.nz * side * dist)
-			if _too_close(tr, p, 14.0):
-				continue
-			var h: float
-			var w: float
-			if tr.theme == "neon":
-				h = 15.0 + rng.next_float() * 45.0
-				w = 8.0 + rng.next_float() * 10.0
-			else:
-				h = 6.0 + rng.next_float() * 7.0
-				w = 1.8 + rng.next_float() * 1.2
-			if tr.theme == "neon":
-				xforms.append(Transform3D(Basis.from_scale(Vector3(w, h, w)), p + Vector3(0, h / 2.0, 0)))
-			else:
-				# conifer: short trunk, canopy starts above it
-				var trunk_h: float = h * 0.22
-				trunks.append(Transform3D(Basis.from_scale(Vector3(w * 0.13, trunk_h, w * 0.13)), p + Vector3(0, trunk_h / 2.0, 0)))
-				var ch: float = h * 0.85
-				xforms.append(Transform3D(Basis.from_scale(Vector3(w, ch, w)), p + Vector3(0, trunk_h * 0.7 + ch / 2.0, 0)))
-		s += 9.0
-	node.add_child(_multimesh("Props", mesh, xforms, _mat(th.prop_color, th.prop_emission * 0.15)))
-	if not trunks.is_empty():
-		var trunk_mesh: CylinderMesh = CylinderMesh.new()
-		trunk_mesh.top_radius = 0.8
-		trunk_mesh.bottom_radius = 1.0
-		trunk_mesh.height = 1.0
-		trunk_mesh.radial_segments = 5
-		trunk_mesh.rings = 0
-		node.add_child(_multimesh("Trunks", trunk_mesh, trunks, _mat(Color(0.33, 0.24, 0.17))))
+	if tr.theme == "neon":
+		node.add_child(_city(tr, rng, min_y))
+	else:
+		_forest(node, tr, th, rng, min_y)
+		node.add_child(_mountains(tr, th, rng, min_y))
 	node.add_child(_lamps(tr, th))
 	if tr.theme != "neon":
 		node.add_child(_clouds(tr, rng))
 		node.add_child(_billboards(tr, rng))
 	return node
+
+
+## Current graphics tier ("high" when the Quality autoload is absent, e.g. in tests).
+static func _quality_tier() -> String:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root.has_node("Quality"):
+		return str(tree.root.get_node("Quality").get("tier"))
+	return "high"
+
+
+## (centre x, 0, centre z, radius) of the track's ground footprint.
+static func _bounds(tr: Track) -> Vector4:
+	var lo: Vector2 = Vector2(INF, INF)
+	var hi: Vector2 = Vector2(-INF, -INF)
+	var s: float = 0.0
+	while s < tr.length:
+		var smp: Track.Sample = tr.at(s)
+		lo = Vector2(minf(lo.x, smp.px), minf(lo.y, smp.pz))
+		hi = Vector2(maxf(hi.x, smp.px), maxf(hi.y, smp.pz))
+		s += 10.0
+	return Vector4((lo.x + hi.x) / 2.0, 0.0, (lo.y + hi.y) / 2.0, (hi - lo).length() / 2.0)
+
+
+## Grass/snow with large soft noise patches (world-space triplanar: no UVs needed).
+static func _ground_mat(th: TrackTheme) -> StandardMaterial3D:
+	var m: StandardMaterial3D = _mat(th.ground)
+	if th.night:
+		return m
+	var noise: FastNoiseLite = FastNoiseLite.new()
+	noise.seed = 11
+	noise.frequency = 0.02
+	noise.fractal_octaves = 4
+	var ramp: Gradient = Gradient.new()
+	ramp.set_color(0, Color(0.8, 0.84, 0.8) if not th.snow else Color(0.9, 0.93, 0.98))
+	ramp.set_color(1, Color(1.12, 1.1, 1.0) if not th.snow else Color(1.04, 1.04, 1.04))
+	var tex: NoiseTexture2D = NoiseTexture2D.new()
+	tex.width = 256
+	tex.height = 256
+	tex.seamless = true
+	tex.noise = noise
+	tex.color_ramp = ramp
+	m.albedo_texture = tex
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3(0.02, 0.02, 0.02)
+	return m
+
+
+## Neon city: near buildings along the track plus a distant skyline ring, one MultiMesh drawn
+## with city_building.gdshader (procedural lit windows, neon sign bands on some roofs).
+static func _city(tr: Track, rng: Rng, min_y: float) -> MultiMeshInstance3D:
+	var xf: Array[Transform3D] = []
+	var cols: Array[Color] = []
+	var data: Array[Color] = []
+	var tints: Array[Color] = [Color(0.09, 0.08, 0.14), Color(0.13, 0.09, 0.17), Color(0.07, 0.1, 0.15), Color(0.16, 0.12, 0.2), Color(0.1, 0.1, 0.12)]
+	for ring: int in 2:
+		var s: float = 0.0
+		var step: float = 9.0 if ring == 0 else 15.0
+		while s < tr.length:
+			var smp: Track.Sample = tr.at(s)
+			for side: float in [-1.0, 1.0]:
+				if rng.next_float() < (0.55 if ring == 0 else 0.35):
+					continue
+				var dist: float = smp.half_width + 12.0 + rng.next_float() * 60.0 if ring == 0 else 110.0 + rng.next_float() * 220.0
+				var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, min_y - 0.5, smp.pz + smp.nz * side * dist)
+				if _too_close(tr, p, 14.0 if ring == 0 else 40.0):
+					continue
+				var h: float = 15.0 + rng.next_float() * 45.0 if ring == 0 else 35.0 + rng.next_float() * 95.0
+				var w: float = 8.0 + rng.next_float() * 10.0 if ring == 0 else 14.0 + rng.next_float() * 18.0
+				var d: float = w * (0.7 + rng.next_float() * 0.6)
+				var yaw: float = atan2(smp.tx, smp.tz)
+				xf.append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(w, h, d)), p + Vector3(0, h / 2.0, 0)))
+				cols.append(tints[rng.next_int(tints.size())])
+				var hue: float = rng.next_float() if rng.next_float() < 0.35 else -1.0
+				data.append(Color(rng.next_float(), hue, p.y + h, 0.0))
+			s += step
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	var box: BoxMesh = BoxMesh.new()
+	mm.mesh = box
+	mm.instance_count = xf.size()
+	for i: int in xf.size():
+		mm.set_instance_transform(i, xf[i])
+		mm.set_instance_color(i, cols[i])
+		mm.set_instance_custom_data(i, data[i])
+	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	mmi.name = "City"
+	mmi.multimesh = mm
+	var sm: ShaderMaterial = ShaderMaterial.new()
+	sm.shader = preload("res://src/render/city_building.gdshader")
+	mmi.material_override = sm
+	return mmi
+
+
+## Roadside trees: tiered conifers (snow caps on Frosty) and, on Sunny, round broadleaf trees.
+## Two MultiMeshes of vertex-coloured low-poly meshes, slight per-tree colour variation.
+static func _forest(node: Node3D, tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> void:
+	var pines: Array[Transform3D] = []
+	var leafy: Array[Transform3D] = []
+	var skip: float = 0.45 if _quality_tier() != "low" else 0.62 # low tier: a third fewer trees (triangle budget)
+	var s: float = 0.0
+	while s < tr.length:
+		var smp: Track.Sample = tr.at(s)
+		for side: float in [-1.0, 1.0]:
+			if rng.next_float() < skip:
+				continue
+			var dist: float = smp.half_width + 12.0 + rng.next_float() * 70.0
+			var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, min_y - 0.5, smp.pz + smp.nz * side * dist)
+			if _too_close(tr, p, 14.0):
+				continue
+			var h: float = 6.0 + rng.next_float() * 8.0
+			var b: Basis = Basis(Vector3.UP, rng.next_float() * TAU).scaled(Vector3(h * (0.85 + rng.next_float() * 0.3), h, h * (0.85 + rng.next_float() * 0.3)))
+			if th.snow or rng.next_float() < 0.55:
+				pines.append(Transform3D(b, p))
+			else:
+				leafy.append(Transform3D(b.scaled(Vector3(0.9, 0.75, 0.9)), p))
+		s += 8.0
+	# chunked by 200 m cells: off-screen chunks are culled and only chunks near the camera are drawn
+	# again for sun shadows (one big MultiMesh drew every tree in both passes: +100 k triangles)
+	var pine_mesh: ArrayMesh = _pine_mesh(th.snow)
+	var leaf_mesh: ArrayMesh = _broadleaf_mesh()
+	for kind: int in 2:
+		var cells: Dictionary = {}
+		for t: Transform3D in (pines if kind == 0 else leafy):
+			var key: Vector2i = Vector2i(floori(t.origin.x / TREE_CHUNK), floori(t.origin.z / TREE_CHUNK))
+			if not cells.has(key):
+				cells[key] = [] as Array[Transform3D]
+			(cells[key] as Array[Transform3D]).append(t)
+		for key: Vector2i in cells:
+			node.add_child(_tinted_multimesh("Pines" if kind == 0 else "Broadleaf", pine_mesh if kind == 0 else leaf_mesh,
+				cells[key] as Array[Transform3D], rng))
+
+
+static func _tinted_multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], rng: Rng) -> MultiMeshInstance3D:
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = xforms.size()
+	for i: int in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+		var k: float = 0.85 + rng.next_float() * 0.25
+		mm.set_instance_color(i, Color(k, k * (0.95 + rng.next_float() * 0.1), k))
+	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	mmi.name = name
+	mmi.multimesh = mm
+	var m: StandardMaterial3D = _mat(Color.WHITE, Color(0, 0, 0), true)
+	m.roughness = 0.95
+	mmi.material_override = m
+	return mmi
+
+
+## Unit-height conifer: trunk + three stacked cone tiers (flat shaded); snow caps optional.
+static func _pine_mesh(snow: bool) -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var bark: Color = Color(0.36, 0.25, 0.17)
+	_prism(st, 0.0, 0.2, 0.045, 6, bark)
+	var greens: Array[Color] = [Color(0.12, 0.34, 0.2), Color(0.15, 0.4, 0.22), Color(0.18, 0.45, 0.24)]
+	var tiers: Array[Vector3] = [Vector3(0.14, 0.55, 0.36), Vector3(0.38, 0.8, 0.28), Vector3(0.6, 1.0, 0.19)] # y0, y1, radius
+	for k: int in tiers.size():
+		var t: Vector3 = tiers[k]
+		var cap: Color = Color(0.93, 0.95, 1.0) if snow else greens[k].lightened(0.15)
+		_tier(st, t.x, t.y, t.z, 8, greens[k], cap, float(k) * 0.4)
+	st.generate_normals()
+	return st.commit()
+
+
+## Unit-height broadleaf tree: trunk + three overlapping low-poly blobs.
+static func _broadleaf_mesh() -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_prism(st, 0.0, 0.45, 0.05, 6, Color(0.38, 0.27, 0.18))
+	_blob(st, Vector3(0, 0.62, 0), 0.3, Color(0.25, 0.52, 0.2))
+	_blob(st, Vector3(0.16, 0.5, 0.08), 0.22, Color(0.29, 0.56, 0.22))
+	_blob(st, Vector3(-0.14, 0.52, -0.1), 0.22, Color(0.22, 0.48, 0.19))
+	st.generate_normals()
+	return st.commit()
+
+
+static func _prism(st: SurfaceTool, y0: float, y1: float, r: float, n: int, c: Color) -> void:
+	for i: int in n:
+		var a0: float = TAU * float(i) / float(n)
+		var a1: float = TAU * float(i + 1) / float(n)
+		var p0: Vector3 = Vector3(cos(a0) * r, y0, sin(a0) * r)
+		var p1: Vector3 = Vector3(cos(a1) * r, y0, sin(a1) * r)
+		var q0: Vector3 = Vector3(p0.x * 0.8, y1, p0.z * 0.8)
+		var q1: Vector3 = Vector3(p1.x * 0.8, y1, p1.z * 0.8)
+		for v: Vector3 in [p0, q0, p1, p1, q0, q1]:
+			st.set_color(c)
+			st.add_vertex(v)
+
+
+## One cone tier: green lower band, `cap` coloured tip (snow or lighter needles), closed bottom.
+static func _tier(st: SurfaceTool, y0: float, y1: float, r: float, n: int, c: Color, cap: Color, rot: float) -> void:
+	var ym: float = y0 + (y1 - y0) * 0.5
+	var rm: float = r * 0.5
+	var apex: Vector3 = Vector3(0, y1, 0)
+	for i: int in n:
+		var a0: float = rot + TAU * float(i) / float(n)
+		var a1: float = rot + TAU * float(i + 1) / float(n)
+		var p0: Vector3 = Vector3(cos(a0) * r, y0, sin(a0) * r)
+		var p1: Vector3 = Vector3(cos(a1) * r, y0, sin(a1) * r)
+		var m0: Vector3 = Vector3(cos(a0) * rm, ym, sin(a0) * rm)
+		var m1: Vector3 = Vector3(cos(a1) * rm, ym, sin(a1) * rm)
+		for v: Vector3 in [p0, m0, p1, p1, m0, m1]:
+			st.set_color(c)
+			st.add_vertex(v)
+		for v: Vector3 in [m0, apex, m1]:
+			st.set_color(cap)
+			st.add_vertex(v)
+
+
+## Low-poly sphere (6 × 4) for leafy canopies.
+static func _blob(st: SurfaceTool, c0: Vector3, r: float, c: Color) -> void:
+	var n: int = 6
+	var rings: int = 4
+	for j: int in rings:
+		var t0: float = PI * float(j) / float(rings)
+		var t1: float = PI * float(j + 1) / float(rings)
+		for i: int in n:
+			var a0: float = TAU * float(i) / float(n) + float(j) * 0.5
+			var a1: float = TAU * float(i + 1) / float(n) + float(j) * 0.5
+			var v00: Vector3 = c0 + r * Vector3(sin(t0) * cos(a0), cos(t0), sin(t0) * sin(a0))
+			var v01: Vector3 = c0 + r * Vector3(sin(t0) * cos(a1), cos(t0), sin(t0) * sin(a1))
+			var v10: Vector3 = c0 + r * Vector3(sin(t1) * cos(a0), cos(t1), sin(t1) * sin(a0))
+			var v11: Vector3 = c0 + r * Vector3(sin(t1) * cos(a1), cos(t1), sin(t1) * sin(a1))
+			var shade: Color = c.lightened(0.12) if j == 0 else (c if j < 3 else c.darkened(0.2))
+			for v: Vector3 in [v00, v01, v10, v10, v01, v11]:
+				st.set_color(shade)
+				st.add_vertex(v)
+
+
+const TREE_CHUNK: float = 200.0
+const MOUNTAIN_NEAR: float = 420.0 # metres beyond the track's radius
+const MOUNTAIN_FAR: float = 700.0
+
+
+## Horizon: a ring of green hills and a ring of taller blue-grey mountains with snow tops (Frosty:
+## all snowy), one vertex-coloured flat-shaded mesh, no shadows. Fog hazes it into the sky.
+static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> MeshInstance3D:
+	var b: Vector4 = _bounds(tr)
+	var centre: Vector3 = Vector3(b.x, min_y - 1.0, b.z)
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n: int = 96
+	for ridge: int in 2:
+		var r: float = b.w + (MOUNTAIN_NEAR if ridge == 0 else MOUNTAIN_FAR)
+		var hmin: float = 35.0 if ridge == 0 else 90.0
+		var hmax: float = 90.0 if ridge == 0 else 230.0
+		var ph: Array[float] = [rng.next_float() * TAU, rng.next_float() * TAU, rng.next_float() * TAU]
+		var low: Color = th.ground.darkened(0.2) if ridge == 0 else Color(0.3, 0.4, 0.5)
+		if th.snow: # bluish rock flanks under the snow, so the peaks read against a pale sky
+			low = Color(0.4, 0.46, 0.56) if ridge == 0 else Color(0.28, 0.34, 0.46)
+		var rock: Color = Color(0.45, 0.47, 0.52) if ridge == 1 else th.ground.darkened(0.3)
+		var crest: Array[Vector3] = []
+		for i: int in n:
+			var a: float = TAU * float(i) / float(n)
+			var wave: float = 0.5 + 0.25 * sin(a * 3.0 + ph[0]) + 0.15 * sin(a * 7.0 + ph[1]) + 0.1 * sin(a * 13.0 + ph[2])
+			var h: float = lerpf(hmin, hmax, clampf(wave + (rng.next_float() - 0.5) * 0.25, 0.0, 1.0))
+			crest.append(centre + Vector3(cos(a) * r, h, sin(a) * r))
+		for i: int in n:
+			var j: int = (i + 1) % n
+			var a0: Vector3 = crest[i]
+			var a1: Vector3 = crest[j]
+			var f0: Vector3 = centre + (Vector3(a0.x, 0, a0.z) - Vector3(centre.x, 0, centre.z)) * (1.0 - 120.0 / r) # front foot
+			var f1: Vector3 = centre + (Vector3(a1.x, 0, a1.z) - Vector3(centre.x, 0, centre.z)) * (1.0 - 120.0 / r)
+			f0.y = centre.y
+			f1.y = centre.y
+			var top: float = maxf(a0.y, a1.y) - centre.y
+			var snowy: bool = th.snow or (ridge == 1 and top > 150.0)
+			var cap: Color = Color(0.95, 0.96, 1.0) if snowy else rock
+			var haze: float = 0.12 if ridge == 0 else 0.3 # aerial perspective, baked (no scene fog)
+			# two bands: rock/grass up to the snow line, then a crisp cap (no washed-out gradient)
+			var k: float = 0.62 if snowy else 0.8
+			var s0: Vector3 = f0.lerp(a0, k)
+			var s1: Vector3 = f1.lerp(a1, k)
+			var lo_c: Color = low.lerp(th.sky_horizon, haze)
+			var hi_c: Color = cap.lerp(th.sky_horizon, haze * 0.5)
+			for v: Vector3 in [f0, s0, f1, f1, s0, s1]:
+				st.set_color(lo_c)
+				st.add_vertex(v)
+			for v: Vector3 in [s0, a0, s1, s1, a0, a1]:
+				st.set_color(hi_c)
+				st.add_vertex(v)
+	st.generate_normals()
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = "Mountains"
+	mi.mesh = st.commit()
+	var m: StandardMaterial3D = _mat(Color.WHITE, Color(0, 0, 0), true)
+	m.roughness = 1.0
+	m.disable_fog = true # scene fog would wash them out completely at 1 km
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 
 ## Roadside billboards: coloured board + white stripe on two posts, angled toward oncoming cars.
@@ -654,13 +911,18 @@ static func _environment(th: TrackTheme) -> Node3D:
 	rim.shadow_enabled = false
 	node.add_child(rim)
 	var env: Environment = Environment.new()
-	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = th.sky_top
-	sky_mat.sky_horizon_color = th.sky_horizon
-	sky_mat.ground_horizon_color = th.sky_horizon
-	sky_mat.ground_bottom_color = th.ground
 	var sky: Sky = Sky.new()
-	sky.sky_material = sky_mat
+	if th.night: # stars + city glow (night_sky.gdshader)
+		var night: ShaderMaterial = ShaderMaterial.new()
+		night.shader = preload("res://src/render/night_sky.gdshader")
+		sky.sky_material = night
+	else:
+		var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
+		sky_mat.sky_top_color = th.sky_top
+		sky_mat.sky_horizon_color = th.sky_horizon
+		sky_mat.ground_horizon_color = th.sky_horizon
+		sky_mat.ground_bottom_color = th.ground
+		sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
