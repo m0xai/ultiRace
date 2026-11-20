@@ -222,4 +222,5 @@ animated buttons and transitions, 3D car showroom on Home/Select, juicy countdow
 - [x] `Ui.gd`: chunky lip buttons (yellow primary / blue secondary), outlined text, bordered
       panels and inputs, gradient + speed-stripe backgrounds on all screens, squash-on-press and
       pop-in animations. Screens: `docs/screenshots/a2_*.png`.
-- [ ] Settings toggles/rows, 3D car showroom (Home + Select), juicy countdown/results, human approval.
+- [x] Settings: chunky code-drawn switches, yellow sliders, rows on cards, styled dropdown.
+- [ ] 3D car showroom (Home + Select), juicy countdown/results, human approval.

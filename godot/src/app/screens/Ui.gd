@@ -87,6 +87,108 @@ static func _squash(b: Button, down: bool) -> void:
 		tw.tween_property(b, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Applies the toy-button look to any button (OptionButton etc.).
+static func style_button(b: Button, base: Color = SECONDARY) -> void:
+	b.add_theme_stylebox_override("normal", _lip_box(base, LIP))
+	b.add_theme_stylebox_override("hover", _lip_box(base.lightened(0.12), LIP))
+	b.add_theme_stylebox_override("pressed", _lip_box(base.darkened(0.08), 2))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.add_theme_color_override("font_outline_color", base.darkened(0.6))
+	b.add_theme_constant_override("outline_size", 6)
+
+
+static var _icons: Dictionary = {}
+
+
+## Anti-aliased pill / circle images drawn in code (cached): switch on/off, slider knob.
+static func icon(kind: String) -> Texture2D:
+	if _icons.has(kind):
+		return _icons[kind] as Texture2D
+	var w: int = 112 if kind != "knob" else 44
+	var h: int = 60 if kind != "knob" else 44
+	var img: Image = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var on: bool = kind == "on"
+	var track: Color = ACCENT if on else Color(0.05, 0.07, 0.18)
+	var r: float = float(h) / 2.0
+	var knob_c: Vector2 = Vector2(float(w) - r if on else r, r)
+	for y: int in h:
+		for x: int in w:
+			var p: Vector2 = Vector2(float(x) + 0.5, float(y) + 0.5)
+			var col: Color = Color(0, 0, 0, 0)
+			if kind != "knob":
+				# pill: distance to the centre segment
+				var cx: float = clampf(p.x, r, float(w) - r)
+				var dp: float = p.distance_to(Vector2(cx, r))
+				var a: float = clampf(r - dp, 0.0, 1.0)
+				if a > 0.0:
+					var border: bool = dp > r - 3.0
+					col = (track.darkened(0.4) if border else track)
+					col.a = a
+				var dk: float = p.distance_to(knob_c)
+				var ka: float = clampf(r - 6.0 - dk, 0.0, 1.0)
+				if ka > 0.0:
+					var knob: Color = Color(1, 1, 1) if on else Color(0.62, 0.66, 0.76)
+					col = col.lerp(knob, ka) if col.a > 0.0 else Color(knob, ka)
+			else:
+				var d: float = p.distance_to(Vector2(r, r))
+				var a2: float = clampf(r - 1.0 - d, 0.0, 1.0)
+				if a2 > 0.0:
+					col = Color(1, 1, 1) if d < r - 5.0 else ACCENT.darkened(0.45)
+					col.a = a2
+			img.set_pixel(x, y, col)
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	_icons[kind] = tex
+	return tex
+
+
+static func switch(on: bool) -> CheckButton:
+	var cb: CheckButton = CheckButton.new()
+	cb.button_pressed = on
+	cb.custom_minimum_size = Vector2(130, MIN_TOUCH)
+	cb.add_theme_icon_override("checked", icon("on"))
+	cb.add_theme_icon_override("unchecked", icon("off"))
+	cb.add_theme_icon_override("checked_mirrored", icon("on"))
+	cb.add_theme_icon_override("unchecked_mirrored", icon("off"))
+	for st: String in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+		cb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	return cb
+
+
+static func slider(lo: float, hi: float, value: float) -> HSlider:
+	var s: HSlider = HSlider.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = 0.05
+	s.value = value
+	s.custom_minimum_size = Vector2(360, MIN_TOUCH)
+	var track: StyleBoxFlat = _box(Color(0.05, 0.07, 0.18), 8)
+	track.content_margin_top = 7
+	track.content_margin_bottom = 7
+	var fill: StyleBoxFlat = _box(ACCENT, 8)
+	fill.content_margin_top = 7
+	fill.content_margin_bottom = 7
+	s.add_theme_stylebox_override("slider", track)
+	s.add_theme_stylebox_override("grabber_area", fill)
+	s.add_theme_stylebox_override("grabber_area_highlight", fill)
+	s.add_theme_icon_override("grabber", icon("knob"))
+	s.add_theme_icon_override("grabber_highlight", icon("knob"))
+	return s
+
+
+## Wraps a row in a rounded card (settings lists).
+static func card(content: Control) -> PanelContainer:
+	var p: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = _box(Color(0.1, 0.14, 0.32, 0.85), 18)
+	sb.content_margin_left = 22
+	sb.content_margin_right = 16
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(content)
+	return p
+
+
 ## Pops a control in (scale + fade) after `delay` seconds: use for menus appearing.
 static func pop_in(c: Control, delay: float = 0.0) -> void:
 	c.modulate.a = 0.0
