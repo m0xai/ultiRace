@@ -223,4 +223,6 @@ animated buttons and transitions, 3D car showroom on Home/Select, juicy countdow
       panels and inputs, gradient + speed-stripe backgrounds on all screens, squash-on-press and
       pop-in animations. Screens: `docs/screenshots/a2_*.png`.
 - [x] Settings: chunky code-drawn switches, yellow sliders, rows on cards, styled dropdown.
-- [ ] 3D car showroom (Home + Select), juicy countdown/results, human approval.
+- [x] Vehicle Select: 3D showroom (real car model spinning on a platform, drop-in bounce on pick;
+      renders only while visible), 2-column car cards, name/ULT/stats under the model.
+- [ ] Home showroom, juicy countdown/results, human approval.
