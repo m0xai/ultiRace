@@ -491,7 +491,41 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
 	node.add_child(_lamps(tr, th))
 	if tr.theme != "neon":
 		node.add_child(_clouds(tr, rng))
+		node.add_child(_billboards(tr, rng))
 	return node
+
+
+## Roadside billboards: coloured board + white stripe on two posts, angled toward oncoming cars.
+## Built into one vertex-coloured mesh (one draw call, no shadows).
+static func _billboards(tr: Track, rng: Rng) -> MeshInstance3D:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var colors: Array[Color] = [Color(0.86, 0.2, 0.18), Color(0.16, 0.42, 0.85), Color(0.98, 0.76, 0.12), Color(0.2, 0.68, 0.4)]
+	var post: Color = Color(0.4, 0.42, 0.45)
+	var sv: float = 60.0
+	var i: int = 0
+	while sv < tr.length - 30.0:
+		var side: float = 1.0 if i % 2 == 0 else -1.0
+		var h: float = tr.half_width(sv)
+		var p: Vector3 = tr.world(sv, side * (h + WALL_GAP + 6.0), 0.0)
+		if not _too_close(tr, p, 4.0):
+			var smp: Track.Sample = tr.at(sv)
+			var t: Vector3 = Vector3(smp.tx, 0.0, smp.tz).normalized()
+			var q: Vector3 = tr.world(sv, side * h, 0.0)
+			var to_road: Vector3 = Vector3(q.x - p.x, 0.0, q.z - p.z).normalized()
+			var z: Vector3 = (-t + to_road * 0.6).normalized()
+			var x: Vector3 = Vector3.UP.cross(z).normalized()
+			var xf: Transform3D = Transform3D(Basis(x, Vector3.UP, z), p)
+			var col: Color = colors[rng.next_int(colors.size())]
+			_box(st, Vector3(-2.2, 1.6, 0), Vector3(0.12, 1.6, 0.12), post, xf)
+			_box(st, Vector3(2.2, 1.6, 0), Vector3(0.12, 1.6, 0.12), post, xf)
+			_box(st, Vector3(0, 4.4, 0), Vector3(3.6, 1.5, 0.1), col, xf)
+			_box(st, Vector3(-0.6, 4.4, 0.12), Vector3(2.4, 0.32, 0.02), Color(0.97, 0.97, 0.95), xf)
+		sv += 130.0 + rng.next_float() * 60.0
+		i += 1
+	var mi: MeshInstance3D = _mesh_instance("Billboards", st, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true)))
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
 
 
 ## Flattened cloud puffs on a ring around the track (one unshaded MultiMesh, no shadows).
@@ -576,10 +610,10 @@ static func _lamps(tr: Track, th: TrackTheme) -> MultiMeshInstance3D:
 
 
 ## Axis-aligned box (centre c, half extents h) into a vertex-coloured SurfaceTool.
-static func _box(st: SurfaceTool, c: Vector3, h: Vector3, col: Color) -> void:
+static func _box(st: SurfaceTool, c: Vector3, h: Vector3, col: Color, xf: Transform3D = Transform3D.IDENTITY) -> void:
 	var v: Array[Vector3] = []
 	for k: int in 8:
-		v.append(c + Vector3(h.x * (1.0 if k & 1 else -1.0), h.y * (1.0 if k & 2 else -1.0), h.z * (1.0 if k & 4 else -1.0)))
+		v.append(xf * (c + Vector3(h.x * (1.0 if k & 1 else -1.0), h.y * (1.0 if k & 2 else -1.0), h.z * (1.0 if k & 4 else -1.0))))
 	_quad(st, v[0], v[4], v[2], v[6], col)
 	_quad(st, v[1], v[3], v[5], v[7], col)
 	_quad(st, v[0], v[1], v[4], v[5], col)

@@ -170,7 +170,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       MultiMesh, no shadows; tinted glow on Neon). Race draw calls: Sunny 128, Neon 153 (high ≤ 250).
 - [x] Clouds on Sunny/Frosty (one unshaded MultiMesh). Low-tier check: 77–108 draw calls on all
       maps (no sun shadows on low), high 115–162 (≤ 250).
-- [ ] A3 next: signs/billboards along the straights.
+- [x] Roadside billboards on Sunny/Frosty (one vertex-coloured mesh, no shadows). High-tier draw
+      calls 134–151.
+- [ ] A3 open: Neon billboards on building faces (overpass has no ground beside it); human
+      review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 
