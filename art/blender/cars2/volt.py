@@ -24,7 +24,7 @@ def build():
         dict(y=0.85, w=0.72, zb=0.82, zt=0.90, p=1.8, top=0.85),
     ]
     canopy = k.cabin("Canopy", C, P, roof_from=0.9)
-    wheels = k.four_wheels(0.88, 1.3, -1.3, 0.42, 0.44, 0.36, 0.40, P, spokes=3)
+    wheels = k.four_wheels(0.88, 1.3, -1.3, 0.37, 0.39, 0.36, 0.40, P, spokes=3)
     k.cut_arches(body, wheels)
     k.finalize_body(body)
     tip = k.glow("Tip", "#ffe14a", 6.0)

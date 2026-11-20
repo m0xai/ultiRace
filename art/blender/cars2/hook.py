@@ -23,7 +23,7 @@ def build():
         dict(y=1.55, w=0.90, zb=1.0, zt=1.10, p=5, top=0.94),
     ]
     cab = k.cabin("Cab", C, P, roof_from=0.88)
-    wheels = k.four_wheels(0.92, 1.3, -1.3, 0.46, 0.46, 0.40, 0.40, P, spokes=6)
+    wheels = k.four_wheels(0.92, 1.3, -1.3, 0.40, 0.40, 0.40, 0.40, P, spokes=6)
     k.cut_arches(body, wheels)
     k.finalize_body(body)
     Y = P["Accent"]

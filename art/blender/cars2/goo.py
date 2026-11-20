@@ -24,7 +24,7 @@ def build():
     for f in cab_paint.data.polygons:
         if 1.25 < f.center.z < 1.62 and abs(f.normal.z) < 0.9:
             f.material_index = 1
-    wheels = k.four_wheels(0.92, 1.4, -1.25, 0.46, 0.46, 0.42, 0.42, P, rim="Accent", spokes=5)
+    wheels = k.four_wheels(0.92, 1.4, -1.25, 0.40, 0.40, 0.42, 0.42, P, rim="Accent", spokes=5)
     k.cut_arches(frame, wheels)
     k.finalize_body(frame)
     tank = k.lathe("tank", [(0.0, -2.0), (0.62, -1.98), (0.82, -1.7), (0.86, -0.5), (0.86, 0.3), (0.80, 0.62), (0.0, 0.66)],

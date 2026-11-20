@@ -28,7 +28,7 @@ def build():
         dict(y=0.95, w=0.80, zb=0.84, zt=0.92, p=3.0, top=0.9),
     ]
     canopy = k.cabin("Canopy", C, P, roof_from=0.88)
-    wheels = [(-0.87, 1.30, 0.42), (0.87, 1.30, 0.42), (-0.87, -1.30, 0.45), (0.87, -1.30, 0.45)]
+    wheels = [(-0.87, 1.30, 0.37), (0.87, 1.30, 0.37), (-0.87, -1.30, 0.40), (0.87, -1.30, 0.40)]
     k.cut_arches(body, wheels)
     k.finalize_body(body)
     parts = k.standard_details(P, front=(0.5, 1.96, 0.6), rear=(0.58, -2.0, 0.78), mirror=(0.88, 0.62, 0.98),

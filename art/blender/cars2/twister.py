@@ -31,7 +31,7 @@ def build():
     struts += k.mirror_x(struts)
     parts = k.standard_details(P, front=(0.38, 1.88, 0.75), rear=(0.5, -1.42, 0.8), mirror=(0.75, 0.6, 1.0), bumper_w=1.1, bumper_z=0.58)
     k.join(body, cage + seat + [ring] + blades + hub + struts + parts)
-    k.four_wheels(1.02, 1.35, -1.25, 0.48, 0.55, 0.42, 0.52, P, rim="Accent", spokes=6)
+    k.four_wheels(1.02, 1.35, -1.25, 0.42, 0.48, 0.42, 0.52, P, rim="Accent", spokes=6)
 
 
 k.run(build)

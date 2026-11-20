@@ -24,7 +24,7 @@ def build():
         dict(y=1.35, w=0.98, zb=1.2, zt=1.32, p=6, top=0.95),
     ]
     cab = k.cabin("Cab", C, P, roof_from=0.86)
-    wheels = k.four_wheels(1.0, 1.35, -1.35, 0.56, 0.56, 0.48, 0.48, P, rim="Accent", spokes=6)
+    wheels = k.four_wheels(1.0, 1.35, -1.35, 0.49, 0.49, 0.48, 0.48, P, rim="Accent", spokes=6)
     k.cut_arches(body, wheels, width=0.8)
     k.finalize_body(body)
     parts = k.standard_details(P, front=(0.62, 2.04, 0.98), rear=(0.75, -2.07, 1.0), mirror=(1.06, 1.15, 1.45),
