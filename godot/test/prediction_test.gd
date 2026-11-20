@@ -54,7 +54,7 @@ func test_large_error_snaps_small_error_smooths() -> void:
 	st.s = 201.0 # 1 m correction: smoothed
 	pred.reconcile(_snap_car(st), 0)
 	assert_float(pred.visual(0.0).s).is_equal_approx(200.0, 1e-6)
-	assert_float(pred.visual(0.3).s).is_equal_approx(201.0, 0.1)
+	assert_float(pred.visual(0.8).s).is_equal_approx(201.0, 0.1)
 	st.s = 260.0 # 59 m: snap
 	pred.reconcile(_snap_car(st), 0)
 	assert_float(pred.visual(0.0).s).is_equal_approx(260.0, 1e-6)

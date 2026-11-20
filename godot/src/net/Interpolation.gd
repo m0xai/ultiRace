@@ -12,7 +12,7 @@ const MAX_DELAY_MS: float = 160.0
 const EXPECTED_GAP_MS: float = 50.0 # 20 Hz snapshots
 const MAX_EXTRAPOLATE_TICKS: float = 3.0
 const BUFFER_TICKS: int = 60
-const MAX_AHEAD_S: float = 0.3
+const MAX_AHEAD_S: float = 0.5 # Wi-Fi gaps of 0.3 s happen on phones: keep dead-reckoning through them
 
 var track_length: float = 1.0
 var delay_ms: float = MIN_DELAY_MS
@@ -64,12 +64,20 @@ func advance(delta: float) -> void:
 
 ## Interpolated state of one car at the render clock (null before the first snapshot).
 func sample(car_id: int) -> Physics.CarState:
+	return at_tick(car_id, render_tick, MAX_EXTRAPOLATE_TICKS)
+
+
+## State of one car at server tick t (fractional): interpolated between the buffered snapshots
+## around t, or dead-reckoned with its last speed when t is past the newest one (at most
+## max_ahead ticks). Sampling a smoothly advancing t keeps motion smooth however irregularly
+## snapshots arrive.
+func at_tick(car_id: int, t: float, max_ahead: float) -> Physics.CarState:
 	if _snaps.is_empty():
 		return null
 	var a: Protocol.Snapshot = _snaps[0]
 	var b: Protocol.Snapshot = _snaps[0]
 	for i: int in _snaps.size():
-		if float(_snaps[i].tick) <= render_tick:
+		if float(_snaps[i].tick) <= t:
 			a = _snaps[i]
 			b = _snaps[i + 1] if i + 1 < _snaps.size() else _snaps[i]
 	var ca: Protocol.SnapCar = _find(a, car_id)
@@ -83,18 +91,20 @@ func sample(car_id: int) -> Physics.CarState:
 	var pb: float = float(cb.lap) * track_length + cb.s
 	var f: float = 0.0
 	if b.tick > a.tick:
-		f = clampf((render_tick - float(a.tick)) / float(b.tick - a.tick), 0.0, 1.0)
+		f = clampf((t - float(a.tick)) / float(b.tick - a.tick), 0.0, 1.0)
 	var prog: float = lerpf(pa, pb, f)
-	if b.tick == a.tick and render_tick > float(a.tick):
-		# starved: extrapolate a little with the last known speed
-		var ahead: float = minf(render_tick - float(a.tick), MAX_EXTRAPOLATE_TICKS) / TICK_RATE
+	var d: float = lerpf(ca.d, cb.d, f)
+	if b.tick == a.tick and t > float(a.tick):
+		# past the newest snapshot: continue with the last known velocity
+		var ahead: float = minf(t - float(a.tick), max_ahead) / TICK_RATE
 		prog += ca.speed * cos(ca.yaw_rel) * ahead
+		d += ca.speed * sin(ca.yaw_rel) * ahead * 0.5 # lateral motion is less predictable
 	var lap: int = int(floorf(prog / track_length))
 	out.lap = lap
 	out.s = prog - float(lap) * track_length
-	out.d = lerpf(ca.d, cb.d, f)
+	out.d = d
 	out.yaw_rel = lerpf(ca.yaw_rel, cb.yaw_rel, f)
-	out.y = lerpf(ca.y, cb.y, f)
+	out.y = maxf(lerpf(ca.y, cb.y, f) + (ca.vy * minf(t - float(a.tick), max_ahead) / TICK_RATE if b.tick == a.tick and t > float(a.tick) else 0.0), 0.0)
 	out.vy = lerpf(ca.vy, cb.vy, f)
 	out.speed = lerpf(ca.speed, cb.speed, f)
 	return out

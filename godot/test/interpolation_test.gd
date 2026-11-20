@@ -79,4 +79,14 @@ func test_extrapolate_moves_forward_and_wraps() -> void:
 	var st: Physics.CarState = ip.extrapolate(0, 0.2) # +6 m → wraps to lap 1, s 1
 	assert_int(st.lap).is_equal(1)
 	assert_float(st.s).is_equal_approx(1.0, 1e-9)
-	assert_float(ip.extrapolate(0, 5.0).s).is_equal_approx(4.0, 1e-9) # clamped to 0.3 s → +9 m
+	assert_float(ip.extrapolate(0, 5.0).s).is_equal_approx(10.0, 1e-9) # clamped to 0.5 s → +15 m
+
+
+func test_at_tick_interpolates_then_dead_reckons() -> void:
+	var ip: Interpolation = Interpolation.new(L)
+	ip.push(_snap(100, 100.0, 0, 0.0), 0.0)
+	ip.push(_snap(103, 103.0, 0, 0.0), 50.0)
+	assert_float(ip.at_tick(0, 101.5, 15.0).s).is_equal_approx(101.5, 1e-9) # between snapshots
+	# past the newest: last speed (30 m/s = 1 m per tick), capped at max_ahead ticks
+	assert_float(ip.at_tick(0, 106.0, 15.0).s).is_equal_approx(106.0, 1e-9)
+	assert_float(ip.at_tick(0, 200.0, 15.0).s).is_equal_approx(118.0, 1e-9)

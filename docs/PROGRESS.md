@@ -187,6 +187,11 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       input clock, own-car multipliers in snapshots (no corrections during boosts/slows),
       adaptive-quality hysteresis, smoothed camera heading and gentler speed FOV, stale-replay
       guard. `ULTI_TRACE=1` prints a per-frame pacing trace (own car step, camera, FOV).
+- [x] Network smoothness on device (human: bots and own car "skipping like high ping"): measured
+      with `--trace user://trace.txt` (DEV_ARGS) + `scripts/ios.sh pull trace.txt`. Phone holds
+      120 fps; Wi-Fi bunches snapshots (0–10 ms, then gaps to 290 ms). Steady remote display clock,
+      server skips late inputs after a gap, 0.25 s correction blend. Device trace: bots off-pace
+      frames 25.5 % → 10.4 %, input latency 8.3 → 5.9 ticks avg over the whole run (≈ 3 before AFK).
 - [x] Windows: see-through tinted Fresnel glass, interior (seats, headrests, dash, wheel),
       chrome window line. Race high ≈ 288 k tris / 147 draws, low ≈ 131 k / 108.
 - [ ] A3 open: Neon billboards on building faces (overpass has no ground beside it); human

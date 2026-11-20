@@ -7,7 +7,7 @@ extends RefCounted
 ## smoothed over ~100 ms; errors above SNAP_DISTANCE snap. Collisions, ULTs and effects stay
 ## server-only: they arrive through snapshots (spin-out freezes input locally).
 
-const SMOOTH_S: float = 0.1
+const SMOOTH_S: float = 0.25 # mobile Wi-Fi delivers snapshots in bursts: spread each correction
 const SNAP_DISTANCE: float = 5.0
 const MAX_HISTORY: int = 90
 const STALE_INPUTS: int = 30 # > 1 s of unacknowledged inputs

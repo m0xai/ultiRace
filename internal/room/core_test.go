@@ -417,7 +417,16 @@ func TestRacingInputsQueuedOnePerTick(t *testing.T) {
 	if p.ack != 3 {
 		t.Fatalf("ack moved without input: %d", p.ack)
 	}
-	for seq := uint32(4); seq <= 20; seq++ { // flood: queue stays bounded
+	// late burst after a gap: inputs covering the starved ticks are acked, not applied later
+	c.Step() // second starved tick (one more above)
+	for seq := uint32(4); seq <= 6; seq++ {
+		c.Handle("a", &protocol.In{Seq: seq, Thr: 1})
+	}
+	c.Step()
+	if p.ack != 6 || len(p.queue) != 0 {
+		t.Fatalf("after gap of 2 ticks + burst of 3: ack %d queue %d, want ack 6 queue 0", p.ack, len(p.queue))
+	}
+	for seq := uint32(7); seq <= 20; seq++ { // flood: queue stays bounded
 		c.Handle("a", &protocol.In{Seq: seq, Thr: 1})
 	}
 	if len(p.queue) > maxInputQueue {

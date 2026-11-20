@@ -94,6 +94,7 @@ type Player struct {
 	ack            uint32     // seq of the last input applied by the simulation (snapshot ack)
 	lastSeq        uint32     // newest seq received
 	queue          []queuedIn // racing: one input is applied per tick, in order (M7 replay)
+	starved        int        // ticks simulated with a repeated input because none had arrived
 	lastInputTick  int
 	afk            bool
 	wasAfk         bool
@@ -114,6 +115,9 @@ type queuedIn struct {
 
 // maxInputQueue caps server-side input latency (ticks); older inputs are dropped.
 const maxInputQueue = 4
+
+// maxStarved bounds how many late inputs may be skipped after a gap (≈ 0.2 s at 30 Hz).
+const maxStarved = 6
 
 // Options configure a new room.
 type Options struct {
@@ -305,7 +309,7 @@ func (c *Core) Reconnect(token string, send Sender) (*Player, bool) {
 func (c *Core) attach(p *Player, send Sender) {
 	p.send = send
 	p.disconnectedAt = -1
-	p.lastSeq, p.queue = 0, nil // a reconnected client restarts its input sequence
+	p.lastSeq, p.queue, p.starved = 0, nil, 0 // a reconnected client restarts its input sequence
 	p.lastInputTick = c.tick
 	p.afk = false
 	c.roomDirty = true
@@ -466,7 +470,7 @@ func (c *Core) Handle(id string, msg any) {
 					p.queue = p.queue[len(p.queue)-maxInputQueue:]
 				}
 			} else {
-				p.input, p.ack, p.queue = in, m.Seq, p.queue[:0]
+				p.input, p.ack, p.queue, p.starved = in, m.Seq, p.queue[:0], 0
 			}
 		}
 	case *protocol.Rematch:
@@ -677,7 +681,7 @@ func (c *Core) startRace() {
 	for i, p := range c.grid {
 		p.car = i
 		p.input = sim.Input{}
-		p.ack, p.lastSeq, p.queue = 0, 0, nil
+		p.ack, p.lastSeq, p.queue, p.starved = 0, 0, nil, 0
 		p.afk, p.wasAfk = false, false
 		p.lastInputTick = c.tick
 		vehicles[i], _ = c.data.vehicle(p.vehicle)
@@ -778,8 +782,18 @@ func (c *Core) driveCars() {
 		}
 		if human && !p.afk {
 			if len(p.queue) > 0 { // one queued input per tick; otherwise repeat the last one
+				// Inputs that arrive late (mobile Wi-Fi delivers in bursts) cover ticks we already
+				// simulated with the repeated input: ack them as used instead of applying them later,
+				// otherwise every hiccup adds a tick of input latency for the rest of the race.
+				for p.starved > 0 && len(p.queue) > 1 {
+					p.ack = p.queue[0].seq
+					p.queue = p.queue[1:]
+					p.starved--
+				}
 				p.input, p.ack = p.queue[0].in, p.queue[0].seq
 				p.queue = p.queue[1:]
+			} else if p.ack > 0 {
+				p.starved = min(p.starved+1, maxStarved)
 			}
 			car.Input = p.input
 			continue

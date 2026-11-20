@@ -30,9 +30,23 @@ var _car_scene: PackedScene = preload("res://src/render/CarView.tscn")
 var _states: Array[Physics.CarState] = []
 var _cam_fwd: Vector3 = Vector3.ZERO
 var _fov_speed: float = 0.0
-var _trace: bool = OS.get_environment("ULTI_TRACE") == "1" # dev: per-frame pacing trace (own car, camera)
+# dev pacing trace (`--trace user://trace.txt` or env ULTI_TRACE=1 → stdout): per frame own car,
+# one remote car and camera movement, plus snapshot arrival times
+var _trace: bool = OS.get_environment("ULTI_TRACE") == "1" or Config.user_args().has("--trace")
+var _trace_file: FileAccess = null
 var _trace_last: Vector3 = Vector3.ZERO
+var _trace_other: Vector3 = Vector3.ZERO
 var _trace_cam: Vector3 = Vector3.ZERO
+
+
+func _trace_line(line: String) -> void:
+	if _trace_file == null and Config.arg("--trace", "") != "":
+		_trace_file = FileAccess.open(Config.arg("--trace", ""), FileAccess.WRITE)
+	if _trace_file != null:
+		_trace_file.store_line(line)
+		_trace_file.flush()
+	else:
+		print(line)
 
 
 func _ready() -> void:
@@ -94,6 +108,8 @@ func clear() -> void:
 
 func push_snapshot(snap: Protocol.Snapshot) -> void:
 	latest = snap
+	if _trace:
+		_trace_line("SNAP t=%d tick=%d ack=%d" % [Time.get_ticks_usec() / 1000, snap.tick, snap.ack])
 	if interp != null:
 		interp.push(snap, float(Time.get_ticks_msec()))
 	if prediction != null and snap.tick > go_tick:
@@ -160,15 +176,14 @@ func _process(delta: float) -> void:
 	var predicting: bool = prediction != null and prediction.started
 	# Remote cars: with prediction on, show them at the predicted moment (dead reckoning +
 	# smoothing) instead of ~100 ms in the past, so cars meet where the server says they meet.
-	var ahead_s: float = 0.0
 	if predicting:
-		ahead_s = float(prediction.pending_inputs()) / Interpolation.TICK_RATE + interp.newest_age_s(float(Time.get_ticks_msec()))
+		_advance_remote_clock(delta)
 	for i: int in cars.size():
 		var st: Physics.CarState
 		if i == you and predicting:
 			st = prediction.visual(delta)
 		elif predicting:
-			st = _smooth_remote(i, interp.extrapolate(i, ahead_s), delta)
+			st = _smooth_remote(i, interp.at_tick(i, _rtick, Interpolation.MAX_AHEAD_S * Interpolation.TICK_RATE), delta)
 		else:
 			st = interp.sample(i)
 		_states[i] = st
@@ -182,11 +197,35 @@ func _process(delta: float) -> void:
 	_update_audio()
 	if _trace and you >= 0 and _states[you] != null:
 		var p: Vector3 = cars[you].global_position
-		print("TRACE dt=%.1f step=%.3f speed=%.2f exp=%.3f fov=%.2f err=%.2f cam=%.3f" % [delta * 1000.0,
-			p.distance_to(_trace_last), _states[you].speed, _states[you].speed * delta, _cam.fov,
-			prediction.last_error if prediction != null else 0.0, _cam.global_position.distance_to(_trace_cam)])
+		var oi: int = (you + 1) % cars.size()
+		var o: Vector3 = cars[oi].global_position
+		var ost: Physics.CarState = _states[oi]
+		_trace_line("F t=%d dt=%.2f me=%.3f exp=%.3f other=%.3f oexp=%.3f cam=%.3f fov=%.2f err=%.2f pend=%d" % [
+			Time.get_ticks_usec() / 1000, delta * 1000.0, p.distance_to(_trace_last), _states[you].speed * delta,
+			o.distance_to(_trace_other), (ost.speed * delta) if ost != null else 0.0,
+			_cam.global_position.distance_to(_trace_cam), _cam.fov,
+			prediction.last_error if prediction != null else 0.0, prediction.pending_inputs() if prediction != null else 0])
 		_trace_last = p
+		_trace_other = o
 		_trace_cam = _cam.global_position
+
+
+## Remote-car display clock (server ticks): the moment the predicted own car is at (newest
+## snapshot tick + unacknowledged inputs + blend phase − 1). That target steps with every input
+## tick and snapshot (integer input counts, arrival jitter), so the clock runs at exactly 30 ticks/s
+## and is only steered toward it gently; sampling remote cars at a steady clock is what keeps
+## them from skipping (the old per-frame horizon jumped ±1 tick = ±1.3 m at speed).
+var _rtick: float = -1.0
+const REMOTE_SMOOTH_S: float = 0.25 # corrections when a (bursty) snapshot lands blend over ~¼ s
+
+
+func _advance_remote_clock(delta: float) -> void:
+	var target: float = float(interp.latest_tick()) + float(prediction.pending_inputs()) + maxf(prediction.phase, 0.0) - 1.0
+	if _rtick < 0.0 or absf(target - _rtick) > 8.0:
+		_rtick = target
+	else:
+		_rtick += delta * Interpolation.TICK_RATE
+		_rtick += (target - _rtick) * (1.0 - exp(-delta / 0.4))
 
 
 ## Keeps remote cars moving at their speed every frame and blends toward the newest estimate,
@@ -204,7 +243,7 @@ func _smooth_remote(i: int, target: Physics.CarState, delta: float) -> Physics.C
 	if absf(tgt_prog - prev_prog) > 15.0: # far off (respawn, big correction): snap
 		_smoothed[i] = target
 		return target
-	var k: float = 1.0 - exp(-delta / 0.08)
+	var k: float = 1.0 - exp(-delta / REMOTE_SMOOTH_S)
 	var out: Physics.CarState = target.copy()
 	var prog: float = lerpf(prev_prog, tgt_prog, k)
 	out.lap = int(floorf(prog / L))
