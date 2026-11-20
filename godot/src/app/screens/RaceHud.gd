@@ -24,6 +24,9 @@ var _banner: Label
 var _banner_t: float = 0.0
 
 
+const COUNT_COLORS: Array[Color] = [Color(1.0, 0.85, 0.1), Color(1.0, 0.55, 0.1), Color(1.0, 0.25, 0.2)] # 1, 2, 3
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -41,7 +44,7 @@ func _ready() -> void:
 	col.add_child(_lap)
 	col.add_child(_time)
 	top.add_child(col)
-	_center = Ui.label("", 120, Ui.ACCENT)
+	_center = Ui.label("", 140, Ui.ACCENT)
 	_center.set_anchors_preset(Control.PRESET_CENTER)
 	_center.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_center.position = Vector2(-300, -170)
@@ -104,19 +107,36 @@ func _process(delta: float) -> void:
 		_lap.text = "LAP %d/%d" % [clampi(st.lap + 1, 1, laps), laps]
 	var t: float = view.race_time()
 	if t < 0.0 and t > -10.0:
-		_center.text = str(int(ceil(-t)))
+		var k: int = int(ceil(-t))
+		_set_center(str(k), COUNT_COLORS[clampi(k, 1, 3) - 1])
 		_go_flash = 0.8
 	elif _go_flash > 0.0:
-		_center.text = "GO!"
+		_set_center("GO!", Color(0.3, 1.0, 0.4))
 		_go_flash -= delta
 	elif view.finished(me):
-		_center.text = "FINISH"
+		_set_center("FINISH", Ui.ACCENT)
 	else:
-		_center.text = ""
+		_set_center("", Ui.ACCENT)
 	if t >= 0.0:
 		_time.text = "%d:%05.2f" % [int(t) / 60, fmod(t, 60.0)]
 	_pill.visible = reconnecting
 	queue_redraw()
+
+
+## Countdown/finish text: each new value punches in (big → normal, back-eased).
+func _set_center(text: String, color: Color) -> void:
+	if text == _center.text:
+		return
+	_center.text = text
+	_center.add_theme_color_override("font_color", color)
+	if text == "":
+		return
+	_center.pivot_offset = _center.size / 2.0
+	_center.scale = Vector2(1.9, 1.9)
+	_center.modulate.a = 0.4
+	var tw: Tween = create_tween().set_parallel(true)
+	tw.tween_property(_center, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_center, "modulate:a", 1.0, 0.15)
 
 
 func _draw() -> void:

@@ -14,6 +14,16 @@ var _online: Label
 var _status: Label
 var _http: HTTPRequest
 var _poll: float = 0.0
+var _showroom: Showroom
+var _car_i: int = 0
+var _car_t: float = 0.0
+
+
+## Home showroom: shows the next car every few seconds.
+func _cycle_car() -> void:
+	var vs: Array = GameData.vehicles()
+	_showroom.show_car((vs[_car_i % vs.size()] as Dictionary)["id"] as String)
+	_car_i += 1
 
 
 func _ready() -> void:
@@ -25,7 +35,11 @@ func _ready() -> void:
 
 	var left: VBoxContainer = Ui.vbox(10)
 	left.alignment = BoxContainer.ALIGNMENT_CENTER
-	left.add_child(Ui.label("UltiRace", 110, Ui.ACCENT))
+	left.add_child(Ui.label("UltiRace", 96, Ui.ACCENT))
+	_showroom = Showroom.new()
+	_showroom.custom_minimum_size = Vector2(420, 220)
+	left.add_child(_showroom)
+	_cycle_car()
 	_online = Ui.label("", 22, Ui.MUTED)
 	left.add_child(_online)
 	left.add_child(Ui.label("Your name", 22, Ui.MUTED))
@@ -94,6 +108,10 @@ func show_error(text: String) -> void:
 
 
 func _process(delta: float) -> void:
+	_car_t += delta
+	if _car_t > 3.5 and is_visible_in_tree():
+		_car_t = 0.0
+		_cycle_car()
 	_poll += delta
 	if _poll > 5.0 and is_visible_in_tree():
 		_poll = 0.0

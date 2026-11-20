@@ -112,6 +112,10 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     Settings for abuse reports / help? (Set `SUPPORT_CONTACT` in `godot/src/app/screens/SettingsScreen.gd`
     or tell Claude.)
 
+19. [ ] **Review the A2 menus** on the phone (Home, Settings, Choose your car with the 3D
+    showroom, countdown, results with confetti) or `docs/screenshots/a2_*.png`. Say what to
+    change (font, colours, button style, animations).
+
 18. [ ] **Review the A3 track look** on the phone or in `docs/screenshots/a3_*.png`: textured
     asphalt, lane lines, steel guard rails, street lamps, tree trunks, clouds, billboards (day
     maps). Say what to change (colours, density, rail height, anything that looks off).

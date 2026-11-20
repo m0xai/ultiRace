@@ -11,6 +11,7 @@ var _vp: SubViewport
 var _pivot: Node3D
 var _car: CarView = null
 var _car_id: String = ""
+var _pending: String = ""
 
 
 func _init() -> void:
@@ -78,7 +79,15 @@ func _init() -> void:
 	_vp.add_child(_pivot)
 
 
+func _ready() -> void:
+	if _pending != "":
+		show_car(_pending)
+
+
 func show_car(vehicle_id: String) -> void:
+	if not is_inside_tree(): # CarView needs its @onready nodes: wait until we are in the tree
+		_pending = vehicle_id
+		return
 	if vehicle_id == _car_id:
 		return
 	_car_id = vehicle_id

@@ -225,4 +225,7 @@ animated buttons and transitions, 3D car showroom on Home/Select, juicy countdow
 - [x] Settings: chunky code-drawn switches, yellow sliders, rows on cards, styled dropdown.
 - [x] Vehicle Select: 3D showroom (real car model spinning on a platform, drop-in bounce on pick;
       renders only while visible), 2-column car cards, name/ULT/stats under the model.
-- [ ] Home showroom, juicy countdown/results, human approval.
+- [x] Home showroom (cycles through the cars), countdown punch-in (3 red → 2 orange → 1 yellow →
+      GO! green), results: podium medal colours, staggered rows, "YOU WON!"/"P2 — PODIUM!" title,
+      confetti on podium finishes (tested).
+- [ ] Human approval of A2 (HUMAN_TODO #19), juicy countdown/results, human approval.
