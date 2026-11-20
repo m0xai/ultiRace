@@ -10,10 +10,14 @@ extends RefCounted
 const SMOOTH_S: float = 0.1
 const SNAP_DISTANCE: float = 5.0
 const MAX_HISTORY: int = 90
+const STALE_INPUTS: int = 30 # > 1 s of unacknowledged inputs
 
 var state: Physics.CarState = Physics.CarState.new()
 var _prev: Physics.CarState = Physics.CarState.new() # state one input tick earlier (render blend)
 var _step_ms: float = 0.0
+## Fraction (0–1) of the current input tick already elapsed on the ideal 30 Hz schedule, set by
+## the input clock each frame. < 0 = unknown (fall back to wall time since the last step).
+var phase: float = -1.0
 var started: bool = false
 var last_error: float = 0.0 # metres, for the debug overlay / tests
 
@@ -48,6 +52,14 @@ func step_local(seq: int, steer: int, thr: int) -> void:
 
 
 ## Server correction: car = our car in the snapshot, ack = last input seq the server applied.
+## The server's multipliers for our car (Protocol.Snapshot speed/accel/steer_mul): replay and the
+## following local steps use them, so boosts and slows don't cause a correction every snapshot.
+func set_mods(speed_mul: float, accel_mul: float, steer_mul: float) -> void:
+	_mods.speed_mul = speed_mul
+	_mods.accel_mul = accel_mul
+	_mods.steer_mul = steer_mul
+
+
 func reconcile(car: Protocol.SnapCar, ack: int) -> void:
 	var before: Physics.CarState = state.copy()
 	var had: bool = started
@@ -62,6 +74,10 @@ func reconcile(car: Protocol.SnapCar, ack: int) -> void:
 	started = true
 	while _history.size() > 0 and _history[0][0] <= ack:
 		_history.remove_at(0)
+	if _history.size() > STALE_INPUTS:
+		# the server stopped applying our inputs (AFK handover to a bot): replaying a growing
+		# backlog would run far ahead of the real car; show the server state instead
+		_history.clear()
 	for h: PackedInt32Array in _history:
 		_prev = state.copy()
 		Physics.step_car(state, h[1], h[2], _params, _mods, _track, _ph, _dt)
@@ -93,7 +109,8 @@ func visual(delta: float) -> Physics.CarState:
 	_off_s *= k
 	_off_d *= k
 	_off_yaw *= k
-	var alpha: float = clampf((float(Time.get_ticks_msec()) - _step_ms) / (_dt * 1000.0), 0.0, 1.0)
+	var alpha: float = phase if phase >= 0.0 else (float(Time.get_ticks_msec()) - _step_ms) / (_dt * 1000.0)
+	alpha = clampf(alpha, 0.0, 1.0)
 	var v: Physics.CarState = state.copy()
 	var L: float = _track.length
 	var cur_prog: float = float(state.lap) * L + state.s

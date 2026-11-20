@@ -23,6 +23,7 @@ type Car struct {
 	Input    Input
 	Status   Status
 	Flags    uint16  // effect bits of the last tick (snapshot)
+	Mods     Mods    // physics multipliers of the last tick (sent to the car's own client for prediction)
 	UltLeft  float64 // seconds of cooldown left (0 = ready)
 	UltUses  int
 	Finished bool
@@ -143,6 +144,7 @@ func (w *World) Step() {
 		w.tryUlt(i, in)
 		mods, flags := w.mods(i)
 		c.Flags = flags
+		c.Mods = mods
 		ev := StepCar(&c.State, in, c.Params, mods, w.Track, ph, w.dt)
 		if ev.WallHit {
 			w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "wallHit", Car: c.ID, Value: ev.WallImpact})

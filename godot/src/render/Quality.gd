@@ -14,7 +14,6 @@ var tier: String = HIGH
 var render_scale: float = 1.0
 var target_fps: int = 60
 var _avg_ms: float = 16.0
-var _cooldown: float = 3.0
 
 
 static func model_tier(model: String) -> String:
@@ -62,25 +61,48 @@ func configure_environment(env: Environment, sun: DirectionalLight3D) -> void:
 func _process(delta: float) -> void:
 	if str(Profile.get_value("quality", "auto")) != "auto":
 		return
-	_avg_ms = lerpf(_avg_ms, delta * 1000.0, 0.05)
-	_cooldown -= delta
-	if _cooldown > 0.0:
+	step_adapt(delta)
+
+
+## Adaptive quality with hysteresis. Loading hitches (> 100 ms frames) are ignored; the device
+## must be over budget for OVER_S in a row to step down and well under it for UNDER_S to step
+## back up (never within HOLD_S of a step down). Before: one loading frame stepped 120→60 fps and
+## render scale down at every race start, then crept back up every 6 s — each switch hitched and
+## the FSR upscale looked like a zoom/blur.
+const OVER_S: float = 3.0
+const UNDER_S: float = 10.0
+const HOLD_S: float = 30.0
+var _over_t: float = 0.0
+var _under_t: float = 0.0
+var _since_down: float = 999.0
+
+
+func step_adapt(delta: float) -> void:
+	_since_down += delta
+	if delta > 0.1:
+		_over_t = 0.0
+		_under_t = 0.0
 		return
+	_avg_ms = lerpf(_avg_ms, delta * 1000.0, 0.05)
 	var budget_ms: float = 1000.0 / float(target_fps)
-	if _avg_ms > budget_ms * 1.15:
-		_cooldown = 2.0
+	_over_t = _over_t + delta if _avg_ms > budget_ms * 1.15 else 0.0
+	_under_t = _under_t + delta if _avg_ms < budget_ms * 0.6 else 0.0
+	if _over_t >= OVER_S:
+		_over_t = 0.0
+		_since_down = 0.0
 		if target_fps > 60:
 			target_fps = 60 # first give up 120 Hz
 			Engine.max_fps = 60
-		elif render_scale > 0.7:
+			_avg_ms = 1000.0 / 60.0 * 0.8
+		elif render_scale > 0.75:
 			render_scale = maxf(render_scale - 0.1, 0.7)
 			_apply()
 		elif tier == HIGH:
 			tier = LOW
 			_apply()
-	elif _avg_ms < budget_ms * 0.7 and render_scale < (1.0 if tier == HIGH else 0.85):
-		_cooldown = 6.0 # raise slowly
-		render_scale = minf(render_scale + 0.05, 1.0)
+	elif _under_t >= UNDER_S and _since_down > HOLD_S and render_scale < (1.0 if tier == HIGH else 0.8):
+		_under_t = 0.0
+		render_scale = minf(render_scale + 0.1, 1.0)
 		_apply()
 
 

@@ -60,7 +60,7 @@ func _load_model(vehicle: String) -> void:
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		for i: int in m.mesh.get_surface_count():
 			var mat: Material = m.mesh.surface_get_material(i)
-			if mat != null and mat.resource_name in ["Detail", "Lamp"]:
+			if mat != null and mat.resource_name in ["Detail", "Lamp", "GlassClear"]:
 				m.set_surface_override_material(i, _shared(mat.resource_name))
 			elif mat != null and mat.resource_name == "Paint" and mat is StandardMaterial3D:
 				if _paint == null:
@@ -85,7 +85,11 @@ static var _shared_mats: Dictionary = {}
 ## shared by all cars: fewer state changes, consistent look.
 static func _shared(kind: String) -> Material:
 	if not _shared_mats.has(kind):
-		if kind == "Lamp":
+		if kind == "GlassClear": # see-through cabin glass with Fresnel (car_glass.gdshader)
+			var gm: ShaderMaterial = ShaderMaterial.new()
+			gm.shader = preload("res://src/render/car_glass.gdshader")
+			_shared_mats[kind] = gm
+		elif kind == "Lamp":
 			var m: StandardMaterial3D = StandardMaterial3D.new()
 			m.vertex_color_use_as_albedo = true
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED # lamps read as glowing

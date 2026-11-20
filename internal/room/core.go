@@ -828,7 +828,12 @@ func (c *Core) sendSnapshot() {
 	base := protocol.EncodeSnapshot(uint32(c.tick), cars, proj, traps)
 	for _, p := range c.players {
 		if p.connected() {
-			p.send(protocol.PatchAck(base, p.ack))
+			m := protocol.NeutralSnapMods
+			if p.car >= 0 && p.car < len(c.world.Cars) {
+				cm := c.world.Cars[p.car].Mods
+				m = protocol.SnapMods{Speed: cm.SpeedMul, Accel: cm.AccelMul, Steer: cm.SteerMul}
+			}
+			p.send(protocol.PatchRecipient(base, p.ack, m))
 		}
 	}
 }

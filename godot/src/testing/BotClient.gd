@@ -94,6 +94,7 @@ func _on_snapshot(s: Protocol.Snapshot) -> void:
 		return
 	for c: Protocol.SnapCar in s.cars:
 		if c.id == _you:
+			_pred.set_mods(s.speed_mul, s.accel_mul, s.steer_mul)
 			_pred.reconcile(c, s.ack)
 			if _pred.pending_inputs() > 0:
 				_err_sum += _pred.last_error

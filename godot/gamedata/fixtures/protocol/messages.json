@@ -189,7 +189,7 @@
   }
  ],
  "snapshot": {
-  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBEAWoBgAASgEw+AAAZggAAP8UaQEBIsgAAAb/AgFCJwAAfQAIAtH7AQBw/go=",
+  "base64": "AWMAAACSEAAAAgBB4gEAJPzhEHsAnw8S/QIBEAWoBgAASgEw+AAAZggAAP8UaQEBIsgAAAb/AgFCJwAAfQAIAtH7AQBw/grEBNwFvAI=",
   "ack": 99,
   "tick": 4242,
   "cars": [
@@ -236,6 +236,11 @@
     "D": -4,
     "Len": 10
    }
-  ]
+  ],
+  "mods": {
+   "Speed": 1.22,
+   "Accel": 1.5,
+   "Steer": 0.7000000000000001
+  }
  }
 }

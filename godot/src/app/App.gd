@@ -293,6 +293,10 @@ func _process(delta: float) -> void:
 	while _input_t >= 1.0 / INPUT_HZ:
 		_input_t -= 1.0 / INPUT_HZ
 		_send_input_tick()
+	if _view.prediction != null:
+		# render blend phase from the ideal 30 Hz schedule (keeps the remainder); measuring from the
+		# frame that happened to run the tick made the car hitch every few frames
+		_view.prediction.phase = _input_t * INPUT_HZ
 
 
 func _send_input_tick() -> void:

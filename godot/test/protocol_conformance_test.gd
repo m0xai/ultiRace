@@ -100,6 +100,10 @@ func test_snapshot_decodes_like_go() -> void:
 		assert_float(absf(s.traps[i].s - float(w["S"]))).is_less(1e-9)
 		assert_float(absf(s.traps[i].length - float(w["Len"]))).is_less(1e-9)
 	assert_float(Protocol.charge_of(s.cars[1].flags)).is_equal_approx(9.0 / 15.0, 1e-9)
+	var mods: Dictionary = snap["mods"] as Dictionary
+	assert_float(absf(s.speed_mul - float(mods["Speed"]))).is_less(1e-9)
+	assert_float(absf(s.accel_mul - float(mods["Accel"]))).is_less(1e-9)
+	assert_float(absf(s.steer_mul - float(mods["Steer"]))).is_less(1e-9)
 
 
 func test_truncated_snapshot_is_rejected() -> void:

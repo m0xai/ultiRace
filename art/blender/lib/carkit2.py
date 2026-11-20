@@ -69,6 +69,10 @@ def palette(paint, accent):
         "Reflector": material("Reflector", srgb("#9a1218"), metallic=0.2, rough=0.15),
         "Amber": material("Amber", srgb("#ff9c1c"), metallic=0.1, rough=0.15),
         "Caliper": material("Caliper", srgb("#c81e26"), metallic=0.2, rough=0.3),
+        # see-through cabin glass (Godot: car_glass.gdshader) and the cabin interior behind it
+        "GlassClear": material("GlassClear", srgb("#1d2f45"), metallic=0.4, rough=0.05),
+        "Interior": material("Interior", srgb("#232428"), rough=0.75),
+        "Seat": material("Seat", srgb("#3b3d45"), rough=0.6),
     }
 
 
@@ -148,8 +152,10 @@ def cabin(name, sections, P, roof_from=0.82, sink=0.22):
     """Greenhouse: lofted canopy; faces below roof_from of its height are glass, the roof is paint.
     The canopy is sunk `sink` m into the body so its walls cross the body surface steeply:
     nearly tangent/coplanar overlaps z-fight (visible flicker in motion)."""
-    mats = [P["Paint"], P["Glass"], P["Trim"]]
+    mats = [P["Paint"], P["GlassClear"], P["Trim"]]
     split_zb = min(s["zb"] for s in sections)
+    _STATE["cab_belt"] = split_zb
+    _STATE["cab_top"] = max(s["zt"] for s in sections)
     sections = [dict(s, zb=s["zb"] - sink) for s in sections]
     obj = loft(name, sections, mats, ring=24)
     _STATE["canopy"], _STATE["cab_sections"] = obj, sections
@@ -507,6 +513,64 @@ def lamp(target, P, center, toward, kind, side, hl=None):
     return parts
 
 
+def interior(P):
+    """Cabin interior seen through the clear glass: dark floor/tub, two front seats with
+    headrests, dashboard and steering wheel (left-hand drive). Every part is sized to the
+    canopy's local roof height so nothing pokes through the glass on low, sloped cabins."""
+    cab = sorted(_STATE["cab_sections"], key=lambda s: s["y"])
+    belt, top = _STATE["cab_belt"], _STATE["cab_top"]
+    H = top - belt
+    y0, y1 = cab[0]["y"], cab[-1]["y"]
+    span = y1 - y0
+
+    def room(y):  # inner height above the belt at y (canopy shell ~6 cm thick + margin)
+        for a, b in zip(cab, cab[1:]):
+            if a["y"] <= y <= b["y"]:
+                t = (y - a["y"]) / max(b["y"] - a["y"], 1e-6)
+                return (a["zt"] + (b["zt"] - a["zt"]) * t) - belt - 0.1
+        return 0.0
+
+    mid = [s for s in cab if s["zt"] > belt + H * 0.6] or cab
+    wi = min(s["w"] for s in mid) * 0.8
+    out = [rounded_box("floor", (2 * wi, span * 0.86, 0.05), (0, (y0 + y1) / 2, belt + 0.02), P["Interior"], bevel=0.02, segs=1)]
+    seat_x = wi * 0.48
+    # front seats where the roof is highest (driver's head room)
+    ys = max((y0 + span * f for f in (0.4, 0.45, 0.5, 0.55, 0.6)), key=room)
+    h = max(min(room(ys - 0.3), H * 0.82), 0.2)  # seat back + headrest height
+    for x in (seat_x, -seat_x):
+        out.append(rounded_box("seat", (wi * 0.72, 0.4, 0.08), (x, ys, belt + 0.07), P["Seat"], bevel=0.03, segs=1))
+        out.append(rounded_box("seat_back", (wi * 0.72, 0.09, h * 0.72), (x, ys - 0.22, belt + 0.07 + h * 0.36),
+                               P["Seat"], bevel=0.03, segs=1, rot=(0.2, 0, 0)))
+        out.append(rounded_box("headrest", (wi * 0.42, 0.08, h * 0.18), (x, ys - 0.3, belt + h * 0.86),
+                               P["Seat"], bevel=0.025, segs=1))
+    # dashboard + wheel: from the windscreen base back to where there is room for them
+    yd = y1 - span * 0.12
+    while yd > ys + 0.3 and room(yd + 0.15) < 0.2:  # its front edge must fit under the windscreen
+        yd -= 0.04
+    hd = max(min(room(yd + 0.15) - 0.04, H * 0.22), 0.06)
+    out.append(rounded_box("dash", (2 * wi * 0.96, 0.3, hd), (0, yd, belt + hd / 2 + 0.02), P["Interior"], bevel=0.03, segs=1))
+    r = min(H * 0.16, room(yd - 0.2) * 0.35)
+    sw = disc("steering", r, 0.03, (-seat_x, yd - 0.22, belt + hd + r * 0.6), P["Trim"], axis="Y", verts=14)
+    sw.rotation_euler = (math.pi / 2 - 0.45, 0, 0)
+    out.append(sw)
+    return out
+
+
+def window_line(canopy, P):
+    """Chrome strip along the bottom edge of the side windows (both sides)."""
+    cab = _STATE["cab_sections"]
+    y0, y1 = min(s["y"] for s in cab), max(s["y"] for s in cab)
+    z = _STATE["cab_belt"] + 0.035
+    out = []
+    for side in (1, -1):
+        starts = [(side * 3.0, y0 + (y1 - y0) * (0.08 + 0.84 * i / 16), z) for i in range(17)]
+        ln = surface_line("window_line", canopy, starts, (-side, 0, 0), 0.022, P["Chrome"], off=0.006,
+                          keep=lambda n, s=side: n.x * s > 0.4)
+        if ln:
+            out.append(ln)
+    return out
+
+
 def wipers(canopy, P):
     """Two dark wiper arms lying at the base of the windscreen."""
     front = max(_STATE["cab_sections"], key=lambda s: s["y"])
@@ -639,6 +703,8 @@ def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z
     canopy = _STATE.get("canopy")
     if canopy is not None and cab:
         parts += wipers(canopy, P)
+        parts += interior(P)
+        parts += window_line(canopy, P)
     return parts
 
 
@@ -738,7 +804,7 @@ def turntable(png_path, size=480):
     bpy.data.objects.remove(floor)
 
 
-KEEP = ("Paint", "Glass")
+KEEP = ("Paint", "Glass", "GlassClear")
 
 
 def _base_color(m):

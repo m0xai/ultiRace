@@ -183,6 +183,12 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       Flicker: no auto-LOD popping on cars, wheel-spin cap (spoke strobing), tighter first
       shadow split (wing shadow crawl). `res://src/testing/CarLineup.tscn` renders all cars in
       engine (`--car <id> --angle <deg>`).
+- [x] Race smoothness (human: "skipping frames or zooming in"): render blend phase from the
+      input clock, own-car multipliers in snapshots (no corrections during boosts/slows),
+      adaptive-quality hysteresis, smoothed camera heading and gentler speed FOV, stale-replay
+      guard. `ULTI_TRACE=1` prints a per-frame pacing trace (own car step, camera, FOV).
+- [x] Windows: see-through tinted Fresnel glass, interior (seats, headrests, dash, wheel),
+      chrome window line. Race high ≈ 288 k tris / 147 draws, low ≈ 131 k / 108.
 - [ ] A3 open: Neon billboards on building faces (overpass has no ground beside it); human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

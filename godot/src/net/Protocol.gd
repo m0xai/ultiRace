@@ -13,6 +13,7 @@ const SNAP_CAR_BYTES: int = 18
 const QS: float = 0.01
 const QYAW: float = 0.0001
 const QSPEED: float = 0.01
+const QMODS: float = 0.001 # snapshot own-car multipliers
 const FLAG_FINISHED: int = 1
 const POS_SHIFT: int = 12 # flags bits 12–15: race position from the server (0 = unknown)
 const CHARGE_SHIFT: int = 8 # flags bits 8–11: ULT charge 0–15 (15 = ready)
@@ -92,6 +93,10 @@ class Snapshot:
 	var cars: Array[SnapCar] = []
 	var proj: Array[SnapThing] = []
 	var traps: Array[SnapThing] = []
+	# recipient's own-car physics multipliers (trailing block; neutral when absent)
+	var speed_mul: float = 1.0
+	var accel_mul: float = 1.0
+	var steer_mul: float = 1.0
 
 
 # ---------- builders (omit empty optional fields like Go's omitempty) ----------
@@ -218,4 +223,8 @@ static func decode_snapshot(b: PackedByteArray) -> Snapshot:
 		t.length = float(b.decode_u8(o + 7))
 		s.traps.append(t)
 		o += 8
+	if b.size() >= o + 6:
+		s.speed_mul = float(b.decode_u16(o)) * QMODS
+		s.accel_mul = float(b.decode_u16(o + 2)) * QMODS
+		s.steer_mul = float(b.decode_u16(o + 4)) * QMODS
 	return s

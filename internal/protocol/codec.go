@@ -96,6 +96,7 @@ type SnapCar struct {
 
 // Snapshot is the decoded binary snapshot.
 type Snapshot struct {
+	Mods  SnapMods // recipient's own-car multipliers (neutral if absent)
 	Ack   uint32
 	Tick  uint32
 	Cars  []SnapCar
@@ -114,7 +115,7 @@ func clampU16(x float64) uint16 { return uint16(math.Max(0, math.Min(math.MaxUin
 // EncodeSnapshot writes the snapshot with ack=0; use PatchAck per recipient.
 func EncodeSnapshot(tick uint32, cars []SnapCar, proj []SnapProj, traps []SnapTrap) []byte {
 	proj, traps = proj[:min(len(proj), 255)], traps[:min(len(traps), 255)]
-	b := make([]byte, snapHeader+len(cars)*snapCarBytes+2+len(proj)*7+len(traps)*8)
+	b := make([]byte, snapHeader+len(cars)*snapCarBytes+2+len(proj)*7+len(traps)*8+snapModsBytes)
 	b[0] = SnapKind
 	binary.LittleEndian.PutUint32(b[5:], tick)
 	b[9] = byte(len(cars))
@@ -148,7 +149,38 @@ func EncodeSnapshot(tick uint32, cars []SnapCar, proj []SnapProj, traps []SnapTr
 		b[o+7] = byte(math.Max(0, math.Min(255, math.Round(t.Len))))
 		o += 8
 	}
+	putMods(b[o:], NeutralSnapMods)
 	return b
+}
+
+// SnapMods are the recipient's own physics multipliers (speed, accel, steer) for the last tick,
+// in a trailing block of every snapshot. Prediction steps the own car with them, so boosts,
+// slows and drafting don't make every snapshot yank the car (older decoders ignore the block).
+type SnapMods struct {
+	Speed, Accel, Steer float64
+}
+
+// NeutralSnapMods = no effect (also the value when the block is missing).
+var NeutralSnapMods = SnapMods{Speed: 1, Accel: 1, Steer: 1}
+
+const (
+	snapModsBytes = 6
+	QMods         = 0.001 // multiplier per unit
+)
+
+func putMods(b []byte, m SnapMods) {
+	binary.LittleEndian.PutUint16(b[0:], clampU16(q(m.Speed, QMods)))
+	binary.LittleEndian.PutUint16(b[2:], clampU16(q(m.Accel, QMods)))
+	binary.LittleEndian.PutUint16(b[4:], clampU16(q(m.Steer, QMods)))
+}
+
+// PatchRecipient copies a snapshot and writes the recipient's ack and own-car multipliers.
+func PatchRecipient(snap []byte, ack uint32, m SnapMods) []byte {
+	out := PatchAck(snap, ack)
+	if len(out) >= snapHeader+2+snapModsBytes {
+		putMods(out[len(out)-snapModsBytes:], m)
+	}
+	return out
 }
 
 // PatchAck returns a copy of the snapshot with the recipient's ack.
@@ -209,6 +241,11 @@ func DecodeSnapshot(b []byte) (*Snapshot, error) {
 		s.Traps = append(s.Traps, SnapTrap{Kind: b[o], S: float64(binary.LittleEndian.Uint32(b[o+1:])) * QS,
 			D: float64(int16(binary.LittleEndian.Uint16(b[o+5:]))) * QS, Len: float64(b[o+7])})
 		o += 8
+	}
+	s.Mods = NeutralSnapMods
+	if len(b) >= o+snapModsBytes {
+		s.Mods = SnapMods{Speed: float64(binary.LittleEndian.Uint16(b[o:])) * QMods,
+			Accel: float64(binary.LittleEndian.Uint16(b[o+2:])) * QMods, Steer: float64(binary.LittleEndian.Uint16(b[o+4:])) * QMods}
 	}
 	return s, nil
 }

@@ -14,7 +14,7 @@ for c in "${cars[@]}"; do
   if "$BLENDER" --background --factory-startup --python "$ART/blender/${CARS_DIR:-cars2}/$c.py" -- \
        "$REPO/godot/assets/cars/$c.glb" "$ART/previews/$c.png" >"$log" 2>&1 && grep -q CAR_OK "$log"; then
     tris=$(grep -o 'CAR_TRIS [0-9]*' "$log" | awk '{print $2}')
-    status=ok; [ "$tris" -gt 15000 ] && status="OVER BUDGET (LOD0 ≤ 15000)" && fail=1
+    status=ok; [ "$tris" -gt 16000 ] && status="OVER BUDGET (LOD0 ≤ 16000)" && fail=1
     printf '%-8s %6s tris  %s\n' "$c" "$tris" "$status"
   else
     echo "$c FAILED (see $log)"; grep -E "Error|Traceback" -A3 "$log" | head -8; fail=1

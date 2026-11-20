@@ -50,8 +50,8 @@ func TestSnapshotRoundTripWithinQuantisation(t *testing.T) {
 		{ID: 0, S: 1234.5678, D: -9.876, YawRel: 0.4321, Y: 1.23, Speed: 39.99, Vy: -7.5, Lap: 2, Flags: FlagFinished},
 		{ID: 7, S: 0, D: 10.99, YawRel: -0.85, Y: 0, Speed: 0, Vy: 0, Lap: -1},
 	}
-	b := PatchAck(EncodeSnapshot(4242, cars, nil, nil), 99)
-	if len(b) != 10+2*18+2 {
+	b := PatchRecipient(EncodeSnapshot(4242, cars, nil, nil), 99, SnapMods{Speed: 1.22, Accel: 1.5, Steer: 0.7})
+	if len(b) != 10+2*18+2+6 {
 		t.Fatalf("size %d", len(b))
 	}
 	s, err := DecodeSnapshot(b)
@@ -60,6 +60,14 @@ func TestSnapshotRoundTripWithinQuantisation(t *testing.T) {
 	}
 	if s.Ack != 99 || s.Tick != 4242 || len(s.Cars) != 2 {
 		t.Fatalf("header %+v", s)
+	}
+	if math.Abs(s.Mods.Speed-1.22) > 1e-9 || math.Abs(s.Mods.Accel-1.5) > 1e-9 || math.Abs(s.Mods.Steer-0.7) > 1e-9 {
+		t.Fatalf("mods %+v", s.Mods)
+	}
+	// older snapshots without the trailing block decode as neutral
+	old, err := DecodeSnapshot(b[:len(b)-6])
+	if err != nil || old.Mods != NeutralSnapMods {
+		t.Fatalf("no-mods snapshot: %+v %v", old, err)
 	}
 	for i, c := range cars {
 		g := s.Cars[i]
@@ -142,6 +150,7 @@ type protocolFixture struct {
 		Cars   []SnapCar  `json:"cars"` // exact decoded (quantised) values
 		Proj   []SnapProj `json:"proj"`
 		Traps  []SnapTrap `json:"traps"`
+		Mods   SnapMods   `json:"mods"`
 	} `json:"snapshot"`
 }
 
@@ -160,14 +169,14 @@ func TestProtocolFixture(t *testing.T) {
 	}
 	proj := []SnapProj{{Kind: ProjTornado, S: 512.34, D: -2.5}}
 	traps := []SnapTrap{{Kind: TrapIce, S: 100.5, D: 1.25, Len: 8}, {Kind: TrapGoo, S: 1300.01, D: -4, Len: 10}}
-	b := PatchAck(EncodeSnapshot(4242, cars, proj, traps), 99)
+	b := PatchRecipient(EncodeSnapshot(4242, cars, proj, traps), 99, SnapMods{Speed: 1.22, Accel: 1.5, Steer: 0.7})
 	dec, err := DecodeSnapshot(b)
 	if err != nil || len(dec.Proj) != 1 || len(dec.Traps) != 2 {
 		t.Fatalf("decode: %v %+v", err, dec)
 	}
 	f.Snapshot.Base64 = base64.StdEncoding.EncodeToString(b)
 	f.Snapshot.Ack, f.Snapshot.Tick, f.Snapshot.Cars = dec.Ack, dec.Tick, dec.Cars
-	f.Snapshot.Proj, f.Snapshot.Traps = dec.Proj, dec.Traps
+	f.Snapshot.Proj, f.Snapshot.Traps, f.Snapshot.Mods = dec.Proj, dec.Traps, dec.Mods
 	data, err := json.MarshalIndent(f, "", " ")
 	if err != nil {
 		t.Fatal(err)

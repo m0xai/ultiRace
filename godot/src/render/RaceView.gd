@@ -28,6 +28,11 @@ var _track_node: Node3D = null
 var _cam: Camera3D
 var _car_scene: PackedScene = preload("res://src/render/CarView.tscn")
 var _states: Array[Physics.CarState] = []
+var _cam_fwd: Vector3 = Vector3.ZERO
+var _fov_speed: float = 0.0
+var _trace: bool = OS.get_environment("ULTI_TRACE") == "1" # dev: per-frame pacing trace (own car, camera)
+var _trace_last: Vector3 = Vector3.ZERO
+var _trace_cam: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -94,6 +99,7 @@ func push_snapshot(snap: Protocol.Snapshot) -> void:
 	if prediction != null and snap.tick > go_tick:
 		for c: Protocol.SnapCar in snap.cars:
 			if c.id == you:
+				prediction.set_mods(snap.speed_mul, snap.accel_mul, snap.steer_mul)
 				prediction.reconcile(c, snap.ack)
 
 
@@ -174,6 +180,13 @@ func _process(delta: float) -> void:
 	_update_hazards()
 	_update_camera(delta)
 	_update_audio()
+	if _trace and you >= 0 and _states[you] != null:
+		var p: Vector3 = cars[you].global_position
+		print("TRACE dt=%.1f step=%.3f speed=%.2f exp=%.3f fov=%.2f err=%.2f cam=%.3f" % [delta * 1000.0,
+			p.distance_to(_trace_last), _states[you].speed, _states[you].speed * delta, _cam.fov,
+			prediction.last_error if prediction != null else 0.0, _cam.global_position.distance_to(_trace_cam)])
+		_trace_last = p
+		_trace_cam = _cam.global_position
 
 
 ## Keeps remote cars moving at their speed every frame and blends toward the newest estimate,
@@ -335,9 +348,14 @@ func _update_camera(delta: float) -> void:
 	if follow >= cars.size() or _states[follow] == null:
 		return
 	var car: CarView = cars[follow]
-	var fwd: Vector3 = -car.global_transform.basis.z
-	fwd.y = 0.0
-	fwd = fwd.normalized()
+	var raw: Vector3 = -car.global_transform.basis.z
+	raw.y = 0.0
+	raw = raw.normalized()
+	# smoothed heading: steering wiggles and bump yaw no longer swing the whole view
+	if _cam_fwd == Vector3.ZERO or _cam_fwd.dot(raw) < 0.0:
+		_cam_fwd = raw
+	_cam_fwd = _cam_fwd.lerp(raw, 1.0 - exp(-delta * 6.0)).normalized()
+	var fwd: Vector3 = _cam_fwd
 	var want: Vector3 = car.global_position - fwd * CAM_BACK + Vector3.UP * CAM_UP
 	if _cam.global_position.distance_to(want) > 40.0:
 		_cam.global_position = want
@@ -348,5 +366,8 @@ func _update_camera(delta: float) -> void:
 		_cam.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _shake * 0.25
 		_shake = maxf(_shake - delta * 2.5, 0.0)
 	var st: Physics.CarState = _states[follow]
-	var target_fov: float = 70.0 + clampf((st.speed - 38.0) / 6.0, 0.0, 1.0) * 10.0 # FOV kick at high speed
-	_cam.fov = lerpf(_cam.fov, target_fov, 1.0 - exp(-delta * 3.0))
+	# gentle speed FOV from a slowly smoothed speed: the old 10° kick over 38–44 m/s pumped in and
+	# out whenever speed dipped (bumps, scrub) and read as the camera zooming in
+	_fov_speed = lerpf(_fov_speed, st.speed, 1.0 - exp(-delta * 0.8))
+	var target_fov: float = 70.0 + clampf((_fov_speed - 30.0) / 15.0, 0.0, 1.0) * 6.0
+	_cam.fov = lerpf(_cam.fov, target_fov, 1.0 - exp(-delta * 1.5))
