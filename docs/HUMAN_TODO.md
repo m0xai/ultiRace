@@ -121,7 +121,10 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     mountains and hills on the horizon, grass texture), asphalt, lane lines, guard rails, lamps,
     clouds, billboards. Say what to change (colours, density, anything that looks off).
 
-21. [ ] **Review the boxy cars (v3)** on the phone or `docs/screenshots/a1_boxy.png` and
+22. [ ] **Review the mid-poly cars (v4)** on the phone or `docs/screenshots/a1_v4.png` /
+    `art/previews/*.png`: shape per car, proportions, details, wheels, colours.
+
+21. [ ] (superseded by 22) **Review the boxy cars (v3)** on the phone or `docs/screenshots/a1_boxy.png` and
     `art/previews/*.png`: proportions per car, colours, how boxy/voxel they should be, lighting.
     (The old smooth cars can still be built with `CARS_DIR=cars2 make assets`.)
 

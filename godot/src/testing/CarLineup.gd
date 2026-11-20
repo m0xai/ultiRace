@@ -60,6 +60,7 @@ func _ready() -> void:
 			continue
 		var car: CarView = (load("res://src/render/CarView.tscn") as PackedScene).instantiate() as CarView
 		add_child(car)
+		car.force_lod0 = true
 		car.configure(id, id, false)
 		car.position = Vector3(-10.5 + (i % 4) * 7.0, CarView.RIDE_HEIGHT, -(i / 4) * 8.0) if only == "" else Vector3(0, CarView.RIDE_HEIGHT, 0)
 		car.rotation.y = deg_to_rad(-30.0) if only == "" else 0.0

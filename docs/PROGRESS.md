@@ -214,6 +214,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] Cars v3 boxy style (human: "more boxy", "plastic-ish"): boxkit + 8 new car scripts, baked
       AO, matte body shader; lighting: AgX + grade. `docs/screenshots/a1_boxy*.png`,
       `art/previews/`. Race scene triangles ≈ 250 k → 120 k.
+- [x] Cars v4 mid-poly (human: 25–50 k tris): carkit4 + 8 scripts in `art/blender/cars4/`
+      (37–43 k LOD0, ≈ 5 k LOD1), CarView LOD switching with hysteresis, shadow from LOD1.
+      Race: high ≤ 277 k tris / 160 draws, low ≤ 106 k / 104. Assets ≈ 4 MB in the app.
+      `docs/screenshots/a1_v4*.png`.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

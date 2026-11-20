@@ -37,6 +37,9 @@ func configure(vehicle: String, display_name: String, is_you: bool) -> void:
 	cab.albedo_color = Color(0.1, 0.12, 0.16)
 	cab.roughness = 0.2
 	_cabin.material_override = cab
+	if is_you:
+		force_lod0 = true
+		_apply_lod(0)
 	_tag.text = ("▼ " if is_you else "") + display_name
 	_tag.modulate = Color(1, 0.9, 0.3) if is_you else Color(1, 1, 1)
 	_tag.visible = false # names are drawn by the 2D HUD (≤ 4 nearest); kept for spectator/debug use
@@ -76,15 +79,69 @@ func _load_model(vehicle: String) -> void:
 				m.set_surface_override_material(i, _paint)
 	for mi: Node in _model.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = mi as MeshInstance3D
+		if m.name.ends_with("_lod1"):
+			_lod1.append(m)
+		else:
+			_lod0.append(m)
 		if m.name.begins_with("Wheel_"):
 			_wheels.append(m)
 			_rest[m] = m.basis
-			if m.name.ends_with("FL") or m.name.ends_with("FR"):
+			if m.name.contains("FL") or m.name.contains("FR"):
 				_front.append(m)
 			_wheel_r = maxf(_wheel_r, m.get_aabb().size.y / 2.0)
+	_apply_lod(0 if not _lod1.is_empty() and (force_lod0 or _quality_tier() != "low") else 1)
 
 
 var _paint: StandardMaterial3D = null
+
+## Mid-poly cars (A1 v4) ship two detail levels: LOD0 (25–50 k tris) and LOD1 (≈ 5 k,
+## nodes named *_lod1). Near cars and your own car use LOD0; LOD1 always draws the shadow
+## (cheap). Switching uses hysteresis so a car at the boundary never flips every frame.
+const LOD0_UNTIL: float = 26.0 # m: switch to LOD1 beyond this …
+const LOD1_UNTIL: float = 20.0 # … and back to LOD0 only nearer than this
+var force_lod0: bool = false # own car, showroom
+var _lod0: Array[MeshInstance3D] = []
+var _lod1: Array[MeshInstance3D] = []
+var _lod: int = -1
+
+
+func _apply_lod(level: int) -> void:
+	if level == _lod or _lod1.is_empty():
+		return
+	_lod = level
+	for m: MeshInstance3D in _lod0:
+		m.visible = level == 0
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for m: MeshInstance3D in _lod1:
+		m.visible = true
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if level == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+static func _quality_tier() -> String:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root.has_node("Quality"):
+		return str(tree.root.get_node("Quality").get("tier"))
+	return "high"
+
+
+## Picks LOD0/LOD1 from the distance to the active camera (low tier: LOD1 unless forced).
+func _update_lod() -> void:
+	if _lod1.is_empty():
+		return
+	if force_lod0:
+		_apply_lod(0)
+		return
+	if _quality_tier() == "low":
+		_apply_lod(1)
+		return
+	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return
+	var dist: float = cam.global_position.distance_to(global_position)
+	if _lod == 0 and dist > LOD0_UNTIL:
+		_apply_lod(1)
+	elif _lod == 1 and dist < LOD1_UNTIL:
+		_apply_lod(0)
 var _body_mat: ShaderMaterial = null # boxy cars: this car's body material (effects stay per car)
 var _ghost_mat: ShaderMaterial = null
 var _body_surfaces: Array = [] # [MeshInstance3D, surface index]
@@ -116,6 +173,7 @@ static func _shared(kind: String) -> Material:
 ## Places the car from a track-space state (rendering only; no game rules).
 func show_state(st: Physics.CarState, tr: Track) -> void:
 	_animate_wheels(st, tr)
+	_update_lod()
 	var smp: Track.Sample = tr.at(st.s)
 	var grounded: bool = st.y <= 0.0 and st.vy <= 0.0
 	var ramp: float = tr.ramp_height(st.s) if grounded else 0.0 # drive up the wedge, not through it

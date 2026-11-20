@@ -517,7 +517,7 @@ emissives, light fog for depth.
   palette atlas, LOD decimate). Deterministic (fixed seeds).
 - `art/export.sh` runs `blender --background --python` for every asset → `godot/assets/*.glb`,
   plus a turntable PNG per car in `art/previews/` for human approval.
-- **Budgets per car:** LOD0 ≤ 15 k tris (raised 2026-11-20 for the detail pass; no auto-LOD), LOD1 ≤ 2 k, LOD2 ≤ 600 if a low-tier LOD is ever needed; 1 material (+1 glass/emissive);
+- **Budgets per car:** LOD0 ≤ 50 k tris (mid-poly v4, 2026-11-20), LOD1 ≤ 6 k (distant cars, shadows, low tier); LOD switching by distance with hysteresis (no auto-LOD); 1 material (+1 glass/emissive);
   separate wheel meshes (spin + steer).
 - Tracks: road/curbs/walls generated from map JSON by `TrackBuilder.gd`, saved as `.tscn` with
   baked lightmaps; scenery props from Blender, drawn with MultiMesh.

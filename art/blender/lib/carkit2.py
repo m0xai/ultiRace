@@ -176,11 +176,13 @@ def cabin(name, sections, P, roof_from=0.82, sink=0.22):
     return obj
 
 
-def cut_arches(body, wheels_xyr, width=0.7):
-    """Boolean wheel arches: cylinders slightly larger than the wheels."""
+def cut_arches(body, wheels_xyr, width=0.7, radii=None, verts=24):
+    """Boolean wheel arches: cylinders slightly larger than the wheels (radii: per-wheel
+    override, e.g. capped below a low shoulder line)."""
     _STATE["wheels"] = list(wheels_xyr)
-    for (x, y, r) in wheels_xyr:
-        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=r * 1.18, depth=width, location=(x, y, r),
+    _STATE["arch_radii"] = list(radii) if radii else [r * 1.18 for (_, _, r) in wheels_xyr]
+    for (x, y, r), rad in zip(wheels_xyr, _STATE["arch_radii"]):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=rad, depth=width, location=(x, y, r),
                                             rotation=(0, math.pi / 2, 0))
         cutter = bpy.context.active_object
         cutter.display_type = "WIRE"
@@ -472,10 +474,10 @@ def arch_liners(body, wheels, mat):
         body.data.materials.append(mat)
         names.append(mat.name)
     mi = names.index(mat.name)
+    radii = _STATE.get("arch_radii") or [r * 1.18 for (_, _, r) in wheels]
     for f in body.data.polygons:
         c, n = f.center, f.normal
-        for (x, y, r) in wheels:
-            R = r * 1.18
+        for (x, y, r), R in zip(wheels, radii):
             to_axis = Vector((0.0, y - c.y, r - c.z))
             d = to_axis.length
             if abs(d - R) < 0.07 and abs(abs(c.x) - abs(x)) < 0.4 and d > 1e-6 and n.dot(to_axis / d) > 0.5:
@@ -585,7 +587,7 @@ def wipers(canopy, P):
 
 
 def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z=0.42, doors=None, plates=True,
-                     hl=None, tl=None, target=None):
+                     hl=None, tl=None, target=None, hood_back=0.32):
     """Lamp clusters, grille, intakes, plates, diffuser, panel gaps, side skirts, door handles,
     indicators, mirrors, wipers, arch liners and brake calipers.
     front/rear: (x, y, z) of the right lamp centre; mirror: (x, y, z); grille: (width, y, z);
@@ -651,7 +653,7 @@ def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z
     # --- panel gaps: hood, trunk (projected from above) ---
     top = lambda n: n.z > 0.55  # noqa: E731
     cab = _STATE.get("cab_sections")
-    hood_y = fy - 0.32
+    hood_y = fy - hood_back  # shut line between bumper/lamps and the hood
     lines = [(hood_y, None)]
     if cab:
         lines.append((min(s["y"] for s in cab) - 0.12, None))
