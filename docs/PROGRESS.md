@@ -218,6 +218,9 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       (37–43 k LOD0, ≈ 5 k LOD1), CarView LOD switching with hysteresis, shadow from LOD1.
       Race: high ≤ 277 k tris / 160 draws, low ≤ 106 k / 104. Assets ≈ 4 MB in the app.
       `docs/screenshots/a1_v4*.png`.
+- [x] Cars v5 high-poly (human: > 95 k tris): 3 LODs per car (100–114 k / ≈ 40 k / ≈ 5 k),
+      many small realistic details, LOD rules + test. Race peak high ≈ 391 k tris / 159 draws,
+      low ≤ 104 k / 104. App +8.6 MB (car scenes 12.6 MB). `docs/screenshots/a1_v5*.png`.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

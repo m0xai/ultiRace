@@ -23,6 +23,10 @@ import carkit2 as k2  # noqa: E402
 srgb = k2.srgb
 _STATE = k2._STATE
 
+# Detail level of the pass being built: 2 = high (LOD0, > 95 k tris: twice-subdivided body,
+# fine details), 1 = mid (LOD1, ≈ 40 k). LOD2 (far, ≈ 5 k) is decimated from the mid pass.
+DETAIL = 1
+
 
 # ---------- materials ----------
 
@@ -236,7 +240,7 @@ def body(name, P, stations, cabin, n_sections=46, nose_round=(0.9, 0.6), tail_ro
                         e[crease] = max(e[crease], 0.55)
     obj = k2.to_object(name, bm, mats)
     sub = obj.modifiers.new("subd", "SUBSURF")
-    sub.levels = sub.render_levels = 1
+    sub.levels = sub.render_levels = 2 if DETAIL >= 2 else 1
     for p in obj.data.polygons:
         p.use_smooth = True
     _STATE["stations"], _STATE["cabin"], _STATE["profile"] = stations, cabin, prof
@@ -262,7 +266,7 @@ def wheel(name, x, y, r, width, P, spokes=5, rim_mat="Rim", twin=True, rim_ratio
     spokes, centre cap, lug nuts, brake disc. Axle along X, origin at the hub."""
     w = width / 2
     side = -1 if x < 0 else 1
-    seg = 64
+    seg = 96 if DETAIL >= 2 else 64
     # tyre profile (radius, x) from inner bead over the tread to the outer bead
     prof = [(r * rim_ratio, -w * 0.95), (r * 0.84, -w * 1.03), (r * 0.94, -w * 0.98), (r * 0.985, -w * 0.82),
             (r, -w * 0.62), (r, -w * 0.3), (r, 0.0), (r, w * 0.3), (r, w * 0.62), (r * 0.985, w * 0.82),
@@ -320,6 +324,22 @@ def wheel(name, x, y, r, width, P, spokes=5, rim_mat="Rim", twin=True, rim_ratio
         a = 2 * math.pi * kk / 5 + math.pi / 5
         parts.append(k2.disc(name + f"_nut{kk}", 0.014, 0.035, (side * (w * 0.5 + 0.03), math.sin(a) * rr * 0.22, math.cos(a) * rr * 0.22),
                              P["Chrome"], axis="X", verts=6))
+    if DETAIL >= 2:
+        # sidewall lettering ridge (raised blocks on the outer sidewall), valve stem, drilled disc
+        for kk in range(28):
+            a = 2 * math.pi * kk / 28
+            if kk % 7 == 6:
+                continue  # gaps between "words"
+            rad = r * 0.9
+            parts.append(k2.rounded_box(name + f"_txt{kk}", (0.004, 0.022, 0.012),
+                                        (side * w * 1.0, math.sin(a) * rad, math.cos(a) * rad), P["Tread"], bevel=0.0,
+                                        rot=(-a, 0, 0)))
+        parts.append(k2.tube(name + "_valve", (side * w * 0.55, 0, rr * 0.92), (side * w * 0.7, 0, rr * 0.8), 0.006, P["Trim"], verts=8))
+        for kk in range(16):
+            a = 2 * math.pi * (kk + 0.5) / 16
+            rad = rr * (0.6 if kk % 2 else 0.7)
+            parts.append(k2.disc(name + f"_hole{kk}", 0.01, 0.034, (-side * w * 0.25, math.sin(a) * rad, math.cos(a) * rad),
+                                 P["Trim"], axis="X", verts=8))
     k2.join(tyre, parts)
     tyre.location = (x, y, r)
     return tyre
@@ -357,11 +377,55 @@ def interior(P):
         out.append(k2.rounded_box("headrest", (wi * 0.4, 0.1, H * 0.2), (x, ys - 0.36, belt + H * 0.78), P["Seat"], bevel=0.03, segs=2))
     yd = (cab["ws"][0] + cab["ws"][1]) / 2 - 0.05
     out.append(k2.rounded_box("dash", (2 * wi, 0.35, H * 0.25), (0, yd, belt + H * 0.12), P["Interior"], bevel=0.04, segs=2))
-    sw = k2.disc("steering", H * 0.2, 0.035, (-sx, yd - 0.3, belt + H * 0.35), P["Frame"], axis="Y", verts=20)
-    sw.rotation_euler = (math.pi / 2 - 0.45, 0, 0)
-    out.append(sw)
+    if DETAIL >= 2:
+        out += steering_wheel(P, (-sx, yd - 0.3, belt + H * 0.35), H * 0.2)
+        out.append(k2.rounded_box("console", (0.24, 0.9, 0.18), (0, ys + 0.1, belt - 0.0), P["Interior"], bevel=0.03, segs=2))
+        out.append(k2.tube("gear", (0, ys + 0.3, belt + 0.06), (0, ys + 0.26, belt + 0.18), 0.012, P["Chrome"], verts=10))
+        out.append(k2.blob("gear_knob", 0.03, (0, ys + 0.26, belt + 0.19), P["Frame"], segs=14, rings=10))
+        for gx in (-sx - 0.07, -sx + 0.07):
+            out.append(k2.disc("gauge", 0.05, 0.02, (gx, yd - 0.16, belt + H * 0.3), P["Chrome"], axis="Y", verts=24))
+            out.append(k2.disc("gauge_face", 0.042, 0.025, (gx, yd - 0.165, belt + H * 0.3), P["Frame"], axis="Y", verts=24))
+        for x in (sx, -sx):  # seat bolsters + belts
+            for bx in (-1, 1):
+                out.append(k2.rounded_box("bolster", (0.07, 0.45, 0.1), (x + bx * wi * 0.33, ys, belt + 0.06), P["Seat"], bevel=0.03, segs=2))
+            out.append(k2.rounded_box("belt", (0.05, 0.01, H * 0.6), (x + wi * 0.18, ys - 0.2, belt + H * 0.35), P["Frame"], bevel=0.0,
+                                      rot=(0.2, 0, -0.5)))
+    else:
+        sw = k2.disc("steering", H * 0.2, 0.035, (-sx, yd - 0.3, belt + H * 0.35), P["Frame"], axis="Y", verts=20)
+        sw.rotation_euler = (math.pi / 2 - 0.45, 0, 0)
+        out.append(sw)
     del ys_
     return out
+
+
+def steering_wheel(P, c, R_):
+    """Torus rim with three spokes and a hub, tilted toward the driver."""
+    c = Vector(c)
+    bm = bmesh.new()
+    seg, ring_ = 32, 8
+    rows = []
+    for i in range(seg):
+        a = 2 * math.pi * i / seg
+        row = []
+        for j in range(ring_):
+            b = 2 * math.pi * j / ring_
+            rr_ = R_ + 0.018 * math.cos(b)
+            row.append(bm.verts.new((rr_ * math.cos(a), 0.018 * math.sin(b), rr_ * math.sin(a))))
+        rows.append(row)
+    for i in range(seg):
+        for j in range(ring_):
+            bm.faces.new((rows[i][j], rows[(i + 1) % seg][j], rows[(i + 1) % seg][(j + 1) % ring_], rows[i][(j + 1) % ring_]))
+    rim = k2.to_object("steer_rim", bm, [P["Frame"]])
+    for p in rim.data.polygons:
+        p.use_smooth = True
+    parts = [rim, k2.disc("steer_hub", R_ * 0.3, 0.05, (0, 0, 0), P["Frame"], axis="Y", verts=20)]
+    for a in (0, math.pi * 0.85, -math.pi * 0.85):
+        parts.append(k2.rounded_box("steer_spoke", (R_ * 0.9, 0.02, 0.035), (math.sin(a) * R_ * 0.45, 0, -math.cos(a) * R_ * 0.45),
+                                    P["Frame"], bevel=0.008, segs=1, rot=(0, a + math.pi / 2, 0)))
+    k2.join(rim, parts[1:])
+    rim.rotation_euler = (-0.45, 0, 0)
+    rim.location = c
+    return [rim]
 
 
 def wipers(body_obj, P):
@@ -375,6 +439,47 @@ def wipers(body_obj, P):
         w = k2.surface_line("wiper", body_obj, starts, (0, -1, 0), 0.02, P["Frame"], off=0.014, sink=0.0)
         if w:
             out.append(w)
+        if DETAIL >= 2:  # arm on top of the blade, pivot cap at the cowl
+            arm = k2.surface_line("wiper_arm", body_obj, starts[:8], (0, -1, 0), 0.012, P["Frame"], off=0.03, sink=-0.012)
+            if arm:
+                out.append(arm)
+            loc, _ = k2._hit(body_obj, starts[0], (0, -1, 0))
+            if loc is not None:
+                out.append(k2.disc("wiper_pivot", 0.022, 0.03, loc + Vector((0, 0, 0.012)), P["Frame"], axis="Z", verts=16))
+    return out
+
+
+def hi_extras(body_obj, P):
+    """High-detail extras (DETAIL 2): shark-fin antenna, fuel cap, side markers, undercarriage."""
+    out = []
+    cab = _STATE.get("cabin")
+    prof = _STATE["profile"]
+    if cab:
+        yb = (cab["rw"][1] if cab.get("rw") else cab["back"]) + 0.15
+        loc, _ = k2._hit(body_obj, (0, yb, 4.0), (0, 0, -1))
+        if loc is not None:
+            out.append(k2.rounded_box("shark_fin", (0.05, 0.16, 0.06), loc + Vector((0, 0, 0.025)), P["Frame"], bevel=0.02, segs=3,
+                                      rot=(-0.3, 0, 0)))
+    ys = [s["y"] for s in _STATE["stations"]]
+    y_mid_rear = min(ys) + (max(ys) - min(ys)) * 0.22
+    sec = prof(y_mid_rear)
+    out.append(k2.patch("fuel_cap", body_obj, (1.0, y_mid_rear, sec["zb"] - 0.08), (0.06, 0.06), (-1, 0, 0), P["Paint"],
+                        off=0.004, p=2.0, rings=3, segs=24))
+    out.append(k2.patch("fuel_ring", body_obj, (1.0, y_mid_rear, sec["zb"] - 0.08), (0.068, 0.068), (-1, 0, 0), P["Frame"],
+                        off=0.002, p=2.0, rings=1, segs=24))
+    for sx in (1, -1):
+        for (yy, m) in ((max(ys) - 0.25, "Amber"), (min(ys) + 0.2, "Reflector")):
+            sec2 = prof(yy)
+            out.append(k2.patch("marker", body_obj, (sx, yy, (sec2["zf"] + sec2["zb"]) / 2 + 0.05), (0.04, 0.012), (-sx, 0, 0), P[m],
+                                off=0.008, p=4.0, rings=1, segs=12))
+    # undercarriage: exhaust pipe, fuel tank, suspension arms
+    zf = min(s["zf"] for s in _STATE["stations"])
+    out.append(k2.tube("exh_pipe", (0.35, min(ys) + 0.1, zf + 0.04), (0.2, max(ys) - 1.2, zf + 0.04), 0.035, P["Trim"], verts=12))
+    out.append(k2.rounded_box("tank", (0.8, 0.5, 0.18), (0, min(ys) + 0.9, zf + 0.12), P["Trim"], bevel=0.03, segs=1))
+    for (x, y, r) in _STATE.get("wheels", []):
+        out.append(k2.tube("arm", (x * 0.35, y + 0.15, r * 0.8), (x * 0.85, y, r), 0.03, P["Trim"], verts=8))
+        out.append(k2.tube("arm", (x * 0.35, y - 0.15, r * 0.8), (x * 0.85, y, r), 0.03, P["Trim"], verts=8))
+        out.append(k2.tube("spring", (x * 0.72, y, r * 0.9), (x * 0.68, y, r * 1.9), 0.06, P["Disc"], verts=12))
     return out
 
 
@@ -405,28 +510,56 @@ def tris_of(objs):
     return total
 
 
+def _snapshot():
+    return set(o.name for o in bpy.context.scene.objects)
+
+
 def run(build):
+    """Builds the car twice — DETAIL 2 (LOD0, high) and DETAIL 1 (→ *_lod1, mid) — then
+    decimates the mid pass into *_lod2 (far, shadows). Exports all three in one glb."""
+    global DETAIL
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     k2.reset()
-    _STATE.clear()
-    build()
-    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-    for o in meshes:
-        k2.apply_mods(o)
-    k2.consolidate()
-    lod0 = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-    t0 = tris_of(lod0)
-    lod1 = make_lod1()
-    t1 = tris_of(lod1)
+    levels = {}
+    for lvl, det in ((0, 2), (1, 1)):
+        DETAIL = det
+        k2.HI = det >= 2
+        _STATE.clear()
+        before = _snapshot()
+        build()
+        new = [o for o in bpy.context.scene.objects if o.name not in before and o.type == "MESH"]
+        for o in new:
+            k2.apply_mods(o)
+        new = [o for o in bpy.context.scene.objects if o.name not in before and o.type == "MESH" and not o.get("cutter")]
+        k2.consolidate(new)
+        for o in new:  # park names so the next pass can reuse "Body", "Wheel_FL", …
+            o.name = "__L%d__%s" % (lvl, o.name.split(".")[0])
+        levels[lvl] = new
+    for o in levels[1]:
+        o.name = o.name.replace("__L1__", "") + "_lod1"
+    for o in levels[0]:
+        o.name = o.name.replace("__L0__", "")
+    lod2 = []
+    for o in levels[1]:
+        d = o.copy()
+        d.data = o.data.copy()
+        d.name = o.name.replace("_lod1", "_lod2")
+        bpy.context.collection.objects.link(d)
+        m = d.modifiers.new("dec", "DECIMATE")
+        m.ratio = 0.13 if not o.name.startswith("Wheel_") else 0.1
+        k2.apply_mods(d)
+        lod2.append(d)
+    t0, t1, t2 = tris_of(levels[0]), tris_of(levels[1]), tris_of(lod2)
     print(f"CAR_TRIS {t0}")
     print(f"CAR_TRIS_LOD1 {t1}")
+    print(f"CAR_TRIS_LOD2 {t2}")
     if os.environ.get("CAR_BREAKDOWN"):
-        for o in lod0:
+        for o in levels[0]:
             print(f"  PART {o.name:14s} {tris_of([o]):6d}")
     if argv:
         k2.export(argv[0])
     if len(argv) > 1:
-        for o in lod1:
+        for o in levels[1] + lod2:
             o.hide_render = True
         k2.turntable(argv[1])
     print("CAR_OK")

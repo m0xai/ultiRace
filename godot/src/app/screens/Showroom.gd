@@ -108,8 +108,8 @@ func show_car(vehicle_id: String) -> void:
 		_car.queue_free()
 	_car = (load("res://src/render/CarView.tscn") as PackedScene).instantiate() as CarView
 	_pivot.add_child(_car)
-	_car.force_lod0 = true # always the detailed model in the showroom
 	_car.configure(vehicle_id, "", false)
+	_car.set_showroom() # always the finest model in the showroom
 	# CarView's origin sits RIDE_HEIGHT above the road (its model is offset down by that)
 	_car.position = Vector3(0, CarView.RIDE_HEIGHT + 0.9, 0)
 	var tw: Tween = _car.create_tween()

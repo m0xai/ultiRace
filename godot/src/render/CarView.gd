@@ -39,7 +39,7 @@ func configure(vehicle: String, display_name: String, is_you: bool) -> void:
 	_cabin.material_override = cab
 	if is_you:
 		force_lod0 = true
-		_apply_lod(0)
+		_update_lod()
 	_tag.text = ("▼ " if is_you else "") + display_name
 	_tag.modulate = Color(1, 0.9, 0.3) if is_you else Color(1, 1, 1)
 	_tag.visible = false # names are drawn by the 2D HUD (≤ 4 nearest); kept for spectator/debug use
@@ -79,42 +79,61 @@ func _load_model(vehicle: String) -> void:
 				m.set_surface_override_material(i, _paint)
 	for mi: Node in _model.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = mi as MeshInstance3D
-		if m.name.ends_with("_lod1"):
-			_lod1.append(m)
+		if m.name.ends_with("_lod2"):
+			(_lods[2] as Array).append(m)
+		elif m.name.ends_with("_lod1"):
+			(_lods[1] as Array).append(m)
 		else:
-			_lod0.append(m)
+			(_lods[0] as Array).append(m)
 		if m.name.begins_with("Wheel_"):
 			_wheels.append(m)
 			_rest[m] = m.basis
 			if m.name.contains("FL") or m.name.contains("FR"):
 				_front.append(m)
 			_wheel_r = maxf(_wheel_r, m.get_aabb().size.y / 2.0)
-	_apply_lod(0 if not _lod1.is_empty() and (force_lod0 or _quality_tier() != "low") else 1)
+	_update_lod()
 
 
 var _paint: StandardMaterial3D = null
 
-## Mid-poly cars (A1 v4) ship two detail levels: LOD0 (25–50 k tris) and LOD1 (≈ 5 k,
-## nodes named *_lod1). Near cars and your own car use LOD0; LOD1 always draws the shadow
-## (cheap). Switching uses hysteresis so a car at the boundary never flips every frame.
-const LOD0_UNTIL: float = 26.0 # m: switch to LOD1 beyond this …
-const LOD1_UNTIL: float = 20.0 # … and back to LOD0 only nearer than this
+## Cars ship up to three detail levels in one glb: LOD0 (high, > 95 k tris: own car, showroom),
+## *_lod1 (mid ≈ 40 k: cars near the camera) and *_lod2 (light ≈ 5 k: far cars). The lightest
+## level always draws the shadow (shadows-only while a finer level is visible). Near/far switching
+## uses hysteresis so a car at the boundary never flips every frame. Low tier: own car mid,
+## everyone else light.
+const NEAR_UNTIL: float = 26.0 # m: a near car turns light beyond this …
+const FAR_UNTIL: float = 20.0 # … and fine again only nearer than this
 var force_lod0: bool = false # own car, showroom
-var _lod0: Array[MeshInstance3D] = []
-var _lod1: Array[MeshInstance3D] = []
+var _lods: Array = [[], [], []] # MeshInstance3D per level
 var _lod: int = -1
 
 
+func _levels_present() -> Array[int]:
+	var out: Array[int] = []
+	for i: int in 3:
+		if not (_lods[i] as Array).is_empty():
+			out.append(i)
+	return out
+
+
 func _apply_lod(level: int) -> void:
-	if level == _lod or _lod1.is_empty():
+	var present: Array[int] = _levels_present()
+	if present.size() < 2:
+		return
+	if not present.has(level): # nearest available level
+		level = present[0] if level < present[0] else present[present.size() - 1]
+	if level == _lod:
 		return
 	_lod = level
-	for m: MeshInstance3D in _lod0:
-		m.visible = level == 0
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for m: MeshInstance3D in _lod1:
-		m.visible = true
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if level == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var shadow_level: int = present[present.size() - 1]
+	for i: int in present:
+		for m: MeshInstance3D in _lods[i]:
+			if i == shadow_level:
+				m.visible = true
+				m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if i == level else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			else:
+				m.visible = i == level
+				m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 static func _quality_tier() -> String:
@@ -124,24 +143,40 @@ static func _quality_tier() -> String:
 	return "high"
 
 
-## Picks LOD0/LOD1 from the distance to the active camera (low tier: LOD1 unless forced).
+## Own car / showroom: finest level (mid on the low tier); others: near/far by camera distance.
 func _update_lod() -> void:
-	if _lod1.is_empty():
+	var present: Array[int] = _levels_present()
+	if present.size() < 2:
 		return
+	var low: bool = _quality_tier() == "low"
 	if force_lod0:
-		_apply_lod(0)
+		_apply_lod(1 if low and present.has(1) and present.has(0) and not _showroom else present[0])
 		return
-	if _quality_tier() == "low":
-		_apply_lod(1)
+	var near_level: int = 1 if present.has(1) and present.has(2) else present[0]
+	var far_level: int = present[present.size() - 1]
+	if low:
+		_apply_lod(far_level)
 		return
 	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return
 	var dist: float = cam.global_position.distance_to(global_position)
-	if _lod == 0 and dist > LOD0_UNTIL:
-		_apply_lod(1)
-	elif _lod == 1 and dist < LOD1_UNTIL:
-		_apply_lod(0)
+	if _lod != far_level and dist > NEAR_UNTIL:
+		_apply_lod(far_level)
+	elif _lod != near_level and (_lod == -1 or dist < FAR_UNTIL):
+		_apply_lod(near_level)
+
+
+var _showroom: bool = false
+
+
+## Showroom: always the finest model, also on the low tier.
+func set_showroom() -> void:
+	_showroom = true
+	force_lod0 = true
+	_update_lod()
+
+
 var _body_mat: ShaderMaterial = null # boxy cars: this car's body material (effects stay per car)
 var _ghost_mat: ShaderMaterial = null
 var _body_surfaces: Array = [] # [MeshInstance3D, surface index]

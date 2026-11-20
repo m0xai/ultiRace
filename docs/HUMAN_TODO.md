@@ -121,7 +121,10 @@ After 1–3: run `scripts/preflight.sh` (or tell Claude to continue).
     mountains and hills on the horizon, grass texture), asphalt, lane lines, guard rails, lamps,
     clouds, billboards. Say what to change (colours, density, anything that looks off).
 
-22. [ ] **Review the mid-poly cars (v4)** on the phone or `docs/screenshots/a1_v4.png` /
+23. [ ] **Review the high-poly cars (v5)** on the phone (showroom + your own car in races) or
+    `docs/screenshots/a1_v5*.png`. Also tell Claude if races stay smooth on the iPhone 15 Pro Max.
+
+22. [ ] (superseded by 23) **Review the mid-poly cars (v4)** on the phone or `docs/screenshots/a1_v4.png` /
     `art/previews/*.png`: shape per car, proportions, details, wheels, colours.
 
 21. [ ] (superseded by 22) **Review the boxy cars (v3)** on the phone or `docs/screenshots/a1_boxy.png` and

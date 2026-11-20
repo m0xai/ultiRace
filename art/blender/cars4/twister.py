@@ -39,7 +39,7 @@ def build():
               for a in (0.0, 1.05, 2.1)]
     hub = [k2.disc("fan_hub", 0.15, 0.22, (0, -1.7, 1.4), P["Chrome"], axis="Y", verts=24)]
     struts = [k2.tube("fs", (sx * 0.5, -1.0, 0.95), (sx * 0.64, -1.64, 1.95), 0.035, T, verts=10) for sx in (1, -1)]
-    k2.join(body, parts + seat + cage + [ring] + blades + hub + struts)
+    k2.join(body, parts + seat + cage + [ring] + blades + hub + struts + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(1.02, 1.35, -1.25, 0.42, 0.5, 0.36, 0.44, P, spokes=6, twin=False, rim_mat="Rim")
 
 

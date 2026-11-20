@@ -338,6 +338,7 @@ def blob(name, radius, loc, mat, scale=(1, 1, 1), segs=12, rings=8):
 # and never overlap the paint at a grazing angle (that z-fights = flicker). Layers on top of each
 # other (housing → lens) are ≥ 6 mm apart.
 
+HI = False  # set by carkit4 for the high-detail pass (honeycomb grille, lamp internals, screws)
 _STATE = {}  # this car's body / canopy / wheel arches, set by cut_arches/finalize_body/cabin
 
 
@@ -464,7 +465,14 @@ def plate(body, P, origin, direction):
     c = loc + n * 0.03
     pl = rounded_box("plate", (0.44, 0.018, 0.11), c, P["Plate"], bevel=0.006, segs=1, rot=(tilt, 0, 0))
     tx = rounded_box("plate_txt", (0.32, 0.01, 0.035), c + n * 0.012, P["Trim"], bevel=0.0, rot=(tilt, 0, 0))
-    return [pl, tx]
+    out = [pl, tx]
+    if HI:  # frame + four screws
+        out.append(rounded_box("plate_frame", (0.47, 0.012, 0.135), c - n * 0.004, P["Trim"], bevel=0.004, segs=1, rot=(tilt, 0, 0)))
+        for sx in (-0.17, 0.17):
+            for sz in (-0.035, 0.035):
+                sc = disc("screw", 0.007, 0.008, c + n * 0.011 + Vector((sx, 0, sz)), P["Chrome"], axis="Y", verts=10)
+                out.append(sc)
+    return out
 
 
 def arch_liners(body, wheels, mat):
@@ -503,6 +511,13 @@ def lamp(target, P, center, toward, kind, side, hl=None):
                            p=3.0, rings=1, segs=14, shift=(-outward * half[0] * 0.38, -half[1] * 0.12)))
         parts.append(patch("hl_drl", target, center, (half[0] * 0.86, half[1] * 0.12), t, P["Light"], off=0.017, p=8.0,
                            rings=1, segs=18, slant=slant, shift=(0.0, half[1] * 0.68)))
+        if HI:  # projector lens dome + LED dots along the brow
+            loc, n = _hit(target, Vector(center) - t * 2.0 + Vector((-outward * half[0] * 0.38 * (1 if t.y < 0 else -1), 0, -half[1] * 0.12)), t)
+            if loc is not None:
+                parts.append(blob("lens_dome", half[1] * 0.3, loc + n * 0.02, P["Lens"], segs=16, rings=10))
+            for kk in range(6):
+                parts.append(patch(f"led{kk}", target, center, (half[0] * 0.05, half[1] * 0.07), t, P["Light"], off=0.022, p=4.0,
+                                   rings=1, segs=10, shift=((kk - 2.5) * half[0] * 0.26 * outward, -half[1] * 0.45)))
     else:
         half = o.get("half", (0.19, 0.065))
         slant = o.get("slant", 0.2) * outward
@@ -512,6 +527,10 @@ def lamp(target, P, center, toward, kind, side, hl=None):
                            rings=2, segs=16, slant=slant, shift=(outward * half[0] * 0.08, half[1] * 0.18)))
         parts.append(patch("tl_reverse", target, center, (half[0] * 0.18, half[1] * 0.26), t, P["Lens"], off=0.014, p=4.0,
                            rings=1, segs=12, shift=(-outward * half[0] * 0.62, -half[1] * 0.42)))
+        if HI:  # LED segments inside the light bar
+            for kk in range(7):
+                parts.append(patch(f"tl_led{kk}", target, center, (half[0] * 0.04, half[1] * 0.28), t, P["TailHousing"], off=0.019,
+                                   p=4.0, rings=1, segs=8, slant=slant, shift=((kk - 3) * half[0] * 0.22, half[1] * 0.18)))
     return parts
 
 
@@ -628,6 +647,18 @@ def standard_details(P, front, rear, mirror, grille=None, bumper_w=1.5, bumper_z
             parts.append(patch(f"slat{k}", body, (0, gy, gz + dz), (gw / 2 * 0.9, 0.0065), (0, -1, 0), P["Chrome"],
                                off=0.012, p=8.0, rings=1, segs=16))
         parts.append(patch("badge", body, (0, gy, gz), (0.04, 0.028), (0, -1, 0), P["Chrome"], off=0.018, p=2.0, rings=1, segs=14))
+        if HI:  # honeycomb mesh behind the slats
+            for row in range(4):
+                for col in range(-9, 10):
+                    hx = col * 0.042 + (0.021 if row % 2 else 0)
+                    if abs(hx) > gw / 2 * 0.92:
+                        continue
+                    hz = gz - 0.05 + row * 0.033
+                    loc, n = _hit(body, (hx, gy + 3.0, hz), (0, -1, 0))
+                    if loc is None:
+                        continue
+                    hc = disc("hex", 0.016, 0.012, loc + Vector((0, 0.009, 0)), P["Housing"], axis="Y", verts=6)
+                    parts.append(hc)
     iw = _fit(body, fy + 3.0, (0, -1, 0), zi, bumper_w * 0.32)
     parts.append(patch("intake", body, (0, fy, zi), (iw, 0.05), (0, -1, 0), P["Trim"], off=0.006, p=4.0, rings=3, segs=24))
     for k in range(5):  # intake mesh bars
@@ -830,7 +861,7 @@ def _surface(m):
     return (metal, rough)
 
 
-def consolidate():
+def consolidate(objs=None):
     """Draw-call budget (GAME_PLAN §8): per mesh keep Paint and Glass, bake every other material's
     colour into vertex colours and merge them into two materials: Detail (opaque) and Lamp
     (emissive). Bodies end up with ≤ 4 surfaces, wheels with 1."""
@@ -851,7 +882,7 @@ def consolidate():
                     nt.links.new(vc.outputs["Color"], b.inputs[key])
                     break
             b.inputs["Emission Strength"].default_value = 3.0
-    for o in bpy.context.scene.objects:
+    for o in (objs if objs is not None else list(bpy.context.scene.objects)):
         if o.type != "MESH" or o.get("cutter"):
             continue
         me = o.data

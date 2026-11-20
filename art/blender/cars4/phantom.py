@@ -38,7 +38,7 @@ def build():
         ln = k2.surface_line("glow_side", body, starts, (-sx, 0, 0), 0.03, cyan, off=0.004, keep=lambda n, s=sx: n.x * s > 0.3)
         if ln:
             glow.append(ln)
-    k2.join(body, parts + fins + glow + k.interior(P) + k.wipers(body, P))
+    k2.join(body, parts + fins + glow + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(0.88, 1.38, -1.38, 0.35, 0.37, 0.26, 0.31, P, spokes=10, twin=False)
 
 

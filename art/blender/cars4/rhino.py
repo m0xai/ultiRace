@@ -47,7 +47,7 @@ def build():
     flares = []
     for (x, y, r) in wheels:  # black fender flares
         flares.append(k2.rounded_box("flare", (0.12, r * 2.5, 0.12), (x * 1.09, y, r * 2.05), T, bevel=0.04, segs=2))
-    k2.join(body, parts + bed + bar + lights + flares + k.interior(P) + k.wipers(body, P))
+    k2.join(body, parts + bed + bar + lights + flares + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(1.0, 1.35, -1.35, 0.49, 0.48, 0.36, 0.36, P, spokes=6, twin=False, rim_mat="RimDark")
 
 

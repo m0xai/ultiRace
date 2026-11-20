@@ -517,7 +517,7 @@ emissives, light fog for depth.
   palette atlas, LOD decimate). Deterministic (fixed seeds).
 - `art/export.sh` runs `blender --background --python` for every asset → `godot/assets/*.glb`,
   plus a turntable PNG per car in `art/previews/` for human approval.
-- **Budgets per car:** LOD0 ≤ 50 k tris (mid-poly v4, 2026-11-20), LOD1 ≤ 6 k (distant cars, shadows, low tier); LOD switching by distance with hysteresis (no auto-LOD); 1 material (+1 glass/emissive);
+- **Budgets per car:** LOD0 ≤ 150 k tris (own car + showroom), LOD1 ≤ 50 k (near cars; own car on low tier), LOD2 ≤ 6 k (far cars, shadows); switching by distance with hysteresis (no auto-LOD); 1 material (+1 glass/emissive);
   separate wheel meshes (spin + steer).
 - Tracks: road/curbs/walls generated from map JSON by `TrackBuilder.gd`, saved as `.tscn` with
   baked lightmaps; scenery props from Blender, drawn with MultiMesh.
@@ -652,7 +652,7 @@ generated sfxr-style sounds, or commissioned).
 | Frame rate | 60 fps steady on iPhone 11 (low tier); 120 fps on ProMotion (high tier) where possible | on-device debug overlay + Instruments per milestone |
 | Client CPU per frame (scripts + mirror + net) | ≤ 3 ms on iPhone 11 | Godot profiler |
 | Draw calls in race | ≤ 250 high, ≤ 150 low | `Performance` monitors, headless check per map |
-| Triangles in view | ≤ 300 k high, ≤ 150 k low | same |
+| Triangles in view | ≤ 450 k high (raised 2026-11-20 for high-poly own car), ≤ 150 k low | same |
 | App download size | ≤ 120 MB | export step |
 | Cold start → Home | ≤ 3 s on iPhone 11 | measured each milestone |
 | Memory | ≤ 600 MB, flat over a 5-race session | Instruments |

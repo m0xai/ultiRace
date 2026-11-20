@@ -42,7 +42,7 @@ def build():
              k2.tube("cable", (0, -2.45, 2.42), (0, -2.45, 1.72), 0.015, T, verts=8),
              k2.tube("hook", (0, -2.45, 1.75), (0, -2.55, 1.58), 0.05, P["Chrome"], verts=10)]
     beacon = [k2.blob("beacon", 0.11, (0, 0.65, 1.86), k2.glow("Amber", "#ffa21a"), scale=(1, 1, 0.8), segs=16, rings=10)]
-    k2.join(body, parts + deck + crane + beacon + k.interior(P) + k.wipers(body, P))
+    k2.join(body, parts + deck + crane + beacon + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(0.95, 1.4, -1.3, 0.42, 0.42, 0.3, 0.34, P, spokes=6, twin=False, rim_mat="Rim")
 
 

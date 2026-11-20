@@ -42,7 +42,7 @@ def build():
         ants.append(k2.tube("ant", (sx * 0.55, -1.6, 0.98), (sx * 0.62, -1.78, 2.3), 0.018, P["Trim"], verts=10))
         ants.append(k2.blob("ant_tip", 0.07, (sx * 0.62, -1.79, 2.36), tip, segs=16, rings=10))
     duck = [k2.rounded_box("ducktail", (1.6, 0.25, 0.06), (0, -2.08, 1.0), P["Paint"], bevel=0.02, segs=2, rot=(0.15, 0, 0))]
-    k2.join(body, parts + stripes + ants + duck + k.interior(P) + k.wipers(body, P))
+    k2.join(body, parts + stripes + ants + duck + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(0.9, 1.3, -1.3, 0.37, 0.39, 0.27, 0.31, P, spokes=3, twin=True, rim_mat="RimDark")
 
 

@@ -38,7 +38,8 @@ def build():
     pipes = [k2.disc("exhaust", 0.055, 0.2, (sx * 0.38, -2.24, 0.36), P["Chrome"], axis="Y", verts=16) for sx in (1, -1)]
     inside = k.interior(P)
     wip = k.wipers(body, P)
-    k2.join(body, parts + wing + pipes + inside + wip)
+    hi = k.hi_extras(body, P) if k.DETAIL >= 2 else []
+    k2.join(body, parts + wing + pipes + inside + wip + hi)
     k.four_wheels(0.9, 1.32, -1.32, 0.36, 0.38, 0.27, 0.31, P, spokes=5, twin=True)
 
 

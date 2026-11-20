@@ -34,7 +34,7 @@ def build():
     fins += [k2.rounded_box("crystal", (0.06, 0.45, 0.2), (sx * 0.35, -1.2, 1.7), P["Paint"], bevel=0.03, segs=2, rot=(-0.4, 0, sx * 0.15))
              for sx in (1, -1)]
     rails = [k2.rounded_box("roof_rail", (0.05, 1.7, 0.05), (sx * 0.72, -0.6, 1.66), P["Chrome"], bevel=0.015, segs=1) for sx in (1, -1)]
-    k2.join(body, parts + roof + fins + rails + k.interior(P) + k.wipers(body, P))
+    k2.join(body, parts + roof + fins + rails + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(0.9, 1.25, -1.25, 0.38, 0.39, 0.27, 0.28, P, spokes=5, twin=False)
 
 
