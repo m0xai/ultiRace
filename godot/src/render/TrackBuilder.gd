@@ -11,6 +11,13 @@ const WALL_GAP: float = 0.25
 const CURB_W: float = 1.2
 const CURB_SEG: float = 4.0
 const ROAD_LIFT: float = 0.02
+const LINE_W: float = 0.16
+const DASH_LEN: float = 3.0
+const DASH_GAP: float = 5.0
+const LANE_W: float = 3.6
+const RAIL_Z0: float = 0.45
+const RAIL_Z1: float = 0.8
+const POST_EVERY: float = 4.0
 
 
 class TrackTheme:
@@ -182,7 +189,10 @@ static func build(tr: Track) -> Node3D:
 		road.add_vertex(a1)
 		road.add_vertex(b1)
 		road.add_vertex(b0)
-	root.add_child(_mesh_instance("Road", road, _mat(th.road)))
+	root.add_child(_mesh_instance("Road", road, _asphalt(th.road)))
+	var marks: MeshInstance3D = _mesh_instance("Markings", _markings(tr), _mat(Color(0.93, 0.93, 0.9)))
+	marks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # flat paint: no shadow pass
+	root.add_child(marks)
 
 	# Curbs + walls + skirts, both sides, following the local half width
 	var curbs: SurfaceTool = SurfaceTool.new()
@@ -193,6 +203,7 @@ static func build(tr: Track) -> Node3D:
 	wall_tops.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var skirts: SurfaceTool = SurfaceTool.new()
 	skirts.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var guard_rails: bool = th.wall_emission == Color(0, 0, 0) # glowing barriers stay on neon
 	for i: int in n:
 		var sa: float = tr.length * float(i) / float(n)
 		var sb: float = tr.length * float(i + 1) / float(n)
@@ -206,8 +217,13 @@ static func build(tr: Track) -> Node3D:
 			# wall: vertical face at the edge
 			var wa: float = side * (ha + WALL_GAP)
 			var wb: float = side * (hb + WALL_GAP)
-			_quad(walls, tr.world(sa, wa, 0.0), tr.world(sb, wb, 0.0), tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), th.wall)
-			_quad(wall_tops, tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), tr.world(sa, wa + side * 0.35, WALL_H), tr.world(sb, wb + side * 0.35, WALL_H), th.wall)
+			if guard_rails:
+				# W-beam guard rail on posts (reference look): a steel band plus its top lip
+				_quad(walls, tr.world(sa, wa, RAIL_Z0), tr.world(sb, wb, RAIL_Z0), tr.world(sa, wa, RAIL_Z1), tr.world(sb, wb, RAIL_Z1), th.wall)
+				_quad(wall_tops, tr.world(sa, wa, RAIL_Z1), tr.world(sb, wb, RAIL_Z1), tr.world(sa, wa + side * 0.12, RAIL_Z1), tr.world(sb, wb + side * 0.12, RAIL_Z1), th.wall)
+			else:
+				_quad(walls, tr.world(sa, wa, 0.0), tr.world(sb, wb, 0.0), tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), th.wall)
+				_quad(wall_tops, tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), tr.world(sa, wa + side * 0.35, WALL_H), tr.world(sb, wb + side * 0.35, WALL_H), th.wall)
 			# skirt: from the wall foot down to the ground (not on bridge themes)
 			if not th.pillars:
 				var fa: Vector3 = tr.world(sa, wa + side * 0.35, 0.0)
@@ -215,8 +231,18 @@ static func build(tr: Track) -> Node3D:
 				if fa.y > min_y + 0.05 or fb.y > min_y + 0.05:
 					_quad(skirts, fa, fb, Vector3(fa.x + side * 0.0, min_y - 0.5, fa.z), Vector3(fb.x, min_y - 0.5, fb.z), th.skirt)
 	root.add_child(_mesh_instance("Curbs", curbs, _mat(Color.WHITE, Color(0, 0, 0), true)))
-	root.add_child(_mesh_instance("Walls", walls, _two_sided(_mat(th.wall))))
-	root.add_child(_mesh_instance("WallTops", wall_tops, _two_sided(_mat(th.wall, th.wall_emission))))
+	if guard_rails:
+		var steel: StandardMaterial3D = _two_sided(_mat(Color(0.74, 0.76, 0.79)))
+		steel.metallic = 0.7
+		steel.roughness = 0.35
+		root.add_child(_mesh_instance("Walls", walls, steel))
+		root.add_child(_mesh_instance("WallTops", wall_tops, steel))
+		var posts: MeshInstance3D = _mesh_instance("RailPosts", _posts(tr), _mat(Color(0.45, 0.47, 0.5)))
+		posts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(posts)
+	else:
+		root.add_child(_mesh_instance("Walls", walls, _two_sided(_mat(th.wall))))
+		root.add_child(_mesh_instance("WallTops", wall_tops, _two_sided(_mat(th.wall, th.wall_emission))))
 	if not th.pillars:
 		root.add_child(_mesh_instance("Skirts", skirts, _two_sided(_mat(th.skirt))))
 
@@ -294,6 +320,80 @@ static func build(tr: Track) -> Node3D:
 	root.add_child(_scenery(tr, th, min_y))
 	root.add_child(_environment(th))
 	return root
+
+
+## Asphalt: the theme colour broken up by fine world-space noise (no flat placeholder grey).
+static func _asphalt(c: Color) -> StandardMaterial3D:
+	var m: StandardMaterial3D = _mat(c)
+	var noise: FastNoiseLite = FastNoiseLite.new()
+	noise.seed = 7
+	noise.frequency = 0.08
+	noise.fractal_octaves = 3
+	var ramp: Gradient = Gradient.new()
+	ramp.set_color(0, Color(0.82, 0.82, 0.84))
+	ramp.set_color(1, Color(1.06, 1.06, 1.06))
+	var tex: NoiseTexture2D = NoiseTexture2D.new()
+	tex.width = 256
+	tex.height = 256
+	tex.seamless = true
+	tex.noise = noise
+	tex.color_ramp = ramp
+	m.albedo_texture = tex
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3(0.12, 0.12, 0.12)
+	m.roughness = 0.85
+	return m
+
+
+## White edge lines and dashed lane dividers (lanes ≈ LANE_W wide, following the local width).
+static func _markings(tr: Track) -> SurfaceTool:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n: int = int(ceil(tr.length / STEP))
+	var lift: float = ROAD_LIFT + 0.012
+	for i: int in n:
+		var sa: float = tr.length * float(i) / float(n)
+		var sb: float = tr.length * float(i + 1) / float(n)
+		var ha: float = tr.half_width(sa)
+		var hb: float = tr.half_width(sb)
+		for side: float in [-1.0, 1.0]:
+			var ea: float = side * (ha - CURB_W - 0.35)
+			var eb: float = side * (hb - CURB_W - 0.35)
+			_line(st, tr, sa, sb, ea, eb, lift)
+		var lanes: int = maxi(2, roundi((2.0 * ha - 2.0 * CURB_W) / LANE_W))
+		var in_dash: bool = fmod(sa, DASH_LEN + DASH_GAP) < DASH_LEN
+		if not in_dash:
+			continue
+		for k: int in range(1, lanes):
+			var fa: float = -ha + CURB_W + (2.0 * ha - 2.0 * CURB_W) * float(k) / float(lanes)
+			var fb: float = -hb + CURB_W + (2.0 * hb - 2.0 * CURB_W) * float(k) / float(lanes)
+			_line(st, tr, sa, sb, fa, fb, lift)
+	return st
+
+
+static func _line(st: SurfaceTool, tr: Track, sa: float, sb: float, da: float, db: float, lift: float) -> void:
+	var w: float = LINE_W / 2.0
+	_quad(st, tr.world(sa, da - w, lift), tr.world(sb, db - w, lift), tr.world(sa, da + w, lift), tr.world(sb, db + w, lift), Color.WHITE)
+
+
+## Guard-rail posts every POST_EVERY metres on both sides.
+static func _posts(tr: Track) -> SurfaceTool:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var count: int = int(tr.length / POST_EVERY)
+	for i: int in count:
+		var s0: float = float(i) * POST_EVERY
+		var s1: float = s0 + 0.14
+		var h: float = tr.half_width(s0)
+		for side: float in [-1.0, 1.0]:
+			var d0: float = side * (h + WALL_GAP + 0.06)
+			var d1: float = side * (h + WALL_GAP + 0.2)
+			var top: float = RAIL_Z1 + 0.05
+			_quad(st, tr.world(s0, d0, 0.0), tr.world(s1, d0, 0.0), tr.world(s0, d0, top), tr.world(s1, d0, top), Color.WHITE)
+			_quad(st, tr.world(s0, d1, 0.0), tr.world(s0, d0, 0.0), tr.world(s0, d1, top), tr.world(s0, d0, top), Color.WHITE)
+			_quad(st, tr.world(s1, d0, 0.0), tr.world(s1, d1, 0.0), tr.world(s1, d0, top), tr.world(s1, d1, top), Color.WHITE)
+	return st
 
 
 static func _quad(st: SurfaceTool, a0: Vector3, b0: Vector3, a1: Vector3, b1: Vector3, c: Color) -> void:

@@ -162,8 +162,11 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] Quality pass 1 toward the references (Traffic Racer trailers): window frames + black
       B-pillar, dished alloys with radial spokes, dark brake discs and centre caps, chrome headlamp
       bezels, taillight surrounds, number plates, mirrors on stalks, door seams + handles.
-- [ ] Quality pass 2 (next): more realistic proportions per car (longer/lower bodies, smaller
-      wheels), and A3 environment toward the references (asphalt lanes, guard rails, scenery).
+- [x] Quality pass 2: 12 % smaller wheels on all cars (more realistic proportions).
+- [x] A3 road pass toward the references: noise-textured asphalt, white edge lines + dashed lane
+      dividers, steel guard rails on posts (Sunny/Frosty; Neon keeps glowing barriers). Draw calls
+      108–111 (markings/posts cast no shadows). Screens: `docs/screenshots/a3_*.png`.
+- [ ] A3 next: roadside scenery (lamp posts, signs, buildings/trees variety), sky.
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
 - [ ] Human approval of the 8 cars (HUMAN_TODO #12, updated).
 
