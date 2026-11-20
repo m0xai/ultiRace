@@ -289,6 +289,9 @@ static func safe_root(owner: Control) -> MarginContainer:
 static func safe_insets(node: Node) -> Vector4:
 	var win: Vector2i = DisplayServer.window_get_size()
 	var safe: Rect2i = DisplayServer.get_display_safe_area()
+	var emu: Vector4i = Config.safe_area_override() # device emulation on desktop (`--iphone11`)
+	if emu.x >= 0:
+		safe = Rect2i(emu.x, emu.y, win.x - emu.x - emu.z, win.y - emu.y - emu.w)
 	if win.x <= 0 or safe.size.x <= 0 or safe.size.x > win.x:
 		return Vector4.ZERO
 	var vp: Vector2 = node.get_viewport().get_visible_rect().size

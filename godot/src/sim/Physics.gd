@@ -210,7 +210,11 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 			var side: float = 1.0
 			if off < 0.0:
 				side = -1.0
-			c.d = float(b["d"]) + side * reach
+			# the nearer side only if the car fits between block and wall there; else the open lane
+			var lim: float = tr.half_width(c.s) - ph.car_half_width
+			if absf(float(b["d"]) + side * reach) > lim:
+				side = -side
+			c.d = clampf(float(b["d"]) + side * reach, -lim, lim)
 			ev.wall_hit = true
 			ev.wall_impact = c.speed * 0.5
 			c.speed *= ph.block_speed_factor

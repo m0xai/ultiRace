@@ -8,7 +8,7 @@ RACES   ?= 2000
 SHOT    ?= docs/screenshots/boot.png
 
 .PHONY: help test test-go test-godot lint fixtures sync check-sync server balance assets e2e \
-        import screenshot ios ios-export ios-device ios-run ios-check doctor preflight clean
+        import iphone11 screenshot ios ios-export ios-device ios-run ios-check doctor preflight clean
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -51,6 +51,10 @@ assets: ## Blender headless → godot/assets/*.glb + turntables
 
 e2e: ## real server binary + headless Godot bot clients
 	./scripts/e2e.sh
+
+iphone11: import ## practice race as an emulated iPhone 11 (size, safe area, low tier) + projected A13 frame times; FEEL=1 caps fps to the projection
+	$(GODOT) --path $(GODOT_DIR) --resolution 1792x828 --position 0,0 -- --iphone11 $(if $(FEEL),--ip11-feel,) $(if $(SCALE),--render-scale $(SCALE),) --auto practice \
+		--shot $(abspath build/iphone11.png) --shot-delay $(or $(SECONDS),20)
 
 screenshot: import ## run the game windowed and save $(SHOT)
 	@mkdir -p $(dir $(SHOT))

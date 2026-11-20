@@ -26,8 +26,8 @@ static func model_tier(model: String) -> String:
 
 func _ready() -> void:
 	var setting: String = str(Profile.get_value("quality", "auto"))
-	tier = setting if setting in [LOW, HIGH] else model_tier(OS.get_model_name())
-	var refresh: float = DisplayServer.screen_get_refresh_rate()
+	tier = setting if setting in [LOW, HIGH] else model_tier(Config.model_name())
+	var refresh: float = Config.refresh_rate()
 	target_fps = 120 if tier == HIGH and refresh > 100.0 else 60
 	Engine.max_fps = target_fps
 	render_scale = 1.0 if tier == HIGH else 0.8

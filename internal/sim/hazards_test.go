@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"testing"
 
 	"github.com/m0xai/ultiRace/gamedata"
@@ -96,5 +97,29 @@ func TestBotCatchupOnlyBehindAHuman(t *testing.T) {
 	all.Step()
 	if all.Cars[1].Status.botBoost != 0 {
 		t.Fatal("bot boost without a human in the race")
+	}
+}
+
+// A car hitting a block from the wall side is sent to the open lane, never pinned outside the road.
+func TestRoadBlockNeverPushesIntoTheWall(t *testing.T) {
+	f := load(t)
+	tr := f.tracks["sunny"]
+	for _, b := range tr.Blocks {
+		lim := tr.HalfWidth(b.S) - f.bal.Physics.CarHalfWidth
+		p := ParamsFor(f.vehicle(t, "bolt").Stats, f.bal.Stats)
+		side := 1.0
+		if b.D < 0 {
+			side = -1
+		}
+		c := CarState{S: b.S - 5, D: side * lim, Speed: 30} // hugging the wall behind the block
+		for i := 0; i < 30; i++ {
+			StepCar(&c, Input{Throttle: 1}, p, NeutralMods, tr, &f.bal.Physics, 1.0/30)
+			if math.Abs(c.D) > lim+1e-9 {
+				t.Fatalf("block at s=%.0f: car pushed outside the road (d=%.2f, limit %.2f)", b.S, c.D, lim)
+			}
+		}
+		if ds := c.S - b.S; ds > 0 && ds < b.Len && math.Abs(c.D-b.D) < b.HalfW+f.bal.Physics.CarHalfWidth-1e-9 {
+			t.Fatalf("block at s=%.0f: car inside it", b.S)
+		}
 	}
 }

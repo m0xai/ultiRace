@@ -117,7 +117,13 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 			if off < 0 {
 				side = -1
 			}
-			c.D = b.D + side*reach
+			// the nearer side only if the car fits between the block and the wall there; else
+			// the open lane (a car pushed into the wall gap got pinned outside the road)
+			lim := tr.HalfWidth(c.S) - ph.CarHalfWidth
+			if math.Abs(b.D+side*reach) > lim {
+				side = -side
+			}
+			c.D = mathx.Clamp(b.D+side*reach, -lim, lim)
 			ev.WallHit = true
 			ev.WallImpact = c.Speed * 0.5
 			c.Speed *= ph.BlockSpeedFactor
