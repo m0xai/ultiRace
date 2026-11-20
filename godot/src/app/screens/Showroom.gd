@@ -30,6 +30,16 @@ func _init() -> void:
 	e.ambient_light_color = Color(0.62, 0.66, 0.85)
 	e.ambient_light_energy = 0.9
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# reflections only (background stays transparent): chrome and paint need something to mirror
+	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.35, 0.5, 0.85)
+	sky_mat.sky_horizon_color = Color(0.85, 0.88, 0.95)
+	sky_mat.ground_horizon_color = Color(0.5, 0.52, 0.6)
+	sky_mat.ground_bottom_color = Color(0.12, 0.13, 0.2)
+	var sky: Sky = Sky.new()
+	sky.sky_material = sky_mat
+	e.sky = sky
+	e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.environment = e
 	_vp.add_child(env)
 	var key: DirectionalLight3D = DirectionalLight3D.new()

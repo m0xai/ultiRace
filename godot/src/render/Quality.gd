@@ -51,6 +51,9 @@ func configure_environment(env: Environment, sun: DirectionalLight3D) -> void:
 	sun.shadow_enabled = tier == HIGH
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 45.0
+	# first split covers just the chase camera's own car (≈6–9 m away) at high texel density:
+	# coarse self-shadow edges (wing on the trunk) crawled from frame to frame = visible flicker
+	sun.directional_shadow_split_1 = 0.22
 	sun.shadow_blur = 1.5
 	sun.shadow_bias = 0.08
 	sun.shadow_normal_bias = 3.0 # curved glossy car bodies showed self-shadow acne (shimmer/flicker)

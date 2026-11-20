@@ -17,7 +17,7 @@ def build():
         dict(y=1.85, w=0.80, zb=0.40, zt=0.74, p=2.4, top=0.9),
         dict(y=2.05, w=0.55, zb=0.48, zt=0.64, p=2.2, top=0.9),
     ]
-    body = k.loft("Body", S, [P["Paint"]], ring=28)
+    body = k.loft("Body", S, [P["Paint"]], ring=28, round_ends=True)
     C = [
         dict(y=-1.30, w=0.78, zb=0.95, zt=1.0, p=2.4, top=0.9),
         dict(y=-0.90, w=0.84, zb=0.95, zt=1.50, p=2.4, top=0.7),

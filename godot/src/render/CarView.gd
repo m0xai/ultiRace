@@ -5,6 +5,7 @@ extends Node3D
 ## colour and name from vehicles.json. Placeholder body until the M8 Blender cars.
 
 const RIDE_HEIGHT: float = 0.55
+const MAX_SPIN_STEP: float = 0.3 # rad per frame (< half the gap of a 5-spoke rim, 0.63)
 
 @onready var _body: MeshInstance3D = $Body
 @onready var _cabin: MeshInstance3D = $Cabin
@@ -82,17 +83,18 @@ static var _shared_mats: Dictionary = {}
 
 ## One Detail (vertex-coloured trim/chrome/rubber) and one Lamp (emissive vertex colour) material
 ## shared by all cars: fewer state changes, consistent look.
-static func _shared(kind: String) -> StandardMaterial3D:
+static func _shared(kind: String) -> Material:
 	if not _shared_mats.has(kind):
-		var m: StandardMaterial3D = StandardMaterial3D.new()
-		m.vertex_color_use_as_albedo = true
 		if kind == "Lamp":
+			var m: StandardMaterial3D = StandardMaterial3D.new()
+			m.vertex_color_use_as_albedo = true
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED # lamps read as glowing
-		else:
-			m.metallic = 0.25
-			m.roughness = 0.45
-		_shared_mats[kind] = m
-	return _shared_mats[kind] as StandardMaterial3D
+			_shared_mats[kind] = m
+		else: # metallic/roughness per part come from the vertex alpha (car_detail.gdshader)
+			var sm: ShaderMaterial = ShaderMaterial.new()
+			sm.shader = preload("res://src/render/car_detail.gdshader")
+			_shared_mats[kind] = sm
+	return _shared_mats[kind] as Material
 
 
 ## Places the car from a track-space state (rendering only; no game rules).
@@ -174,7 +176,9 @@ func _animate_wheels(st: Physics.CarState, tr: Track) -> void:
 	_last_s = st.s
 	# Rebuild each wheel from clean angles in car space (no accumulated local rotations):
 	# spin around the axle (car X), steering around the vertical axis (front wheels only).
-	_wheel_spin = fmod(_wheel_spin - clampf(ds, -5.0, 5.0) / _wheel_r, TAU)
+	# Visual spin per frame is capped: at race speed the true rate (2+ rad/frame) aliases with the
+	# spoke pattern (wagon-wheel strobing reads as flicker); below half a spoke gap it reads as fast.
+	_wheel_spin = fmod(_wheel_spin - clampf(ds / _wheel_r, -MAX_SPIN_STEP, MAX_SPIN_STEP), TAU)
 	var target_steer: float = clampf((st.yaw_rel - _last_yaw) * 8.0, -0.45, 0.45)
 	_steer = lerpf(_steer, target_steer, 0.3)
 	_last_yaw = st.yaw_rel

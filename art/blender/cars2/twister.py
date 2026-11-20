@@ -15,7 +15,7 @@ def build():
         dict(y=1.20, w=0.82, zb=0.42, zt=0.90, p=3.2, top=0.86),
         dict(y=1.95, w=0.62, zb=0.50, zt=0.72, p=2.8, top=0.9),
     ]
-    body = k.loft("Body", S, [P["Paint"]], ring=24)
+    body = k.loft("Body", S, [P["Paint"]], ring=24, round_ends=True)
     k.finalize_body(body)
     T = P["Trim"]
     cage = [k.tube("c1", (-0.6, -0.5, 0.95), (-0.45, -0.2, 1.85), 0.05, T), k.tube("c2", (0.6, -0.5, 0.95), (0.45, -0.2, 1.85), 0.05, T),

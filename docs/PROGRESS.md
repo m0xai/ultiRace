@@ -172,6 +172,17 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       maps (no sun shadows on low), high 115–162 (≤ 250).
 - [x] Roadside billboards on Sunny/Frosty (one vertex-coloured mesh, no shadows). High-tier draw
       calls 134–151.
+- [x] Detail pass 3 (human: "more details to look realistic", "sometimes flickering"): surface-
+      projected headlights (dark housing, chrome reflector, projector, DRL brow), tail-light
+      clusters with light bar + reverse lamp, grille slats + badge, intake mesh, fog lamps,
+      plates on mounts, diffuser fins, reflectors, hood/trunk shut lines, door gaps, skirts,
+      handles, indicator repeaters, wipers, slim wing mirrors, arch liners, red calipers, wheel
+      nuts, tread grooves; rounded loft ends; subdivided cabs/canopies now really exported (join
+      dropped their subsurf). Chrome/rubber/plastic keep their own shine (`car_detail.gdshader`).
+      10–14 k tris per car; race high 252 k tris / 148 draws, low 138 k / 99 draws.
+      Flicker: no auto-LOD popping on cars, wheel-spin cap (spoke strobing), tighter first
+      shadow split (wing shadow crawl). `res://src/testing/CarLineup.tscn` renders all cars in
+      engine (`--car <id> --angle <deg>`).
 - [ ] A3 open: Neon billboards on building faces (overpass has no ground beside it); human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

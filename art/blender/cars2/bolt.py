@@ -19,7 +19,7 @@ def build():
         dict(y=1.80, w=0.90, zb=0.33, zt=0.68, p=3.6, top=0.92),
         dict(y=2.10, w=0.74, zb=0.38, zt=0.56, p=3.0, top=0.95),
     ]
-    body = k.loft("Body", S, [P["Paint"]], ring=28)
+    body = k.loft("Body", S, [P["Paint"]], ring=28, round_ends=True)
     C = [  # glass canopy: raked windscreen, short roof, fastback
         dict(y=-1.15, w=0.80, zb=0.86, zt=0.95, p=3.0, top=0.9),
         dict(y=-0.70, w=0.82, zb=0.86, zt=1.30, p=3.4, top=0.72),

@@ -16,7 +16,7 @@ def build():
         dict(y=1.50, w=1.08, zb=0.52, zt=1.28, p=7, top=0.97),
         dict(y=2.05, w=1.00, zb=0.58, zt=1.18, p=6, top=0.96),
     ]
-    body = k.loft("Body", S, [k.palette("#7d8590", "#f07a1f")["Paint"]], ring=24)
+    body = k.loft("Body", S, [k.palette("#7d8590", "#f07a1f")["Paint"]], ring=24, round_ends=True)
     C = [
         dict(y=-0.25, w=0.98, zb=1.2, zt=1.30, p=6, top=0.95),
         dict(y=-0.15, w=1.00, zb=1.2, zt=1.95, p=7, top=0.9),
@@ -31,9 +31,10 @@ def build():
                                grille=(0.7, 2.08, 0.82), bumper_w=1.9, bumper_z=0.64, doors=dict(x=1.1, z0=0.62, z1=1.22, seams=[1.32, 0.12], handles=[0.28]))
     bed = k.rounded_box("bed", (1.9, 1.7, 0.08), (0, -1.1, 1.26), P["Trim"], bevel=0.03)
     stripe = k.rounded_box("stripe", (2.22, 1.3, 0.1), (0, 0.6, 0.95), P["Accent"], bevel=0.03)
-    bar = [k.tube("bar_top", (-0.85, 2.25, 1.05), (0.85, 2.25, 1.05), 0.07, P["Chrome"]),
-           k.tube("bar_l", (-0.6, 2.2, 0.45), (-0.6, 2.25, 1.05), 0.06, P["Chrome"]),
-           k.tube("bar_r", (0.6, 2.2, 0.45), (0.6, 2.25, 1.05), 0.06, P["Chrome"])]
+    # low push bar: keeps the headlights visible above it
+    bar = [k.tube("bar_top", (-0.85, 2.27, 0.78), (0.85, 2.27, 0.78), 0.07, P["Chrome"]),
+           k.tube("bar_l", (-0.6, 2.2, 0.42), (-0.6, 2.27, 0.78), 0.06, P["Chrome"]),
+           k.tube("bar_r", (0.6, 2.2, 0.42), (0.6, 2.27, 0.78), 0.06, P["Chrome"])]
     lights = [k.blob("roof_light", 0.09, (x, 0.95, 2.0), k.glow("Amber", "#ffb020"), scale=(1, 0.8, 0.7)) for x in (-0.45, -0.15, 0.15, 0.45)]
     k.join(body, [cab, bed, stripe] + parts + bar + lights)
 
