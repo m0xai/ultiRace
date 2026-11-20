@@ -116,7 +116,8 @@ type queuedIn struct {
 // maxInputQueue caps server-side input latency (ticks); older inputs are dropped.
 const maxInputQueue = 4
 
-// maxStarved bounds how many late inputs may be skipped after a gap (≈ 0.2 s at 30 Hz).
+// maxStarved bounds how many ticks may be filled with the last input ahead of the client
+// (≈ 0.2 s at 30 Hz); longer gaps just repeat the input without advancing the ack.
 const maxStarved = 6
 
 // Options configure a new room.
@@ -781,19 +782,21 @@ func (c *Core) driveCars() {
 			p.afk, p.wasAfk = true, true
 		}
 		if human && !p.afk {
-			if len(p.queue) > 0 { // one queued input per tick; otherwise repeat the last one
-				// Inputs that arrive late (mobile Wi-Fi delivers in bursts) cover ticks we already
-				// simulated with the repeated input: ack them as used instead of applying them later,
-				// otherwise every hiccup adds a tick of input latency for the rest of the race.
-				for p.starved > 0 && len(p.queue) > 1 {
-					p.ack = p.queue[0].seq
-					p.queue = p.queue[1:]
-					p.starved--
-				}
+			// inputs that arrive after we already simulated their tick (see below) are dropped
+			for len(p.queue) > 0 && p.queue[0].seq <= p.ack {
+				p.queue = p.queue[1:]
+			}
+			if len(p.queue) > 0 { // one queued input per tick
 				p.input, p.ack = p.queue[0].in, p.queue[0].seq
 				p.queue = p.queue[1:]
-			} else if p.ack > 0 {
-				p.starved = min(p.starved+1, maxStarved)
+				p.starved = 0
+			} else if p.ack > 0 && p.starved < maxStarved {
+				// Late input (mobile Wi-Fi delivers in bursts): simulate this tick with the last input
+				// and count it as the next seq. The client then replays from the right place (no
+				// double-counted ticks = no 5–9 m corrections the camera turned into "zooms"), and
+				// the late input is dropped on arrival instead of adding a tick of latency.
+				p.ack++
+				p.starved++
 			}
 			car.Input = p.input
 			continue
