@@ -577,7 +577,7 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float, field: TerrainFiel
 	node.add_child(_lamps(tr, th))
 	if tr.theme != "neon":
 		node.add_child(_clouds(tr, rng))
-		node.add_child(_billboards(tr, rng))
+	node.add_child(_billboards(tr, rng, th.night))
 	return node
 
 
@@ -915,13 +915,24 @@ static func _mountain_color(th: TrackTheme, ridge: int, hf: float, slope: float,
 	return c2
 
 
-## Roadside billboards: coloured board + white stripe on two posts, angled toward oncoming cars.
-## Built into one vertex-coloured mesh (one draw call, no shadows).
-static func _billboards(tr: Track, rng: Rng) -> MeshInstance3D:
+## Roadside billboards (graphics pass 5): steel I-beam posts on footings with back bracing, a
+## dark steel back panel with a light trim frame, a grated catwalk with railing and three
+## spotlights on arms; the face shows an ad (assets/env/ads/ad<i>.png, fictional brands, rendered
+## by art/ads/make_ads.gd). Frames: one vertex-coloured mesh; faces grouped by ad (≤ 6 draws).
+## Night maps light the ads. Angled toward oncoming cars.
+const ADS_BY_THEME: Dictionary = {"sunny": [0, 2, 1, 3], "frosty": [4, 2, 0, 4], "neon": [5, 1, 3, 0]}
+
+
+static func _billboards(tr: Track, rng: Rng, night: bool = false) -> Node3D:
+	var node: Node3D = Node3D.new()
+	node.name = "Billboards"
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var colors: Array[Color] = [Color(0.86, 0.2, 0.18), Color(0.16, 0.42, 0.85), Color(0.98, 0.76, 0.12), Color(0.2, 0.68, 0.4)]
-	var post: Color = Color(0.4, 0.42, 0.45)
+	var faces: Dictionary = {} # ad index → SurfaceTool
+	var steel: Color = Color(0.36, 0.38, 0.42)
+	var dark: Color = Color(0.16, 0.17, 0.2)
+	var trim: Color = Color(0.85, 0.86, 0.88)
+	var ads: Array = ADS_BY_THEME.get(tr.theme, [0, 1, 2, 3]) as Array
 	var sv: float = 60.0
 	var i: int = 0
 	while sv < tr.length - 30.0:
@@ -936,16 +947,64 @@ static func _billboards(tr: Track, rng: Rng) -> MeshInstance3D:
 			var z: Vector3 = (-t + to_road * 0.6).normalized()
 			var x: Vector3 = Vector3.UP.cross(z).normalized()
 			var xf: Transform3D = Transform3D(Basis(x, Vector3.UP, z), p)
-			var col: Color = colors[rng.next_int(colors.size())]
-			_box(st, Vector3(-2.2, 1.6, 0), Vector3(0.12, 1.6, 0.12), post, xf)
-			_box(st, Vector3(2.2, 1.6, 0), Vector3(0.12, 1.6, 0.12), post, xf)
-			_box(st, Vector3(0, 4.4, 0), Vector3(3.6, 1.5, 0.1), col, xf)
-			_box(st, Vector3(-0.6, 4.4, 0.12), Vector3(2.4, 0.32, 0.02), Color(0.97, 0.97, 0.95), xf)
+			for px: float in [-2.4, 2.4]:
+				_box(st, Vector3(px, 0.25, 0), Vector3(0.45, 0.25, 0.45), Color(0.6, 0.6, 0.6), xf) # footing
+				_box(st, Vector3(px, 3.0, 0), Vector3(0.05, 2.8, 0.18), steel, xf) # web
+				_box(st, Vector3(px - 0.14, 3.0, 0), Vector3(0.03, 2.8, 0.2), steel.lightened(0.08), xf) # flanges
+				_box(st, Vector3(px + 0.14, 3.0, 0), Vector3(0.03, 2.8, 0.2), steel.lightened(0.08), xf)
+			for k: int in 3: # bracing behind (zig-zag)
+				var y0: float = 3.2 + k * 1.0
+				_box(st, Vector3(0, y0, -0.35), Vector3(2.4, 0.04, 0.04), steel, xf)
+			_box(st, Vector3(0, 4.7, -0.15), Vector3(3.8, 1.7, 0.12), dark, xf) # back panel
+			for e: Array in [[0.0, 6.45, 3.85, 0.07], [0.0, 2.95, 3.85, 0.07]]:
+				_box(st, Vector3(e[0], e[1], 0.0), Vector3(e[2], e[3], 0.08), trim, xf)
+			for sx: float in [-1.0, 1.0]:
+				_box(st, Vector3(sx * 3.82, 4.7, 0.0), Vector3(0.07, 1.75, 0.08), trim, xf)
+			_box(st, Vector3(0, 2.8, 0.45), Vector3(3.6, 0.04, 0.4), Color(0.3, 0.31, 0.34), xf) # catwalk
+			_box(st, Vector3(0, 3.4, 0.82), Vector3(3.6, 0.025, 0.025), steel, xf) # railing
+			for k: int in 5:
+				_box(st, Vector3(-3.4 + k * 1.7, 3.1, 0.82), Vector3(0.025, 0.3, 0.025), steel, xf)
+			for k: int in 3: # spotlights on arms above the board
+				var lx: float = -2.6 + k * 2.6
+				_box(st, Vector3(lx, 6.75, 0.35), Vector3(0.03, 0.03, 0.4), steel, xf)
+				_box(st, Vector3(lx, 6.7, 0.78), Vector3(0.16, 0.1, 0.12), Color(1.0, 0.95, 0.8) if night else dark, xf)
+			var ad: int = int(ads[i % ads.size()])
+			if not faces.has(ad):
+				var fs: SurfaceTool = SurfaceTool.new()
+				fs.begin(Mesh.PRIMITIVE_TRIANGLES)
+				faces[ad] = fs
+			var f: SurfaceTool = faces[ad] as SurfaceTool
+			var c0: Vector3 = xf * Vector3(-3.75, 3.05, 0.0)
+			var c1: Vector3 = xf * Vector3(3.75, 3.05, 0.0)
+			var c2: Vector3 = xf * Vector3(3.75, 6.35, 0.0)
+			var c3: Vector3 = xf * Vector3(-3.75, 6.35, 0.0)
+			var nrm: Vector3 = xf.basis.z
+			for v: Array in [[c0, Vector2(0, 1)], [c2, Vector2(1, 0)], [c1, Vector2(1, 1)], [c0, Vector2(0, 1)], [c3, Vector2(0, 0)], [c2, Vector2(1, 0)]]:
+				f.set_normal(nrm)
+				f.set_uv(v[1] as Vector2)
+				f.add_vertex(v[0] as Vector3)
 		sv += 130.0 + rng.next_float() * 60.0
 		i += 1
-	var mi: MeshInstance3D = _mesh_instance("Billboards", st, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true)))
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return mi
+	var frame: MeshInstance3D = _mesh_instance("BillboardFrames", st, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true)))
+	frame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	node.add_child(frame)
+	for ad: int in faces:
+		var m: StandardMaterial3D = StandardMaterial3D.new()
+		var tex: Texture2D = load("res://assets/env/ads/ad%d.png" % ad) as Texture2D
+		m.albedo_texture = tex
+		m.roughness = 0.55
+		if night: # lit by the spotlights
+			m.emission_enabled = true
+			m.emission_texture = tex
+			m.emission_energy_multiplier = 0.7
+		var fs2: SurfaceTool = faces[ad] as SurfaceTool
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		mi.name = "Ad%d" % ad
+		mi.mesh = fs2.commit()
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(mi)
+	return node
 
 
 ## Flattened cloud puffs on a ring around the track (one unshaded MultiMesh, no shadows).

@@ -25,3 +25,9 @@ All from OpenGameArt, licence **CC0 1.0** (checked on each page 2026-11-21).
 
 - `godot/assets/fonts/LilitaOne-Regular.ttf` — Lilita One by Juan Montoreano, SIL Open Font
   License 1.1 (`godot/assets/fonts/OFL.txt`), from github.com/google/fonts (ofl/lilitaone).
+
+## Images
+
+- `godot/assets/env/ads/ad*.png` — roadside ad boards for fictional brands (ULTIRACE, Turbo Juice,
+  Grip+ Tyres, Nitro Cola, Snowcap Chains, Dune Oil), rendered by `art/ads/make_ads.gd` with the
+  game's fonts (OFL). Own work, CC0.
