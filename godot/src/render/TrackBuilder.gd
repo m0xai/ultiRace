@@ -823,60 +823,78 @@ const MOUNTAIN_NEAR: float = 420.0 # metres beyond the track's radius
 const MOUNTAIN_FAR: float = 700.0
 
 
-## Horizon: a ring of green hills and a ring of taller blue-grey mountains with snow tops (Frosty:
-## all snowy), one vertex-coloured flat-shaded mesh, no shadows. Fog hazes it into the sky.
+## Horizon (graphics pass 5): two rings of real terrain around the track — near hills and far
+## mountains — from ridged fractal noise (sharp crests, valleys), smooth-shaded, coloured by height
+## and slope (grass/forest low, rock on steep faces, snow only high up; Frosty: snowy; Desert:
+## terraced sandstone mesas), with aerial haze toward the horizon colour baked in. No shadows.
 static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> MeshInstance3D:
 	var b: Vector4 = _bounds(tr)
 	var centre: Vector3 = Vector3(b.x, min_y - 1.0, b.z)
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var n: int = 96
+	var desert: bool = th.terrain == "desert"
+	var base_index: int = 0
 	for ridge: int in 2:
-		var r: float = b.w + (MOUNTAIN_NEAR if ridge == 0 else MOUNTAIN_FAR)
-		var hmin: float = 35.0 if ridge == 0 else 90.0
-		var hmax: float = 90.0 if ridge == 0 else 230.0
-		var ph: Array[float] = [rng.next_float() * TAU, rng.next_float() * TAU, rng.next_float() * TAU]
-		var low: Color = th.ground.darkened(0.2) if ridge == 0 else Color(0.3, 0.4, 0.5)
-		if th.terrain == "desert": # moonlit sandstone mesas
-			low = Color(0.36, 0.2, 0.14) if ridge == 0 else Color(0.22, 0.14, 0.13)
-		if th.snow: # bluish rock flanks under the snow, so the peaks read against a pale sky
-			low = Color(0.4, 0.46, 0.56) if ridge == 0 else Color(0.28, 0.34, 0.46)
-		var rock: Color = Color(0.45, 0.47, 0.52) if ridge == 1 else th.ground.darkened(0.3)
-		if th.terrain == "desert":
-			rock = Color(0.46, 0.26, 0.17) if ridge == 0 else Color(0.3, 0.18, 0.15)
-		var crest: Array[Vector3] = []
-		for i: int in n:
-			var a: float = TAU * float(i) / float(n)
-			var wave: float = 0.5 + 0.25 * sin(a * 3.0 + ph[0]) + 0.15 * sin(a * 7.0 + ph[1]) + 0.1 * sin(a * 13.0 + ph[2])
-			var h: float = lerpf(hmin, hmax, clampf(wave + (rng.next_float() - 0.5) * 0.25, 0.0, 1.0))
-			if th.terrain == "desert": # flat-topped mesas and buttes
-				h = hmin + roundf((h - hmin) / 35.0) * 35.0
-			crest.append(centre + Vector3(cos(a) * r, h, sin(a) * r))
-		for i: int in n:
-			var j: int = (i + 1) % n
-			var a0: Vector3 = crest[i]
-			var a1: Vector3 = crest[j]
-			var f0: Vector3 = centre + (Vector3(a0.x, 0, a0.z) - Vector3(centre.x, 0, centre.z)) * (1.0 - 120.0 / r) # front foot
-			var f1: Vector3 = centre + (Vector3(a1.x, 0, a1.z) - Vector3(centre.x, 0, centre.z)) * (1.0 - 120.0 / r)
-			f0.y = centre.y
-			f1.y = centre.y
-			var top: float = maxf(a0.y, a1.y) - centre.y
-			var snowy: bool = th.snow or (ridge == 1 and top > 150.0 and th.terrain != "desert")
-			var cap: Color = Color(0.95, 0.96, 1.0) if snowy else rock
-			var haze: float = 0.12 if ridge == 0 else 0.3 # aerial perspective, baked (no scene fog)
-			# two bands: rock/grass up to the snow line, then a crisp cap (no washed-out gradient)
-			var k: float = 0.62 if snowy else 0.8
-			var s0: Vector3 = f0.lerp(a0, k)
-			var s1: Vector3 = f1.lerp(a1, k)
-			var lo_c: Color = low.lerp(th.sky_horizon, haze)
-			var hi_c: Color = cap.lerp(th.sky_horizon, haze * 0.5)
-			for v: Vector3 in [f0, s0, f1, f1, s0, s1]:
-				st.set_color(lo_c)
-				st.add_vertex(v)
-			for v: Vector3 in [s0, a0, s1, s1, a0, a1]:
-				st.set_color(hi_c)
-				st.add_vertex(v)
-	st.generate_normals()
+		var r0: float = b.w + (MOUNTAIN_NEAR - 140.0 if ridge == 0 else MOUNTAIN_FAR - 160.0)
+		var r1: float = b.w + (MOUNTAIN_NEAR + 230.0 if ridge == 0 else MOUNTAIN_FAR + 520.0)
+		var hmax: float = (85.0 if ridge == 0 else 240.0) * (0.7 if desert else 1.0)
+		var noise: FastNoiseLite = FastNoiseLite.new()
+		noise.seed = rng.next_int(100000)
+		noise.frequency = 0.0042 if ridge == 0 else 0.0026
+		noise.fractal_type = FastNoiseLite.FRACTAL_RIDGED
+		noise.fractal_octaves = 5
+		noise.fractal_gain = 0.5
+		var big: FastNoiseLite = FastNoiseLite.new()
+		big.seed = noise.seed + 1
+		big.frequency = 0.0012
+		var na: int = 200
+		var nr: int = 12
+		var hs: PackedFloat32Array = PackedFloat32Array()
+		var ps: PackedVector3Array = PackedVector3Array()
+		for i: int in na:
+			var a: float = TAU * float(i) / float(na)
+			for j: int in nr:
+				var u: float = float(j) / float(nr - 1)
+				var r: float = lerpf(r0, r1, u)
+				var x: float = cos(a) * r
+				var z: float = sin(a) * r
+				var ridged: float = noise.get_noise_2d(x, z) * 0.5 + 0.5
+				var mass: float = big.get_noise_2d(x, z) * 0.5 + 0.5
+				var env: float = smoothstep(0.0, 0.4, u) * (1.0 - 0.35 * smoothstep(0.75, 1.0, u))
+				var h: float = env * hmax * (0.25 + 0.75 * ridged) * (0.45 + 0.75 * mass)
+				if desert: # terraced mesas: flat tops, steep layered walls
+					var step: float = 32.0
+					var t: float = h / step
+					h = (floorf(t) + smoothstep(0.72, 0.95, t - floorf(t))) * step
+				hs.append(h)
+				ps.append(Vector3(x, h, z))
+		# per-vertex normals by finite differences (smooth shading), colours by height/slope
+		var haze: float = 0.1 if ridge == 0 else 0.3
+		for i: int in na:
+			for j: int in nr:
+				var k: int = i * nr + j
+				var p: Vector3 = ps[k]
+				var pa: Vector3 = ps[((i + 1) % na) * nr + j] - ps[((i - 1 + na) % na) * nr + j]
+				var pr: Vector3 = ps[i * nr + mini(j + 1, nr - 1)] - ps[i * nr + maxi(j - 1, 0)]
+				var n: Vector3 = pr.cross(pa).normalized()
+				if n.y < 0.0:
+					n = -n
+				var slope: float = 1.0 - n.y
+				var hf: float = p.y / hmax
+				var c: Color = _mountain_color(th, ridge, hf, slope, p)
+				st.set_color(c.lerp(th.sky_horizon, haze * (0.6 + 0.4 * float(j) / float(nr - 1))))
+				st.set_normal(n)
+				st.add_vertex(centre + p)
+		for i: int in na:
+			var i2: int = (i + 1) % na
+			for j: int in nr - 1:
+				var a0: int = base_index + i * nr + j
+				var a1: int = base_index + i2 * nr + j
+				var c0: int = a0 + 1
+				var c1: int = a1 + 1
+				for idx: int in [a0, c0, a1, a1, c0, c1]:
+					st.add_index(idx)
+		base_index += na * nr
 	var mi: MeshInstance3D = MeshInstance3D.new()
 	mi.name = "Mountains"
 	mi.mesh = st.commit()
@@ -886,6 +904,26 @@ static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> Mes
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
+
+
+static func _mountain_color(th: TrackTheme, ridge: int, hf: float, slope: float, p: Vector3) -> Color:
+	var v: float = sin(p.x * 0.013 + p.z * 0.017) * 0.5 + 0.5
+	if th.terrain == "desert":
+		var strata: Array[Color] = [Color(0.46, 0.27, 0.18), Color(0.56, 0.34, 0.22), Color(0.4, 0.23, 0.17), Color(0.6, 0.4, 0.27)]
+		var c: Color = strata[int(p.y / 9.0 + v) % strata.size()]
+		return c.darkened(0.3 * smoothstep(0.35, 0.7, slope)) if ridge == 0 else c.darkened(0.25)
+	if th.snow:
+		var rock: Color = Color(0.42, 0.47, 0.56).lerp(Color(0.52, 0.56, 0.64), v)
+		var snow: Color = Color(0.93, 0.95, 1.0)
+		return snow.lerp(rock, smoothstep(0.45, 0.75, slope) * (1.0 - smoothstep(0.85, 1.0, hf) * 0.5))
+	var grass: Color = th.ground.darkened(0.12).lerp(Color(0.36, 0.52, 0.28), 0.3)
+	var forest: Color = Color(0.16, 0.3, 0.17).lerp(Color(0.2, 0.34, 0.2), v)
+	var rock2: Color = Color(0.46, 0.47, 0.5).lerp(Color(0.55, 0.55, 0.57), v)
+	var c2: Color = grass.lerp(forest, smoothstep(0.15, 0.4, hf) * (1.0 - smoothstep(0.55, 0.75, hf)) * (0.6 + 0.4 * v))
+	c2 = c2.lerp(rock2, maxf(smoothstep(0.35, 0.65, slope), smoothstep(0.55, 0.75, hf)))
+	if ridge == 1 and hf > 0.72: # snowy peaks only on the far mountains
+		c2 = c2.lerp(Color(0.95, 0.96, 1.0), smoothstep(0.72, 0.8, hf) * (1.0 - smoothstep(0.55, 0.8, slope) * 0.6))
+	return c2
 
 
 ## Roadside billboards: coloured board + white stripe on two posts, angled toward oncoming cars.
@@ -922,7 +960,7 @@ static func _billboards(tr: Track, rng: Rng) -> MeshInstance3D:
 
 
 ## Flattened cloud puffs on a ring around the track (one unshaded MultiMesh, no shadows).
-static func _clouds(tr: Track, rng: Rng) -> MultiMeshInstance3D:
+static func _clouds(tr: Track, rng: Rng) -> Node3D:
 	var cx: float = 0.0
 	var cz: float = 0.0
 	var k: int = 0
@@ -935,26 +973,59 @@ static func _clouds(tr: Track, rng: Rng) -> MultiMeshInstance3D:
 		s += 20.0
 	cx /= float(k)
 	cz /= float(k)
-	var puff: SphereMesh = SphereMesh.new()
-	puff.radial_segments = 10
-	puff.rings = 5
-	var xforms: Array[Transform3D] = []
-	for i: int in 22:
-		var a: float = TAU * (float(i) + rng.next_float() * 0.6) / 22.0
-		var r: float = 380.0 + rng.next_float() * 260.0
-		var base: Vector3 = Vector3(cx + cos(a) * r, 90.0 + rng.next_float() * 60.0, cz + sin(a) * r)
-		var size: float = 22.0 + rng.next_float() * 22.0
-		for j: int in 3: # each cloud = 3 overlapping puffs
-			var off: Vector3 = Vector3((float(j) - 1.0) * size * 0.8, rng.next_float() * size * 0.15, (rng.next_float() - 0.5) * size * 0.6)
-			var sc: float = size * (1.0 if j == 1 else 0.7)
-			xforms.append(Transform3D(Basis.from_scale(Vector3(sc, sc * 0.32, sc * 0.7)), base + off))
+	# three cumulus shapes, each instanced around the sky
+	var node: Node3D = Node3D.new()
+	node.name = "Clouds"
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 1.0, 1.0)
+	mat.vertex_color_use_as_albedo = true
 	mat.disable_fog = true
-	var mmi: MultiMeshInstance3D = _multimesh("Clouds", puff, xforms, mat)
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return mmi
+	var lists: Array = [[] as Array[Transform3D], [] as Array[Transform3D], [] as Array[Transform3D]]
+	for i: int in 20:
+		var a: float = TAU * (float(i) + rng.next_float() * 0.6) / 20.0
+		var r: float = 380.0 + rng.next_float() * 280.0
+		var size: float = 26.0 + rng.next_float() * 26.0
+		var pos: Vector3 = Vector3(cx + cos(a) * r, 95.0 + rng.next_float() * 70.0, cz + sin(a) * r)
+		var b: Basis = Basis(Vector3.UP, rng.next_float() * TAU).scaled(Vector3(size, size * (0.8 + rng.next_float() * 0.4), size))
+		(lists[i % 3] as Array[Transform3D]).append(Transform3D(b, pos))
+	for v: int in 3:
+		var mmi: MultiMeshInstance3D = _multimesh("Cloud%d" % v, _cloud_mesh(rng), lists[v] as Array[Transform3D], mat)
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.add_child(mmi)
+	return node
+
+
+## One cumulus (unit size): 7–9 noise-displaced blobs on a flat base, bright tops, cool grey-blue
+## undersides (vertex colours; drawn unshaded so the sky look stays consistent).
+static func _cloud_mesh(rng: Rng) -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var noise: FastNoiseLite = FastNoiseLite.new()
+	noise.seed = rng.next_int(10000)
+	noise.frequency = 1.6
+	var blobs: int = 7 + rng.next_int(3)
+	for bi: int in blobs:
+		var t: float = float(bi) / float(blobs - 1) - 0.5
+		var c: Vector3 = Vector3(t * 1.5 + (rng.next_float() - 0.5) * 0.2, 0.0, (rng.next_float() - 0.5) * 0.5)
+		var rad: float = (0.45 - absf(t) * 0.35) * (0.8 + rng.next_float() * 0.4)
+		c.y = rad * 0.55
+		var sphere: SphereMesh = SphereMesh.new()
+		sphere.radius = 1.0
+		sphere.height = 2.0
+		sphere.radial_segments = 10
+		sphere.rings = 5
+		var arr: Array = sphere.get_mesh_arrays()
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+		for ii: int in idx:
+			var d: Vector3 = verts[ii]
+			var w: Vector3 = c + d * rad * (1.0 + 0.22 * noise.get_noise_3d(d.x + c.x * 3.0, d.y, d.z + c.z * 3.0))
+			w.y = maxf(w.y, 0.0) # flat base
+			var top: float = clampf(w.y / 0.6, 0.0, 1.0)
+			var col: Color = Color(0.72, 0.77, 0.86).lerp(Color(1.0, 1.0, 1.0), smoothstep(0.05, 0.6, top))
+			st.set_color(col)
+			st.add_vertex(w)
+	return st.commit()
 
 
 static func _multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], mat: Material) -> MultiMeshInstance3D:
