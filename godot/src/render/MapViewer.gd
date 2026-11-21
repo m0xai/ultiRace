@@ -75,8 +75,9 @@ func _set_cam(mode: String) -> void:
 		_:
 			# --at <s>: chase-camera view of that point (hazards, ramps); default: the start line
 			var at: float = float(_arg(OS.get_cmdline_user_args(), "--at", "0"))
-			var behind: Vector3 = _track.world(at - 30.0, 0.0, 6.0)
-			var ahead: Vector3 = _track.world(at + 25.0, 0.0, 1.0)
+			var near: bool = OS.get_cmdline_user_args().has("--near") # race-camera distance (art reviews)
+			var behind: Vector3 = _track.world(at - (12.0 if near else 30.0), 0.0, 2.8 if near else 6.0)
+			var ahead: Vector3 = _track.world(at + (12.0 if near else 25.0), 0.0, 0.6 if near else 1.0)
 			_cam.position = behind
 			_cam.look_at(ahead, Vector3.UP)
 	_yaw = _cam.rotation.y

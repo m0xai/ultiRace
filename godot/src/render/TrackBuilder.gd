@@ -19,6 +19,9 @@ const RAIL_Z0: float = 0.45
 const RAIL_Z1: float = 0.8
 const POST_EVERY: float = 4.0
 const LAMP_EVERY: float = 36.0
+## W-beam cross-section: (bulge toward the road, height) from bottom to top
+const W_BEAM: Array[Vector2] = [Vector2(0.0, 0.45), Vector2(0.08, 0.5), Vector2(0.08, 0.56), Vector2(0.02, 0.625),
+	Vector2(0.08, 0.69), Vector2(0.08, 0.75), Vector2(0.0, 0.8)]
 
 
 class TrackTheme:
@@ -187,17 +190,19 @@ static func build(tr: Track) -> Node3D:
 		var sb: float = tr.length * float(i + 1) / float(n)
 		var ha: float = tr.half_width(sa)
 		var hb: float = tr.half_width(sb)
-		var a0: Vector3 = tr.world(sa, -ha, ROAD_LIFT)
-		var a1: Vector3 = tr.world(sa, ha, ROAD_LIFT)
-		var b0: Vector3 = tr.world(sb, -hb, ROAD_LIFT)
-		var b1: Vector3 = tr.world(sb, hb, ROAD_LIFT)
-		road.add_vertex(a0)
-		road.add_vertex(a1)
-		road.add_vertex(b0)
-		road.add_vertex(a1)
-		road.add_vertex(b1)
-		road.add_vertex(b0)
-	root.add_child(_mesh_instance("Road", road, _asphalt(th.road)))
+		# UV = track space (d, s) in metres, UV2.x = local half width (road.gdshader)
+		var verts: Array = [[sa, -ha, ha], [sa, ha, ha], [sb, -hb, hb], [sa, ha, ha], [sb, hb, hb], [sb, -hb, hb]]
+		for v: Array in verts:
+			road.set_uv(Vector2(float(v[1]), float(v[0])))
+			road.set_uv2(Vector2(float(v[2]), 0.0))
+			road.add_vertex(tr.world(float(v[0]), float(v[1]), ROAD_LIFT))
+	road.generate_normals()
+	road.generate_tangents()
+	var road_mi: MeshInstance3D = MeshInstance3D.new()
+	road_mi.name = "Road"
+	road_mi.mesh = road.commit()
+	road_mi.material_override = _asphalt(th.road, th.night)
+	root.add_child(road_mi)
 	var marks: MeshInstance3D = _mesh_instance("Markings", _markings(tr), _mat(Color(0.93, 0.93, 0.9)))
 	marks.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # flat paint: no shadow pass
 	root.add_child(marks)
@@ -219,15 +224,30 @@ static func build(tr: Track) -> Node3D:
 		var hb: float = tr.half_width(sb)
 		var curb_col: Color = th.curb_a if int(sa / CURB_SEG) % 2 == 0 else th.curb_b
 		for side: float in [-1.0, 1.0]:
-			# curb: inner strip just inside the road edge, slightly raised
-			_quad(curbs, tr.world(sa, side * (ha - CURB_W), ROAD_LIFT + 0.03), tr.world(sb, side * (hb - CURB_W), ROAD_LIFT + 0.03),
-				tr.world(sa, side * ha, ROAD_LIFT + 0.03), tr.world(sb, side * hb, ROAD_LIFT + 0.03), curb_col)
+			# curb: raised kerb just inside the road edge: bevel up from the road, flat top, small
+			# outer drop (profile across: inner foot → bevel top → outer top → outer foot)
+			var prof: Array[Vector2] = [Vector2(ha - CURB_W, 0.02), Vector2(ha - CURB_W + 0.3, 0.1), Vector2(ha - 0.12, 0.1), Vector2(ha, 0.04)]
+			var off_b: float = hb - ha
+			for k: int in prof.size() - 1:
+				var p0: Vector2 = prof[k]
+				var p1: Vector2 = prof[k + 1]
+				var shade: Color = curb_col.darkened(0.12) if k == 0 else curb_col
+				if side > 0.0:
+					_quad(curbs, tr.world(sa, p0.x, ROAD_LIFT + p0.y), tr.world(sb, p0.x + off_b, ROAD_LIFT + p0.y),
+						tr.world(sa, p1.x, ROAD_LIFT + p1.y), tr.world(sb, p1.x + off_b, ROAD_LIFT + p1.y), shade)
+				else:
+					_quad(curbs, tr.world(sa, -p1.x, ROAD_LIFT + p1.y), tr.world(sb, -p1.x - off_b, ROAD_LIFT + p1.y),
+						tr.world(sa, -p0.x, ROAD_LIFT + p0.y), tr.world(sb, -p0.x - off_b, ROAD_LIFT + p0.y), shade)
 			# wall: vertical face at the edge
 			var wa: float = side * (ha + WALL_GAP)
 			var wb: float = side * (hb + WALL_GAP)
 			if guard_rails:
-				# W-beam guard rail on posts (reference look): a steel band plus its top lip
-				_quad(walls, tr.world(sa, wa, RAIL_Z0), tr.world(sb, wb, RAIL_Z0), tr.world(sa, wa, RAIL_Z1), tr.world(sb, wb, RAIL_Z1), th.wall)
+				# W-beam guard rail on posts: two ridges bulging toward the road, plus its top lip
+				for k: int in W_BEAM.size() - 1:
+					var q0: Vector2 = W_BEAM[k]
+					var q1: Vector2 = W_BEAM[k + 1]
+					_quad(walls, tr.world(sa, wa - side * q0.x, q0.y), tr.world(sb, wb - side * q0.x, q0.y),
+						tr.world(sa, wa - side * q1.x, q1.y), tr.world(sb, wb - side * q1.x, q1.y), th.wall)
 				_quad(wall_tops, tr.world(sa, wa, RAIL_Z1), tr.world(sb, wb, RAIL_Z1), tr.world(sa, wa + side * 0.12, RAIL_Z1), tr.world(sb, wb + side * 0.12, RAIL_Z1), th.wall)
 			else:
 				_quad(walls, tr.world(sa, wa, 0.0), tr.world(sb, wb, 0.0), tr.world(sa, wa, WALL_H), tr.world(sb, wb, WALL_H), th.wall)
@@ -336,27 +356,41 @@ static func build(tr: Track) -> Node3D:
 	return root
 
 
-## Asphalt: the theme colour broken up by fine world-space noise (no flat placeholder grey).
-static func _asphalt(c: Color) -> StandardMaterial3D:
-	var m: StandardMaterial3D = _mat(c)
+static var _tex_cache: Dictionary = {}
+
+
+## Seamless noise textures shared by the road and patch shaders (built once per run).
+static func _noise_tex(key: String, freq: float, size: int, normal: bool) -> NoiseTexture2D:
+	if _tex_cache.has(key):
+		return _tex_cache[key] as NoiseTexture2D
 	var noise: FastNoiseLite = FastNoiseLite.new()
-	noise.seed = 7
-	noise.frequency = 0.08
-	noise.fractal_octaves = 3
-	var ramp: Gradient = Gradient.new()
-	ramp.set_color(0, Color(0.82, 0.82, 0.84))
-	ramp.set_color(1, Color(1.06, 1.06, 1.06))
+	noise.seed = key.hash() & 0xFFFF
+	noise.frequency = freq
+	noise.fractal_octaves = 4
 	var tex: NoiseTexture2D = NoiseTexture2D.new()
-	tex.width = 256
-	tex.height = 256
+	tex.width = size
+	tex.height = size
 	tex.seamless = true
+	tex.generate_mipmaps = true
 	tex.noise = noise
-	tex.color_ramp = ramp
-	m.albedo_texture = tex
-	m.uv1_triplanar = true
-	m.uv1_world_triplanar = true
-	m.uv1_scale = Vector3(0.12, 0.12, 0.12)
-	m.roughness = 0.85
+	if normal:
+		tex.as_normal_map = true
+		tex.bump_strength = 6.0
+	_tex_cache[key] = tex
+	return tex
+
+
+## Asphalt (road.gdshader): grain, tyre tracks per lane, patches, cracks, edge dirt.
+static func _asphalt(c: Color, night: bool = false) -> ShaderMaterial:
+	var m: ShaderMaterial = ShaderMaterial.new()
+	m.shader = load("res://src/render/road.gdshader") as Shader
+	m.set_shader_parameter("base_color", c)
+	m.set_shader_parameter("grain", _noise_tex("grain", 0.06, 256, false))
+	m.set_shader_parameter("grain_normal", _noise_tex("grain_n", 0.09, 256, true))
+	m.set_shader_parameter("blotch", _noise_tex("blotch", 0.012, 256, false))
+	m.set_shader_parameter("lane_w", LANE_W)
+	m.set_shader_parameter("curb_w", CURB_W)
+	m.set_shader_parameter("wet", 0.6 if night else 0.0)
 	return m
 
 
@@ -968,11 +1002,7 @@ static func _environment(th: TrackTheme) -> Node3D:
 ## kind) and red/white striped concrete road blocks (one vertex-coloured mesh).
 static func _hazards(tr: Track) -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	var looks: Dictionary = {
-		"ice": [Color(0.78, 0.92, 1.0, 0.78), 0.04, 0.15],
-		"water": [Color(0.12, 0.24, 0.36, 0.72), 0.02, 0.35],
-		"oil": [Color(0.02, 0.02, 0.03, 0.88), 0.06, 0.25],
-	}
+	var looks: Dictionary = {"ice": 0, "water": 1, "oil": 2} # surface_patch.gdshader kinds
 	for kind: String in looks:
 		var st: SurfaceTool = SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -984,14 +1014,17 @@ static func _hazards(tr: Track) -> Array[Node3D]:
 			_patch(st, tr, h)
 		if not any:
 			continue
-		var look: Array = looks[kind] as Array
-		var m: StandardMaterial3D = StandardMaterial3D.new()
-		m.albedo_color = look[0] as Color
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.roughness = float(look[1])
-		m.metallic = float(look[2])
-		m.specular = 0.9
-		var mi: MeshInstance3D = _mesh_instance("Hazard_" + kind, st, m)
+		var m: ShaderMaterial = ShaderMaterial.new()
+		m.shader = load("res://src/render/surface_patch.gdshader") as Shader
+		m.set_shader_parameter("kind", int(looks[kind]))
+		m.set_shader_parameter("noise", _noise_tex("blotch", 0.012, 256, false))
+		m.set_shader_parameter("ripple_normal", _noise_tex("ripple_n", 0.05, 256, true))
+		st.generate_normals()
+		st.generate_tangents()
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		mi.name = "Hazard_" + kind
+		mi.mesh = st.commit()
+		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		out.append(mi)
 	var blocks: SurfaceTool = SurfaceTool.new()
@@ -1005,43 +1038,86 @@ static func _hazards(tr: Track) -> Array[Node3D]:
 	return out
 
 
-## Irregular rounded puddle/patch hugging the road: rows across s, width tapering at the ends.
+## Patch hugging the road: a grid over the hazard's footprint (slightly larger: the shader cuts
+## the irregular outline and soft edge). UV = (across −1…1, along 0…1), UV2 = metres (d, s).
 static func _patch(st: SurfaceTool, tr: Track, h: Dictionary) -> void:
 	var s0: float = float(h["s"])
 	var L: float = float(h["len"])
 	var d: float = float(h["d"])
-	var hw: float = float(h["halfW"])
-	var rows: int = 10
+	var hw: float = float(h["halfW"]) * 1.08
+	var rows: int = maxi(6, int(L / 2.0))
+	var cols: int = 4
 	var lift: float = ROAD_LIFT + 0.035 # above the lane markings
 	for k: int in rows:
-		var ua: float = float(k) / rows
-		var ub: float = float(k + 1) / rows
-		var wa: float = hw * (0.55 + 0.45 * sin(PI * ua)) * (1.0 + 0.08 * sin(ua * 17.0 + s0))
-		var wb: float = hw * (0.55 + 0.45 * sin(PI * ub)) * (1.0 + 0.08 * sin(ub * 17.0 + s0))
-		var sa: float = s0 + L * ua
-		var sb: float = s0 + L * ub
-		_quad(st, tr.world(sa, d - wa, lift), tr.world(sb, d - wb, lift), tr.world(sa, d + wa, lift), tr.world(sb, d + wb, lift), Color.WHITE)
+		for c: int in cols:
+			var corners: Array[Vector2] = []
+			for e: Vector2i in [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 0)]:
+				var u: float = lerpf(-1.0, 1.0, float(c + e.y) / cols)
+				var v: float = float(k + e.x) / rows
+				corners.append(Vector2(u, v))
+			for uv: Vector2 in corners:
+				var dd: float = d + uv.x * hw
+				var ss: float = s0 + L * uv.y
+				st.set_uv(uv)
+				st.set_uv2(Vector2(dd, ss))
+				st.add_vertex(tr.world(ss, dd, lift))
 
 
-## Concrete road block: 1 m high box over the block's footprint, red/white chevron stripes on
-## the faces drivers see, grey top.
+## Road block (graphics pass 4), all inside the physics footprint (s0…s0+len, d ± halfW):
+## front row of red/white plastic water barriers, a yellow/black chevron sign on two posts
+## pointing to the free side, and a grey concrete Jersey barrier at the back.
 static func _block(st: SurfaceTool, tr: Track, b: Dictionary) -> void:
 	var s0: float = float(b["s"])
 	var s1: float = s0 + float(b["len"])
 	var d0: float = float(b["d"]) - float(b["halfW"])
 	var d1: float = float(b["d"]) + float(b["halfW"])
-	var y0: float = ROAD_LIFT
-	var y1: float = 1.0
-	var stripes: int = maxi(4, int((d1 - d0) / 0.9))
-	var red: Color = Color(0.85, 0.12, 0.1)
-	for k: int in stripes:
-		var da: float = lerpf(d0, d1, float(k) / stripes)
-		var db: float = lerpf(d0, d1, float(k + 1) / stripes)
-		var c: Color = red if k % 2 == 0 else Color(0.95, 0.95, 0.95)
-		# front (faces oncoming cars) and back
-		_quad(st, tr.world(s0, da, y0), tr.world(s0, da, y1), tr.world(s0, db, y0), tr.world(s0, db, y1), c)
-		_quad(st, tr.world(s1, db, y0), tr.world(s1, db, y1), tr.world(s1, da, y0), tr.world(s1, da, y1), c)
-		_quad(st, tr.world(s0, da, y1), tr.world(s1, da, y1), tr.world(s0, db, y1), tr.world(s1, db, y1), Color(0.6, 0.6, 0.62))
-	# sides
-	_quad(st, tr.world(s0, d0, y0), tr.world(s1, d0, y0), tr.world(s0, d0, y1), tr.world(s1, d0, y1), Color(0.9, 0.9, 0.9))
-	_quad(st, tr.world(s1, d1, y0), tr.world(s0, d1, y0), tr.world(s1, d1, y1), tr.world(s0, d1, y1), Color(0.9, 0.9, 0.9))
+	var red: Color = Color(0.86, 0.1, 0.08)
+	var white: Color = Color(0.94, 0.94, 0.92)
+	# front: water barriers ~1 m wide, tapered profile, a moulded rib across each
+	var units: int = maxi(3, roundi((d1 - d0) / 1.0))
+	for k: int in units:
+		var da: float = lerpf(d0, d1, float(k) / units) + 0.03
+		var db: float = lerpf(d0, d1, float(k + 1) / units) - 0.03
+		var c: Color = red if k % 2 == 0 else white
+		_bar(st, tr, s0, s0 + 0.62, 0.16, da, db, ROAD_LIFT, 0.92, c)
+		_bar(st, tr, s0 + 0.03, s0 + 0.59, 0.12, da + 0.08, db - 0.08, 0.48, 0.6, c.darkened(0.2))
+	# sign on two posts
+	var ss: float = s0 + 1.1
+	for pd: float in [d0 + 0.5, d1 - 0.5]:
+		_bar(st, tr, ss, ss + 0.1, 0.0, pd - 0.05, pd + 0.05, ROAD_LIFT, 1.95, Color(0.35, 0.36, 0.38))
+	var y0: float = 1.05
+	var y1: float = 1.85
+	_bar(st, tr, ss - 0.05, ss, 0.0, d0 + 0.2, d1 - 0.2, y0, y1, Color(1.0, 0.78, 0.05))
+	# chevrons point to the free side (toward the road centre)
+	var sgn: float = -1.0 if float(b["d"]) > 0.0 else 1.0
+	var n_chev: int = maxi(3, int((d1 - d0 - 0.4) / 1.1))
+	var w: float = (d1 - d0 - 0.6) / n_chev
+	var sf: float = ss - 0.06 # just in front of the panel
+	var ink: Color = Color(0.05, 0.05, 0.06)
+	for c2: int in n_chev:
+		var cx: float = d0 + 0.3 + w * (float(c2) + 0.5)
+		var xb: float = cx - sgn * w * 0.3
+		var xt: float = cx + sgn * w * 0.3
+		var t: float = w * 0.28
+		var top: float = y1 - 0.1
+		var mid: float = (y0 + y1) * 0.5
+		var bot: float = y0 + 0.1
+		_quad(st, tr.world(sf, xb, top), tr.world(sf, xb + sgn * t, top), tr.world(sf, xt - sgn * t, mid), tr.world(sf, xt, mid), ink)
+		_quad(st, tr.world(sf, xt - sgn * t, mid), tr.world(sf, xt, mid), tr.world(sf, xb, bot), tr.world(sf, xb + sgn * t, bot), ink)
+	# back: concrete Jersey barrier on a wider foot
+	_bar(st, tr, s1 - 0.72, s1, 0.24, d0, d1, ROAD_LIFT, 0.86, Color(0.66, 0.66, 0.64))
+	_bar(st, tr, s1 - 0.8, s1 + 0.04, 0.0, d0 - 0.02, d1 + 0.02, ROAD_LIFT, 0.14, Color(0.55, 0.55, 0.53))
+
+
+## Box spanning s0…s1 (along the track) and da…db (across), y0…y1, with its top inset by
+## `taper` metres front and back (barrier profile).
+static func _bar(st: SurfaceTool, tr: Track, s0: float, s1: float, taper: float, da: float, db: float, y0: float, y1: float, c: Color) -> void:
+	var t0: float = s0 + taper
+	var t1: float = s1 - taper
+	var top: Color = c.lightened(0.06)
+	var side: Color = c.darkened(0.08)
+	_quad(st, tr.world(s0, da, y0), tr.world(s0, db, y0), tr.world(t0, da, y1), tr.world(t0, db, y1), c) # front
+	_quad(st, tr.world(s1, db, y0), tr.world(s1, da, y0), tr.world(t1, db, y1), tr.world(t1, da, y1), c) # back
+	_quad(st, tr.world(t0, da, y1), tr.world(t0, db, y1), tr.world(t1, da, y1), tr.world(t1, db, y1), top) # top
+	_quad(st, tr.world(s1, da, y0), tr.world(s0, da, y0), tr.world(t1, da, y1), tr.world(t0, da, y1), side) # end
+	_quad(st, tr.world(s0, db, y0), tr.world(s1, db, y0), tr.world(t0, db, y1), tr.world(t1, db, y1), side) # end
