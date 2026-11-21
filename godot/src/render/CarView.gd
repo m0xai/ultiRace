@@ -117,6 +117,7 @@ var _paint: StandardMaterial3D = null
 const NEAR_UNTIL: float = 26.0 # m: a near car turns light beyond this …
 const FAR_UNTIL: float = 20.0 # … and fine again only nearer than this
 var force_lod0: bool = false # own car, showroom
+var allow_mid: bool = true # RaceView lets only the 2 nearest other cars use the mid level (triangle budget)
 var _lods: Array = [[], [], []] # MeshInstance3D per level
 var _lod: int = -1
 
@@ -167,7 +168,7 @@ func _update_lod() -> void:
 		return
 	var near_level: int = 1 if present.has(1) and present.has(2) else present[0]
 	var far_level: int = present[present.size() - 1]
-	if low:
+	if low or not allow_mid:
 		_apply_lod(far_level)
 		return
 	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null

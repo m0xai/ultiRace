@@ -391,15 +391,19 @@ static func props(node: Node3D, field: TerrainField, tr: Track, style: String, r
 		s += 9.0
 	var rock_c: Color = Color(0.56, 0.4, 0.3) if style == "roadside" else (Color(0.55, 0.57, 0.62) if style == "cabin" else Color(0.55, 0.53, 0.5))
 	# Blender kit rocks (three shapes) tinted per map, cacti (desert) or bushes
+	# one rock shape per cell (by cell position): three shapes on the map, one draw call per cell
 	var by_shape: Array = [[] as Array[Transform3D], [] as Array[Transform3D], [] as Array[Transform3D]]
 	for i: int in rocks.size():
-		(by_shape[i % 3] as Array[Transform3D]).append(rocks[i])
+		var o: Vector3 = rocks[i].origin
+		var shape: int = posmod(floori(o.x / EnvKit.CELL) * 7 + floori(o.z / EnvKit.CELL) * 3, 3)
+		(by_shape[shape] as Array[Transform3D]).append(rocks[i])
 	var rmat: StandardMaterial3D = EnvKit.solid_material().duplicate() as StandardMaterial3D
 	rmat.albedo_color = rock_c.lightened(0.5) # the kit rocks are neutral grey: tint toward the map's rock colour
 	for k: int in 3:
-		EnvKit.scatter(node, "vegetation", "Rock%d" % k, by_shape[k] as Array[Transform3D], rng, rmat)
+		EnvKit.scatter(node, "vegetation", "Rock%d" % k, by_shape[k] as Array[Transform3D], rng, rmat, false)
 	if not plants.is_empty():
-		EnvKit.scatter(node, "vegetation", "Cactus" if style == "roadside" else "Bush", plants, rng, EnvKit.foliage_material())
+		EnvKit.scatter(node, "vegetation", "Cactus" if style == "roadside" else "Bush", plants, rng, EnvKit.foliage_material(),
+			style == "roadside") # cacti cast shadows, small bushes don't
 
 
 static func _chunked(node: Node3D, name: String, mesh: Mesh, xforms: Array[Transform3D], rng: Rng) -> void:

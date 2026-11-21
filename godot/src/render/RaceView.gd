@@ -279,6 +279,14 @@ func _update_audio() -> void:
 	var audible: Dictionary = {}
 	for k: int in mini(5, dists.size()):
 		audible[int(dists[k][1])] = true
+	# detail budget: besides the own car, only the two nearest cars may use the mid detail level
+	var mids: int = 0
+	for k: int in dists.size():
+		var ci: int = int(dists[k][1])
+		if ci == you:
+			continue
+		cars[ci].allow_mid = mids < 2
+		mids += 1
 	for i: int in _engines.size():
 		_engines[i].audible = i == you or audible.has(i)
 		if _states[i] != null:
