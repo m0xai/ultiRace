@@ -12,15 +12,16 @@ with `make audio`.
 
 ### Music (`music/*.ogg`, re-encoded by `art/audio/encode_music.py`)
 
-All by **MintoDog** on OpenGameArt, licence **CC0 1.0** (checked on each page 2026-11-21).
+All from OpenGameArt, licence **CC0 1.0** (checked on each page 2026-11-21).
 
-| File | Track | Source |
+| File | Track (author) | Source |
 |---|---|---|
-| `menu.ogg` | Cool City (124 BPM) | https://opengameart.org/content/cool-city |
-| `sunny.ogg`, `sunny_final.ogg` | Pure Raceway (160 BPM) + Climax (175 BPM) | https://opengameart.org/content/pure-raceway |
-| `neon.ogg`, `neon_final.ogg` | Neon Sign Circuit (145 BPM) + Climax (160 BPM) | https://opengameart.org/content/neon-sign-circuit |
-| `frosty.ogg`, `frosty_final.ogg` | Blossom Mountain (140 BPM) + Climax (155 BPM) | https://opengameart.org/content/blossom-mountain |
-| `result_best.ogg`, `result_good.ogg`, `result_bad.ogg` | Racing Game Result Best / Good / Bad | https://opengameart.org/content/racing-game-result |
+| `menu.ogg` | Cool City (124 BPM) (MintoDog) | https://opengameart.org/content/cool-city |
+| `sunny.ogg` | Hyper Ultra-Racing, drum and bass (cynicmusic) | https://opengameart.org/content/hyper-ultra-racing |
+| `neon.ogg`, `neon_final.ogg` | Darkness Road (165 BPM) + Climax (180 BPM), techno (MintoDog) | https://opengameart.org/content/darkness-road |
+| `frosty.ogg` | Black Diamond, 143 BPM drum and bass (Joth) | https://opengameart.org/content/black-diamond |
+| `sunny_final.ogg`, `frosty_final.ogg` | unused (old Pure Raceway / Blossom Mountain climax mixes, MintoDog; excluded from export, HUMAN_TODO #29) | opengameart.org/content/pure-raceway, …/blossom-mountain |
+| `result_best.ogg`, `result_good.ogg`, `result_bad.ogg` | Racing Game Result Best / Good / Bad (MintoDog) | https://opengameart.org/content/racing-game-result |
 
 ## Fonts
 

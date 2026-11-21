@@ -74,7 +74,7 @@ func test_result_music() -> void:
 	assert_str(ResultsScreen.result_music(4, 8)).is_equal("result_good")
 	assert_str(ResultsScreen.result_music(7, 8)).is_equal("result_bad")
 	assert_str(ResultsScreen.result_music(0, 8)).is_equal("result_bad")
-	for m: String in ["menu", "sunny", "sunny_final", "neon", "neon_final", "frosty", "frosty_final", "result_best"]:
+	for m: String in ["menu", "sunny", "neon", "neon_final", "frosty", "result_best", "result_good", "result_bad"]:
 		var mus: AudioStreamOggVorbis = AudioDirector.load_music(m) as AudioStreamOggVorbis
 		assert_object(mus).override_failure_message("missing music " + m).is_not_null()
 		assert_bool(mus.loop).is_true()

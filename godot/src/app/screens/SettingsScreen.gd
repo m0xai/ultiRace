@@ -50,9 +50,9 @@ func _ready() -> void:
 	_tilt_read = Ui.label("", 18, Ui.MUTED)
 	a.add_child(_tilt_read)
 	var b: VBoxContainer = _column(cols, "Sound & feel")
-	b.add_child(Ui.card(_slider("Music", "vol_music", 0.0, 1.0, 0.8)))
-	b.add_child(Ui.card(_slider("Effects", "vol_sfx", 0.0, 1.0, 1.0)))
-	b.add_child(Ui.card(_slider("Engine", "vol_engine", 0.0, 1.0, 1.0)))
+	b.add_child(Ui.card(_slider("Music", "vol_music", 0.0, 1.0, float(AudioDirector.DEFAULT_VOL["Music"]))))
+	b.add_child(Ui.card(_slider("Effects", "vol_sfx", 0.0, 1.0, float(AudioDirector.DEFAULT_VOL["SFX"]))))
+	b.add_child(Ui.card(_slider("Engine", "vol_engine", 0.0, 1.0, float(AudioDirector.DEFAULT_VOL["Engine"]))))
 	b.add_child(Ui.card(_toggle("Haptics", "haptics", true)))
 	b.add_child(Ui.card(_toggle("Reduce motion", "reduce_motion", false)))
 	if SUPPORT_CONTACT != "":

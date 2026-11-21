@@ -5,7 +5,9 @@ extends Node
 
 const BUSES: PackedStringArray = ["Music", "SFX", "Engine", "UI"]
 const SFX_POOL: int = 8
-const DUCK_DB: float = -8.0
+## Default bus volumes (0–1) until the player moves a slider in Settings.
+const DEFAULT_VOL: Dictionary = {"Music": 0.6, "SFX": 0.5, "Engine": 0.5, "UI": 0.5}
+const DUCK_DB: float = -4.0
 
 const MUSIC_FADE_S: float = 1.2
 
@@ -42,10 +44,18 @@ func _ready() -> void:
 	apply_volumes()
 
 
-## Bus volumes from the profile (0–1 linear).
+## Bus volumes from the profile (0–1 linear). Once per AUDIO_DEFAULTS_REV the saved sliders are
+## reset to DEFAULT_VOL (new mix balance), afterwards the player's choice sticks.
+const AUDIO_DEFAULTS_REV: int = 2
+
+
 func apply_volumes() -> void:
+	if int(Profile.get_value("audio_defaults_rev", 0)) < AUDIO_DEFAULTS_REV:
+		for b: String in BUSES:
+			Profile.set_value("vol_" + b.to_lower(), DEFAULT_VOL[b])
+		Profile.set_value("audio_defaults_rev", AUDIO_DEFAULTS_REV)
 	for b: String in BUSES:
-		var v: float = float(Profile.get_value("vol_" + b.to_lower(), 0.8 if b == "Music" else 1.0))
+		var v: float = float(Profile.get_value("vol_" + b.to_lower(), DEFAULT_VOL[b]))
 		AudioServer.set_bus_volume_db(AudioServer.get_bus_index(b), linear_to_db(maxf(v, 0.0001)))
 
 
@@ -83,8 +93,26 @@ func play_music(name: String) -> void:
 		_music = tmp
 		_fade = MUSIC_FADE_S
 	_music.stream = s
+	_pitch_target = 1.0
+	_music.pitch_scale = 1.0
 	_music.volume_db = -30.0 if _fade > 0.0 else 0.0
 	_music.play()
+
+
+## Final lap: themes with their own climax mix switch to it; the others speed up a little
+## (a classic racing-game cue). Only maps listed here have a climax mix.
+const FINAL_MIX: Dictionary = {"neon": "neon_final"}
+const FINAL_PITCH: float = 1.06
+
+
+func final_lap(theme: String) -> void:
+	if FINAL_MIX.has(theme):
+		play_music(str(FINAL_MIX[theme]))
+	else:
+		_pitch_target = FINAL_PITCH
+
+
+var _pitch_target: float = 1.0
 
 
 func music_name() -> String:
@@ -103,12 +131,13 @@ func sfx(name: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	p.volume_db = volume_db
 	p.pitch_scale = pitch
 	p.play()
-	if volume_db > -6.0:
-		_duck = 0.6
+	if volume_db > -3.0:
+		_duck = 0.4
 
 
 func _process(delta: float) -> void:
 	_duck = maxf(_duck - delta, 0.0)
+	_music.pitch_scale = move_toward(_music.pitch_scale, _pitch_target, delta * 0.03)
 	var target: float = DUCK_DB if _duck > 0.0 else 0.0
 	_music.volume_db = lerpf(_music.volume_db, target, minf(1.0, delta * (3.0 if _fade > 0.0 else 8.0)))
 	if _fade > 0.0:
