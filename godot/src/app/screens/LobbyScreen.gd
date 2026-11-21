@@ -30,9 +30,11 @@ func _ready() -> void:
 	var col: VBoxContainer = Ui.vbox(14)
 	root.add_child(col)
 	var head: HBoxContainer = Ui.hbox(20)
-	_title = Ui.label("Lobby", 34, Ui.ACCENT)
+	_title = Ui.label("Lobby", 40, Ui.ACCENT)
+	_title.clip_text = true
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_timer = Ui.label("", 34)
+	_timer = Ui.label("", 30)
+	_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var back: Button = Ui.button("Leave")
 	back.pressed.connect(func() -> void: leave.emit())
 	var share: Button = Ui.button("Share link")
@@ -42,7 +44,6 @@ func _ready() -> void:
 		share.text = "Link copied!")
 	head.add_child(_title)
 	head.add_child(share)
-	head.add_child(_timer)
 	head.add_child(back)
 	col.add_child(head)
 
@@ -51,7 +52,7 @@ func _ready() -> void:
 	col.add_child(body)
 	var list_panel: PanelContainer = Ui.panel()
 	list_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list = Ui.vbox(8)
+	_list = Ui.vbox(10)
 	list_panel.add_child(_list)
 	body.add_child(list_panel)
 
@@ -66,6 +67,7 @@ func _ready() -> void:
 		sw.changed.connect(func(_i: int) -> void: _send_settings())
 		_settings.add_child(sw)
 	side.add_child(_settings)
+	side.add_child(_timer)
 	_ready_btn = Ui.button("READY", true, 34)
 	_ready_btn.custom_minimum_size = Vector2(440, 110)
 	_ready_btn.pressed.connect(func() -> void: send.emit(Protocol.ready(not _me_ready)))
@@ -134,20 +136,21 @@ func update_room(m: Dictionary) -> void:
 		if not pd.get("ready", false) and not pd.get("spec", false):
 			all_ready = false
 		var row: HBoxContainer = Ui.hbox(12)
+		row.custom_minimum_size = Vector2(0, 64)
 		var name: String = Profile.display_name(str(pd["id"]), str(pd["name"])) + ("  (you)" if mine else "")
 		if pd.get("host", false):
 			name = "★ " + name
-		var nl: Label = Ui.label(name, 26, Ui.ACCENT if mine else Ui.TEXT)
+		var nl: Label = Ui.label(name, 32, Ui.ACCENT if mine else Ui.TEXT)
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nl)
-		row.add_child(Ui.label("%d ms" % int(pd.get("pingMs", 0)), 20, Ui.MUTED))
-		row.add_child(Ui.label("READY" if pd.get("ready", false) else ("watching" if pd.get("spec", false) else "…"), 22,
+		row.add_child(Ui.label("%d ms" % int(pd.get("pingMs", 0)), 24, Ui.MUTED))
+		row.add_child(Ui.label("READY" if pd.get("ready", false) else ("watching" if pd.get("spec", false) else "…"), 28,
 			Color(0.4, 1, 0.5) if pd.get("ready", false) else Ui.MUTED))
 		if not mine:
 			_add_moderation(row, str(pd["id"]), _host_is_me(m))
 		_list.add_child(row)
 	if m.get("bots", true):
-		_list.add_child(Ui.label("+ bots fill the empty seats", 20, Ui.MUTED))
+		_list.add_child(Ui.label("+ bots fill the empty seats", 26, Ui.MUTED))
 	_ready_btn.text = "NOT READY" if _me_ready else "READY"
 	_settings.visible = is_host
 	_start_btn.visible = is_host
