@@ -19,14 +19,20 @@ const MEDALS: Array[Color] = [Color(1.0, 0.8, 0.15), Color(0.82, 0.86, 0.92), Co
 func _ready() -> void:
 	var root: MarginContainer = Ui.safe_root(self)
 	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(0.03, 0.04, 0.12, 0.6)
+	dim.color = Color(0.03, 0.04, 0.12, 0.3) # light: the finish camera orbits your car behind it
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 	move_child(dim, 0)
+	var row: HBoxContainer = Ui.hbox(0)
+	root.add_child(row)
+	var spacer: Control = Control.new() # left part of the screen shows your car
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(spacer)
 	var center: CenterContainer = CenterContainer.new()
-	root.add_child(center)
-	var panel: PanelContainer = Ui.panel(Vector2(760, 0))
+	row.add_child(center)
+	var panel: PanelContainer = Ui.panel(Vector2(640, 0))
 	center.add_child(panel)
 	var col: VBoxContainer = Ui.vbox(10)
 	panel.add_child(col)

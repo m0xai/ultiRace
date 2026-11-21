@@ -22,6 +22,7 @@ var _browser: RoomBrowserScreen
 var _overlay: CanvasLayer
 var _view: RaceView
 var _hud: RaceHud
+var _pause: PauseMenu = null
 var _touch: TouchControls
 var _ui: CanvasLayer
 var _seq: int = 0
@@ -71,6 +72,7 @@ func _ready() -> void:
 	_lobby.leave.connect(_leave)
 	_select.send.connect(_send)
 	_touch.ability_pressed.connect(func() -> void: _ult_pending = 3) # hold "ab" for 3 inputs
+	_hud.pause_pressed.connect(_open_pause)
 	_results.send.connect(_send)
 	_results.leave.connect(_leave)
 	_show(Screen.HOME)
@@ -145,7 +147,42 @@ func _send(msg: Dictionary) -> void:
 		_conn.send(msg)
 
 
+## In-race pause menu (the server keeps racing; steering is released while it is open).
+func _open_pause() -> void:
+	if _pause != null or _screen != Screen.RACE or not _racing:
+		return
+	_pause = PauseMenu.new()
+	_ui.add_child(_pause)
+	_touch.visible = false
+	_pause.resumed.connect(_close_pause)
+	_pause.leave_race.connect(func() -> void:
+		_close_pause()
+		_leave())
+	_pause.settings.connect(func() -> void:
+		_settings = SettingsScreen.new()
+		_ui.add_child(_settings)
+		_settings.closed.connect(func() -> void:
+			_settings.queue_free()
+			_rebuild_touch()
+			_touch.visible = false))
+
+
+func _close_pause() -> void:
+	if _pause == null:
+		return
+	_pause.queue_free()
+	_pause = null
+	_touch.visible = _screen == Screen.RACE
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and _pause == null and _screen == Screen.RACE and _racing:
+		get_viewport().set_input_as_handled()
+		_open_pause()
+
+
 func _leave() -> void:
+	_close_pause()
 	_leaving = true
 	if _conn != null:
 		_conn.close()
@@ -198,11 +235,29 @@ func _on_message(m: Dictionary) -> void:
 			_results.visible = false
 			_racing = true
 			_show(Screen.RACE)
+			if Config.user_args().has("--auto-pause"): # dev: screenshot the pause menu
+				get_tree().create_timer(8.0).timeout.connect(_open_pause)
+			if Config.user_args().has("--auto-finish"): # dev: screenshot the finish camera + results
+				get_tree().create_timer(8.0).timeout.connect(func() -> void:
+					var rows: Array = []
+					for i: int in _view.grid.size():
+						var g: Dictionary = _view.grid[i] as Dictionary
+						rows.append({"pos": i + 1, "playerId": str(g.get("playerId", "")), "name": str(g.get("name", "Bot")),
+							"vehicle": str(g.get("vehicle", "bolt")), "timeMs": 110000 + i * 1300, "finished": true, "bot": true})
+					_view.start_finish_camera()
+					_results.show_results({"rows": rows})
+					_results.visible = true
+					_hud.visible = false
+					_touch.visible = false)
 		Protocol.T_EV:
 			_on_event(m)
 		Protocol.T_RESULTS:
+			_close_pause()
+			_view.start_finish_camera() # (also covers a race that ended before we crossed the line)
 			_results.show_results(m)
 			_results.visible = true
+			_hud.visible = false # clean view of your car orbiting behind the results
+			_touch.visible = false
 			_racing = false
 		Protocol.T_KICKED:
 			_leaving = true
@@ -314,7 +369,7 @@ func _send_input_tick() -> void:
 			thr = 1 if _touch.taps > _taps_at_go else 0
 	var ab: bool = _ult_pending > 0
 	_ult_pending = max(_ult_pending - 1, 0)
-	var steer: int = Protocol.steer_from_screen(_touch.steer)
+	var steer: int = 0 if _pause != null else Protocol.steer_from_screen(_touch.steer)
 	_send(Protocol.input(_seq, steer, thr, ab))
 	if _view.prediction != null:
 		_view.prediction.step_local(_seq, steer, thr)

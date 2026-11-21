@@ -7,7 +7,10 @@ extends Control
 const MINIMAP_SIZE: float = 220.0
 const TAG_MAX: int = 4
 
+signal pause_pressed
+
 var view: RaceView = null
+var _pause: Button
 var laps: int = 3
 var reconnecting: bool = false
 
@@ -44,6 +47,20 @@ func _ready() -> void:
 	col.add_child(_lap)
 	col.add_child(_time)
 	top.add_child(col)
+	# pause button left of the minimap (the minimap box is drawn in _draw)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(spacer)
+	_pause = Ui.button("II", false, 34)
+	_pause.custom_minimum_size = Vector2(Ui.MIN_TOUCH, Ui.MIN_TOUCH)
+	_pause.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause.pressed.connect(func() -> void: pause_pressed.emit())
+	top.add_child(_pause)
+	var map_gap: Control = Control.new()
+	map_gap.custom_minimum_size = Vector2(MINIMAP_SIZE + 30.0 + 12.0 - 24.0 + 16.0, 0)
+	map_gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(map_gap)
 	_center = Ui.label("", 140, Ui.ACCENT)
 	_center.set_anchors_preset(Control.PRESET_CENTER)
 	_center.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

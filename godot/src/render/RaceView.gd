@@ -61,6 +61,7 @@ func _ready() -> void:
 
 
 func start_race(m: Dictionary) -> void:
+	_finish_cam = false
 	you = int(m["you"])
 	follow = max(you, 0)
 	grid = m["grid"] as Array
@@ -355,6 +356,7 @@ func on_event(m: Dictionary) -> void:
 		"finished":
 			if car == you:
 				AudioDirector.sfx("finish")
+				start_finish_camera()
 		"startBoost":
 			if car == you:
 				AudioDirector.sfx("start_boost")
@@ -389,8 +391,53 @@ func shake(amount: float) -> void:
 		_shake = maxf(_shake, amount)
 
 
+## After the own car crosses the finish line: the chase camera eases into a slow orbit around
+## it while the results come in (the car keeps cruising, as finished cars do on the server).
+var _finish_cam: bool = false
+var _orbit_a: float = 0.0
+var _orbit_blend: float = 0.0
+var _orbit_last: Vector3 = Vector3.ZERO # car position last frame (the camera rides along with it)
+const ORBIT_RADIUS: float = 7.5
+const ORBIT_HEIGHT: float = 2.4
+const ORBIT_SPEED: float = 0.32 # rad/s
+
+
+func start_finish_camera() -> void:
+	if _finish_cam or you < 0 or you >= cars.size():
+		return
+	_finish_cam = true
+	_orbit_blend = 0.0
+	follow = you
+	# start the orbit from where the chase camera is (no jump)
+	var off: Vector3 = _cam.global_position - cars[you].global_position
+	_orbit_a = atan2(off.z, off.x)
+	_orbit_last = cars[you].global_position
+
+
+func finish_camera_active() -> bool:
+	return _finish_cam
+
+
+func _update_finish_camera(delta: float) -> void:
+	var car: CarView = cars[follow]
+	# ride along with the (still cruising) car, then ease only the orbit offset: no lag at speed
+	_cam.global_position += car.global_position - _orbit_last
+	_orbit_last = car.global_position
+	_orbit_a += ORBIT_SPEED * delta
+	_orbit_blend = minf(_orbit_blend + delta * 0.6, 1.0)
+	var target: Vector3 = car.global_position + Vector3(cos(_orbit_a) * ORBIT_RADIUS, ORBIT_HEIGHT, sin(_orbit_a) * ORBIT_RADIUS)
+	var k: float = 1.0 - exp(-delta * (2.0 + 6.0 * _orbit_blend))
+	_cam.global_position = _cam.global_position.lerp(target, k)
+	# aim a little to the right of the car: it sits in the left half, beside the results panel
+	_cam.look_at(car.global_position + Vector3.UP * 0.7 + _cam.global_basis.x * 2.6 * _orbit_blend, Vector3.UP)
+	_cam.fov = lerpf(_cam.fov, 50.0, 1.0 - exp(-delta * 1.5))
+
+
 func _update_camera(delta: float) -> void:
 	if follow >= cars.size() or _states[follow] == null:
+		return
+	if _finish_cam:
+		_update_finish_camera(delta)
 		return
 	var car: CarView = cars[follow]
 	var raw: Vector3 = -car.global_transform.basis.z

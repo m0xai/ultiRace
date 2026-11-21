@@ -224,6 +224,8 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] A3 world pass 3: Neon Canyon (canyon terrain, adobe houses with lit windows, cacti, moon),
       terrain + houses + rocks/bushes on Sunny/Frosty. Race peak high ≈ 339 k tris / 210 draws.
       `docs/screenshots/a3_world3.png`, `a3_canyon.png`.
+- [x] Pause menu in races + finish orbit camera with results on the right
+      (`docs/screenshots/ui_pause.png`, `ui_finish_camera.png`; dev flags `--auto-pause`, `--auto-finish`).
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
