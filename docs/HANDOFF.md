@@ -74,4 +74,22 @@ See the bottom of this file for the progress log of the current task.
 
 ## Progress log (current task)
 
-- (empty)
+- [x] 1. Engines fade out after the finish (own 2 s, others 4 s; results 1.5 s) — `5fa0f74`.
+- [x] 2. ULT bar starts empty (`balance.json effects.ultStartCharge = 0`) — `5fa0f74`.
+- [x] 3. Exhaust: tips modelled per car (`carkit4.exhausts()`, `ExhaustTip_<i>` empties in the
+      glb), `godot/src/render/ExhaustFx.gd` smoke + boost flames per car — `533b8f4`.
+      Review images: `docs/screenshots/exhaust_*.png`.
+- [ ] 4. Unified graphics quality — plan (phases, commit each):
+  - A. Audit: race screenshots of all three maps (start, mid, corners), list every visual that
+       is below the cars' level. Perf baseline. NOTE: the race grid already peaks at ~420–490k
+       triangles because several 108k-tri LOD0 cars sit near the camera at the start →
+       tighten car LOD distances (own car LOD0; others LOD1 beyond ~12 m) as part of this task.
+  - B. Lighting/post: one consistent look per map (AgX, exposure, fog, glow, SSAO if the
+       renderer allows), shadows quality.
+  - C. Vegetation kit in Blender (pine, snowy pine, broadleaf, bush, cactus/saguaro, grass
+       tufts) with LODs → MultiMesh, wind sway shader.
+  - D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
+  - E. Roadside props (lamps, billboards, barriers, cones, grandstands, fences, signs).
+  - F. Terrain splat shader (grass/dirt/rock/snow/sand with normal detail), real mountain
+       silhouettes, sky with shader clouds.
+  - G. VFX polish (sparks, rings, ULT effects) and in-race HUD details.
