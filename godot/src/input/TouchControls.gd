@@ -55,11 +55,11 @@ func _layout() -> void:
 	var right_x: float = vp.x - ins.z - 28.0
 	var steer_x: float = right_x - 2.0 * STEER_SIZE.x - GAP if _swap else left_x
 	var act_x: float = left_x if _swap else right_x - ULT_SIZE
-	_rects = {
-		"left": Rect2(Vector2(steer_x, bottom - STEER_SIZE.y), STEER_SIZE),
-		"right": Rect2(Vector2(steer_x + STEER_SIZE.x + GAP, bottom - STEER_SIZE.y), STEER_SIZE),
-		"ult": Rect2(Vector2(act_x, bottom - ULT_SIZE), Vector2(ULT_SIZE, ULT_SIZE)),
-	}
+	_rects = {"ult": Rect2(Vector2(act_x, bottom - ULT_SIZE), Vector2(ULT_SIZE, ULT_SIZE))}
+	if not _tilt:
+		# tilt mode has no steer buttons: the thumbs holding the phone would press them
+		_rects["left"] = Rect2(Vector2(steer_x, bottom - STEER_SIZE.y), STEER_SIZE)
+		_rects["right"] = Rect2(Vector2(steer_x + STEER_SIZE.x + GAP, bottom - STEER_SIZE.y), STEER_SIZE)
 	if not _auto_accel:
 		var ax: float = act_x + (ULT_SIZE + GAP if _swap else -ULT_SIZE - GAP)
 		_rects["accel"] = Rect2(Vector2(ax, bottom - ULT_SIZE), Vector2(ULT_SIZE, ULT_SIZE))
@@ -161,15 +161,32 @@ func _arrow(c: Vector2, dir: float) -> void:
 	draw_colored_polygon(pts, Color(1, 1, 1, 0.9))
 
 
-## Tilt maps device roll to the same −1/0/1 steering (dead zone 4°, full lock at 25°).
+## Tilt maps device roll (steering-wheel style) to −1/0/1 steering. Gravity arrives already
+## rotated into screen axes by the engine (x right, y up, z out of the screen), so the roll is
+## the angle between gravity and the screen's y–z plane — the same whether the phone is held
+## upright or nearly flat. Dead zone 4° with hysteresis so it does not flicker at the edge.
 func _tilt_steer() -> int:
 	var g: Vector3 = Input.get_gravity()
 	if g.length() < 0.1:
+		_tilt_state = 0
 		return 0
-	# landscape: roll is the rotation around the screen's long axis
-	var roll_deg: float = rad_to_deg(atan2(g.x, -g.y)) * _tilt_sens
-	if DisplayServer.screen_get_orientation() == DisplayServer.SCREEN_REVERSE_LANDSCAPE:
-		roll_deg = -roll_deg
-	if absf(roll_deg) < TILT_DEAD_DEG:
+	_tilt_state = tilt_from_gravity(g, _tilt_sens, _tilt_state)
+	return _tilt_state
+
+
+var _tilt_state: int = 0
+
+
+static func tilt_roll_deg(g: Vector3) -> float:
+	return rad_to_deg(atan2(g.x, Vector2(g.y, g.z).length()))
+
+
+static func tilt_from_gravity(g: Vector3, sens: float, prev: int) -> int:
+	var roll: float = tilt_roll_deg(g) * maxf(sens, 0.1)
+	var enter: float = TILT_DEAD_DEG
+	var stay: float = TILT_DEAD_DEG * 0.6
+	if prev != 0 and signf(roll) == float(prev) and absf(roll) > stay:
+		return prev
+	if absf(roll) < enter:
 		return 0
-	return 1 if roll_deg > 0.0 else -1
+	return 1 if roll > 0.0 else -1
