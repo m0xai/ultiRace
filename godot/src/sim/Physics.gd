@@ -75,6 +75,7 @@ class Constants:
 	var landing_speed_factor: float
 	var car_half_length: float
 	var block_speed_factor: float
+	var surfaces: Dictionary # ice / oil / water patch numbers (balance physics.surfaces)
 
 	func _init(ph: Dictionary) -> void:
 		coast_decel = float(ph["coastDecel"])
@@ -92,6 +93,7 @@ class Constants:
 		landing_speed_factor = float(ph["landingSpeedFactor"])
 		car_half_length = float(ph["carHalfLength"])
 		block_speed_factor = float(ph["blockSpeedFactor"])
+		surfaces = ph["surfaces"] as Dictionary
 
 
 static func constants() -> Constants:
@@ -132,8 +134,30 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 		thr = 0.0
 	var airborne: bool = c.airborne()
 
+	# 0. Surface patches (map hazards: ice, oil, water) under a grounded car
+	var surf_speed: float = 1.0
+	var surf_steer: float = 1.0
+	var surf_align: float = 1.0
+	if not airborne:
+		for h: Dictionary in tr.hazards:
+			var kind: String = str(h["kind"])
+			if kind == "block":
+				continue
+			var ds: float = MathX.wrap_delta(float(h["s"]), c.s, tr.length)
+			if ds < 0.0 or ds > float(h["len"]) or absf(c.d - float(h["d"])) > float(h["halfW"]):
+				continue
+			var sf: Dictionary = ph.surfaces
+			if kind == "ice" or kind == "oil":
+				var e: Dictionary = sf[kind] as Dictionary
+				surf_speed = 1.0 - float(e["slow"])
+				surf_steer = float(e["steerMul"])
+				surf_align = float(e["align"])
+			elif kind == "water":
+				surf_speed = 1.0 - float((sf["water"] as Dictionary)["slow"])
+			break
+
 	# 1. Speed
-	var limit: float = p.top_speed * mods.speed_mul
+	var limit: float = p.top_speed * mods.speed_mul * surf_speed
 	if thr > 0.0 and not airborne:
 		if c.speed < limit:
 			c.speed = minf(c.speed + p.accel * mods.accel_mul * dt, limit)
@@ -144,11 +168,11 @@ static func step_car(c: CarState, steer_in: int, throttle_in: int, p: CarParams,
 
 	# 2. Steering
 	var speed_frac: float = minf(c.speed / ph.steer_ref_speed, 1.0)
-	var rate: float = p.steer_rate * (1.0 - ph.steer_high_speed_falloff * speed_frac) * mods.steer_mul
+	var rate: float = p.steer_rate * (1.0 - ph.steer_high_speed_falloff * speed_frac) * mods.steer_mul * surf_steer
 	if airborne:
 		rate *= ph.air_steer_factor
 	c.yaw_rel += steer * rate * dt
-	c.yaw_rel -= c.yaw_rel * minf(ph.auto_align * dt, 1.0)
+	c.yaw_rel -= c.yaw_rel * minf(ph.auto_align * surf_align * dt, 1.0)
 	c.yaw_rel = MathX.clampf64(c.yaw_rel, -ph.max_yaw_rel, ph.max_yaw_rel)
 
 	# 3. Move in the Frenet frame

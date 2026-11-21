@@ -84,5 +84,5 @@
     [-13.5, 0.04, -1.99, 19, 0.12]
   ],
   "ramps": [{"s": 100, "length": 14, "vy": 8, "height": 0.9}, {"s": 900, "length": 14, "vy": 9, "height": 0.9}],
-  "hazards": [{"kind": "ice", "s": 160, "d": 0, "len": 14, "halfW": 4}, {"kind": "ice", "s": 420, "d": 5, "len": 12, "halfW": 4}, {"kind": "block", "s": 470, "d": -6.5, "len": 3, "halfW": 3.2}, {"kind": "block", "s": 520, "d": 6.5, "len": 3, "halfW": 3.2}, {"kind": "ice", "s": 690, "d": -4, "len": 12, "halfW": 4}, {"kind": "block", "s": 1000, "d": 0, "len": 3, "halfW": 3}, {"kind": "ice", "s": 1040, "d": 4, "len": 12, "halfW": 3.5}]
+  "hazards": [{"kind": "ice", "s": 160, "d": 0, "len": 22, "halfW": 4}, {"kind": "ice", "s": 420, "d": 5, "len": 19, "halfW": 4}, {"kind": "block", "s": 470, "d": -6.5, "len": 3, "halfW": 3.2}, {"kind": "block", "s": 520, "d": 6.5, "len": 3, "halfW": 3.2}, {"kind": "ice", "s": 690, "d": -4, "len": 19, "halfW": 4}, {"kind": "block", "s": 1000, "d": 0, "len": 3, "halfW": 3}, {"kind": "ice", "s": 1040, "d": 4, "len": 19, "halfW": 3.5}]
 }

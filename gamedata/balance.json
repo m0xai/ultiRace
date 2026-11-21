@@ -35,7 +35,12 @@
     "collisionRestitution": 0.35,
     "sideBounceYaw": 0.12,
     "sideScrub": 0.03,
-    "blockSpeedFactor": 0.55
+    "blockSpeedFactor": 0.55,
+    "surfaces": {
+      "ice": {"steerMul": 0.35, "slow": 0.12, "align": 0.25},
+      "oil": {"steerMul": 0.5, "slow": 0.06, "align": 0.4},
+      "water": {"slow": 0.3}
+    }
   },
   "race": {
     "defaultLaps": 3,
@@ -93,22 +98,6 @@
     "botGapM": 35,
     "botRampM": 120,
     "botBonus": 0.14
-  },
-  "hazards": {
-    "ice": {
-      "steerMul": 0.35,
-      "slow": 0.12,
-      "effectS": 1.1
-    },
-    "oil": {
-      "steerMul": 0.45,
-      "slow": 0.06,
-      "effectS": 0.9
-    },
-    "water": {
-      "slow": 0.3,
-      "lingerS": 0.4
-    }
   },
   "vehicleTrim": {
     "bolt": -0.044,

@@ -54,26 +54,38 @@ func hazardWorld(t *testing.T, mapID string, bots ...bool) *World {
 	return w
 }
 
-// Water slows a car while on it; ice makes it slide (once per pass).
+// Surface patches act in StepCar while the car is on them: water caps the speed, ice/oil cut
+// steering; the world only reports a "hazard" event once per pass (sound/haptics).
 func TestSurfaceHazards(t *testing.T) {
 	f := load(t)
+	p := ParamsFor(f.vehicle(t, "bolt").Stats, f.bal.Stats)
 	for _, tc := range []struct{ mapID, kind string }{{"sunny", gamedata.HazardWater}, {"frosty", gamedata.HazardIce}, {"neon", gamedata.HazardOil}} {
+		tr := f.tracks[tc.mapID]
 		h := firstHazard(t, f, tc.mapID, tc.kind)
+		on := CarState{S: h.S + 1, D: h.D, Speed: p.TopSpeed}
+		off := CarState{S: h.S - 40, D: h.D, Speed: p.TopSpeed}
+		StepCar(&on, Input{Steer: 1, Throttle: 1}, p, NeutralMods, tr, &f.bal.Physics, 1.0/30)
+		StepCar(&off, Input{Steer: 1, Throttle: 1}, p, NeutralMods, tr, &f.bal.Physics, 1.0/30)
+		if tc.kind == gamedata.HazardWater && !(on.Speed < off.Speed) {
+			t.Errorf("%s: water did not slow (%.2f vs %.2f)", tc.mapID, on.Speed, off.Speed)
+		}
+		if tc.kind != gamedata.HazardWater && !(math.Abs(on.YawRel) < math.Abs(off.YawRel)) {
+			t.Errorf("%s %s: steering not reduced (%.4f vs %.4f)", tc.mapID, tc.kind, on.YawRel, off.YawRel)
+		}
 		w := hazardWorld(t, tc.mapID, false)
 		w.Cars[0].State = CarState{S: h.S - 1, D: h.D, Speed: 25}
 		w.Cars[0].Input = Input{Throttle: 1}
-		flagged, events := false, 0
+		events := 0
 		for i := 0; i < 15; i++ {
 			w.Step()
-			flagged = flagged || w.Cars[0].Flags&(EffSlow|EffSlide) != 0
 			for _, e := range w.Events {
-				if e.Kind == "hazard" {
+				if e.Kind == "hazard" { // Events are reset every Step
 					events++
 				}
 			}
 		}
-		if !flagged || events != 1 {
-			t.Errorf("%s %s: flagged=%v hazard events=%d (want 1)", tc.mapID, tc.kind, flagged, events)
+		if events != 1 {
+			t.Errorf("%s %s: %d hazard events, want 1", tc.mapID, tc.kind, events)
 		}
 	}
 }

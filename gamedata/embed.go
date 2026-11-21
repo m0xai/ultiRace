@@ -19,16 +19,15 @@ var FS embed.FS
 
 // Balance holds every tunable number. Only cmd/balance tuning may change balance.json.
 type Balance struct {
-	Version  int           `json:"version"`
-	TickRate int           `json:"tickRate"`
-	Stats    StatsMapping  `json:"stats"`
-	Physics  Physics       `json:"physics"`
-	Race     Race          `json:"race"`
-	Track    TrackParams   `json:"track"`
-	Rooms    Rooms         `json:"rooms"`
-	Effects  Effects       `json:"effects"`
-	Catchup  Catchup       `json:"catchup"`
-	Hazards  HazardEffects `json:"hazards"`
+	Version  int          `json:"version"`
+	TickRate int          `json:"tickRate"`
+	Stats    StatsMapping `json:"stats"`
+	Physics  Physics      `json:"physics"`
+	Race     Race         `json:"race"`
+	Track    TrackParams  `json:"track"`
+	Rooms    Rooms        `json:"rooms"`
+	Effects  Effects      `json:"effects"`
+	Catchup  Catchup      `json:"catchup"`
 	// VehicleTrim is a small per-vehicle top-speed adjustment (fraction, e.g. 0.02 = +2 %) set by
 	// the balance tuner; stats define character, trims fine-tune fairness.
 	VehicleTrim map[string]float64 `json:"vehicleTrim"`
@@ -122,27 +121,28 @@ type StatsMapping struct {
 
 // Physics holds the car physics constants (GAME_PLAN §2.5).
 type Physics struct {
-	CoastDecel              float64 `json:"coastDecel"`
-	OverspeedDecel          float64 `json:"overspeedDecel"`
-	SteerHighSpeedFalloff   float64 `json:"steerHighSpeedFalloff"`
-	SteerRefSpeed           float64 `json:"steerRefSpeed"` // falloff is relative to this absolute speed
-	AutoAlign               float64 `json:"autoAlign"`
-	MaxYawRel               float64 `json:"maxYawRel"`
-	AirSteerFactor          float64 `json:"airSteerFactor"`
-	Gravity                 float64 `json:"gravity"`
-	CarHalfWidth            float64 `json:"carHalfWidth"`
-	WallSpeedFactor         float64 `json:"wallSpeedFactor"`
-	WallMinYawOut           float64 `json:"wallMinYawOut"`
-	MinCurvatureDenominator float64 `json:"minCurvatureDenominator"`
-	LandingSpeedFactor      float64 `json:"landingSpeedFactor"`
-	CarRadius               float64 `json:"carRadius"`
-	CarCollisionMaxDy       float64 `json:"carCollisionMaxDy"`
-	CollisionSpeedExchange  float64 `json:"collisionSpeedExchange"`
-	CarHalfLength           float64 `json:"carHalfLength"`        // car footprint for car–car contact
-	CollisionRestitution    float64 `json:"collisionRestitution"` // bounciness of rear-end hits (0–1)
-	SideBounceYaw           float64 `json:"sideBounceYaw"`        // heading kick away on side contact (rad)
-	SideScrub               float64 `json:"sideScrub"`            // speed lost on side contact (fraction)
-	BlockSpeedFactor        float64 `json:"blockSpeedFactor"`     // speed kept after hitting a road block
+	CoastDecel              float64       `json:"coastDecel"`
+	OverspeedDecel          float64       `json:"overspeedDecel"`
+	SteerHighSpeedFalloff   float64       `json:"steerHighSpeedFalloff"`
+	SteerRefSpeed           float64       `json:"steerRefSpeed"` // falloff is relative to this absolute speed
+	AutoAlign               float64       `json:"autoAlign"`
+	MaxYawRel               float64       `json:"maxYawRel"`
+	AirSteerFactor          float64       `json:"airSteerFactor"`
+	Gravity                 float64       `json:"gravity"`
+	CarHalfWidth            float64       `json:"carHalfWidth"`
+	WallSpeedFactor         float64       `json:"wallSpeedFactor"`
+	WallMinYawOut           float64       `json:"wallMinYawOut"`
+	MinCurvatureDenominator float64       `json:"minCurvatureDenominator"`
+	LandingSpeedFactor      float64       `json:"landingSpeedFactor"`
+	CarRadius               float64       `json:"carRadius"`
+	CarCollisionMaxDy       float64       `json:"carCollisionMaxDy"`
+	CollisionSpeedExchange  float64       `json:"collisionSpeedExchange"`
+	CarHalfLength           float64       `json:"carHalfLength"`        // car footprint for car–car contact
+	CollisionRestitution    float64       `json:"collisionRestitution"` // bounciness of rear-end hits (0–1)
+	SideBounceYaw           float64       `json:"sideBounceYaw"`        // heading kick away on side contact (rad)
+	SideScrub               float64       `json:"sideScrub"`            // speed lost on side contact (fraction)
+	BlockSpeedFactor        float64       `json:"blockSpeedFactor"`     // speed kept after hitting a road block
+	Surfaces                HazardEffects `json:"surfaces"`             // ice / oil / water patches (map hazards)
 }
 
 // Race holds race-flow numbers.
@@ -215,24 +215,26 @@ type Hazard struct {
 	HalfW float64 `json:"halfW"`
 }
 
-// HazardEffects holds the numbers of the surface hazards (balance.json "hazards").
+// HazardEffects holds the numbers of the surface hazards (balance.json physics.surfaces). They
+// act only while a car is on the patch, inside StepCar — mirrored by the client's prediction, so
+// driving over ice or water causes no corrections (a timed status effect did: camera "zooms").
 type HazardEffects struct {
 	Ice   SlideHazard `json:"ice"`
 	Oil   SlideHazard `json:"oil"`
 	Water SlowHazard  `json:"water"`
 }
 
-// SlideHazard: steering multiplier and speed loss for effectS seconds, once per pass.
+// SlideHazard: while on the patch, steering × SteerMul, top speed × (1 − Slow), heading
+// auto-align × Align (the car keeps sliding the way it was pointing).
 type SlideHazard struct {
 	SteerMul float64 `json:"steerMul"`
 	Slow     float64 `json:"slow"`
-	EffectS  float64 `json:"effectS"`
+	Align    float64 `json:"align"`
 }
 
-// SlowHazard: speed fraction removed while on it, lingering lingerS after leaving.
+// SlowHazard: while on the patch, top speed × (1 − Slow).
 type SlowHazard struct {
-	Slow    float64 `json:"slow"`
-	LingerS float64 `json:"lingerS"`
+	Slow float64 `json:"slow"`
 }
 
 // LoadBalance parses balance.json.

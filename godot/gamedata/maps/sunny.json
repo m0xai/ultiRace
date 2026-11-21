@@ -84,5 +84,5 @@
     [-12.86, 0.0, -2.08, 20, 0.0]
   ],
   "ramps": [],
-  "hazards": [{"kind": "water", "s": 95, "d": 4, "len": 12, "halfW": 3.5}, {"kind": "block", "s": 250, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 300, "d": -6.5, "len": 3, "halfW": 3.5}, {"kind": "water", "s": 345, "d": 0, "len": 10, "halfW": 3}, {"kind": "block", "s": 672, "d": -6, "len": 3, "halfW": 3.5}, {"kind": "water", "s": 960, "d": -5, "len": 12, "halfW": 3.5}, {"kind": "block", "s": 1012, "d": 6, "len": 3, "halfW": 3.5}]
+  "hazards": [{"kind": "water", "s": 95, "d": 4, "len": 16, "halfW": 3.5}, {"kind": "block", "s": 250, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 300, "d": -6.5, "len": 3, "halfW": 3.5}, {"kind": "water", "s": 345, "d": 0, "len": 13, "halfW": 3}, {"kind": "block", "s": 672, "d": -6, "len": 3, "halfW": 3.5}, {"kind": "water", "s": 960, "d": -5, "len": 16, "halfW": 3.5}, {"kind": "block", "s": 1012, "d": 6, "len": 3, "halfW": 3.5}]
 }

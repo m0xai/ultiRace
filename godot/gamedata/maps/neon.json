@@ -37,5 +37,5 @@
     [-34, 9.45, -22, 20, 0.0]
   ],
   "ramps": [],
-  "hazards": [{"kind": "oil", "s": 80, "d": 4, "len": 12, "halfW": 3.5}, {"kind": "oil", "s": 300, "d": -3, "len": 12, "halfW": 3.5}, {"kind": "block", "s": 625, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 690, "d": -6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 780, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "oil", "s": 1050, "d": -4, "len": 12, "halfW": 3.5}, {"kind": "block", "s": 1315, "d": 0, "len": 3, "halfW": 3}]
+  "hazards": [{"kind": "oil", "s": 80, "d": 4, "len": 17, "halfW": 3.5}, {"kind": "oil", "s": 300, "d": -3, "len": 17, "halfW": 3.5}, {"kind": "block", "s": 625, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 690, "d": -6.5, "len": 3, "halfW": 3.5}, {"kind": "block", "s": 780, "d": 6.5, "len": 3, "halfW": 3.5}, {"kind": "oil", "s": 1050, "d": -4, "len": 17, "halfW": 3.5}, {"kind": "block", "s": 1315, "d": 0, "len": 3, "halfW": 3}]
 }

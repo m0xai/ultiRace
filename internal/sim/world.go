@@ -456,43 +456,27 @@ func (w *World) Hash() string {
 	return fmt.Sprintf("%016x", h.Sum64())
 }
 
-// hazards applies the map's surface hazards: ice/oil make a car slide once per pass, water
-// slows it while it is on the puddle. Airborne and ghosted cars pass over. Solid blocks are
-// handled in StepCar (they are track geometry, mirrored by the client).
+// hazards reports when a car rolls onto a surface patch (ice, oil, water) — for sound and
+// haptics only: the patches' physics act inside StepCar (mirrored by the client's prediction).
 func (w *World) hazards() {
 	L := w.Track.Length
-	hz := &w.Bal.Hazards
 	for i, h := range w.Track.Hazards {
 		if h.Kind == gamedata.HazardBlock || i >= 64 {
 			continue
 		}
 		bit := uint64(1) << uint(i)
-		for o, c := range w.Cars {
+		for _, c := range w.Cars {
 			st := &c.Status
 			ds := mathx.WrapDelta(h.S, c.State.S, L)
-			on := ds >= 0 && ds <= h.Len && math.Abs(c.State.D-h.D) <= h.HalfW && c.State.Y < 0.5 && !st.Ghost(w.Tick)
+			on := ds >= 0 && ds <= h.Len && math.Abs(c.State.D-h.D) <= h.HalfW && c.State.Y < 0.5
 			if !on {
 				st.onHazard &^= bit
 				continue
 			}
-			first := st.onHazard&bit == 0
-			st.onHazard |= bit
-			switch h.Kind {
-			case gamedata.HazardIce, gamedata.HazardOil:
-				if first {
-					e := hz.Ice
-					if h.Kind == gamedata.HazardOil {
-						e = hz.Oil
-					}
-					w.Slide(o, e.SteerMul, e.Slow, e.EffectS)
-					w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "hazard", Car: c.ID, Ult: h.Kind})
-				}
-			case gamedata.HazardWater:
-				w.Slow(o, hz.Water.Slow, hz.Water.LingerS)
-				if first {
-					w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "hazard", Car: c.ID, Ult: h.Kind})
-				}
+			if st.onHazard&bit == 0 {
+				w.Events = append(w.Events, Event{Tick: w.Tick, Kind: "hazard", Car: c.ID, Ult: h.Kind})
 			}
+			st.onHazard |= bit
 		}
 	}
 }

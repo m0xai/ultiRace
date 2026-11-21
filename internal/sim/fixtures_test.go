@@ -107,6 +107,10 @@ func scenarios() []scenario {
 			}},
 		{"jumps", "frosty", "phantom", CarState{S: 60, Speed: 30}, NeutralMods,
 			func(_ int, c *CarState, tr *track.Track, _ *mathx.Rng) Input { return autopilot(c, tr, 0) }},
+		{"ice_patch", "frosty", "volt", CarState{S: 150, D: 0, Speed: 34}, NeutralMods,
+			func(i int, c *CarState, tr *track.Track, _ *mathx.Rng) Input {
+				return Input{Steer: []int{1, 1, 0, -1}[(i/6)%4], Throttle: 1}
+			}},
 		{"road_block", "sunny", "bolt", CarState{S: 236, D: 6.5, Speed: 30}, NeutralMods,
 			func(_ int, c *CarState, tr *track.Track, _ *mathx.Rng) Input { return autopilot(c, tr, 6.5) }},
 		{"random_inputs_slowed", "neon", "goo", CarState{S: 600, D: 3, Speed: 15}, Mods{SpeedMul: 0.8, AccelMul: 1.2, SteerMul: 0.7},

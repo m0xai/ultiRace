@@ -19,8 +19,32 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 	}
 	airborne := c.Airborne()
 
+	// 0. Surface patches (map hazards: ice, oil, water) under a grounded car.
+	surfSpeed, surfSteer, surfAlign := 1.0, 1.0, 1.0
+	if !airborne {
+		for _, h := range tr.Hazards {
+			if h.Kind == gamedata.HazardBlock {
+				continue
+			}
+			ds := mathx.WrapDelta(h.S, c.S, tr.Length)
+			if ds < 0 || ds > h.Len || math.Abs(c.D-h.D) > h.HalfW {
+				continue
+			}
+			sf := &ph.Surfaces
+			switch h.Kind {
+			case gamedata.HazardIce:
+				surfSpeed, surfSteer, surfAlign = 1-sf.Ice.Slow, sf.Ice.SteerMul, sf.Ice.Align
+			case gamedata.HazardOil:
+				surfSpeed, surfSteer, surfAlign = 1-sf.Oil.Slow, sf.Oil.SteerMul, sf.Oil.Align
+			case gamedata.HazardWater:
+				surfSpeed = 1 - sf.Water.Slow
+			}
+			break
+		}
+	}
+
 	// 1. Speed: accelerate toward the cap, coast without throttle, bleed off overspeed.
-	limit := p.TopSpeed * mods.SpeedMul
+	limit := p.TopSpeed * mods.SpeedMul * surfSpeed
 	if thr > 0 && !airborne {
 		if c.Speed < limit {
 			c.Speed = math.Min(c.Speed+p.Accel*mods.AccelMul*dt, limit)
@@ -35,12 +59,12 @@ func StepCar(c *CarState, in Input, p CarParams, mods Mods, tr *track.Track, ph 
 	// 2. Steering with high-speed falloff (relative to one absolute reference speed, so faster
 	// cars turn less sharply: the Speed vs Handling trade-off), air factor, then auto-align.
 	speedFrac := math.Min(c.Speed/ph.SteerRefSpeed, 1)
-	rate := p.SteerRate * (1 - ph.SteerHighSpeedFalloff*speedFrac) * mods.SteerMul
+	rate := p.SteerRate * (1 - ph.SteerHighSpeedFalloff*speedFrac) * mods.SteerMul * surfSteer
 	if airborne {
 		rate *= ph.AirSteerFactor
 	}
 	c.YawRel += steer * rate * dt
-	c.YawRel -= c.YawRel * math.Min(ph.AutoAlign*dt, 1)
+	c.YawRel -= c.YawRel * math.Min(ph.AutoAlign*surfAlign*dt, 1)
 	c.YawRel = mathx.Clamp(c.YawRel, -ph.MaxYawRel, ph.MaxYawRel)
 
 	// 3. Move in the Frenet frame: ds = v·cosθ·dt / (1 − d·κ).
