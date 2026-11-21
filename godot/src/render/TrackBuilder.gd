@@ -713,18 +713,9 @@ static func _forest(node: Node3D, tr: Track, th: TrackTheme, rng: Rng, min_y: fl
 		s += 8.0
 	# chunked by 200 m cells: off-screen chunks are culled and only chunks near the camera are drawn
 	# again for sun shadows (one big MultiMesh drew every tree in both passes: +100 k triangles)
-	var pine_mesh: ArrayMesh = _pine_mesh(th.snow)
-	var leaf_mesh: ArrayMesh = _broadleaf_mesh()
-	for kind: int in 2:
-		var cells: Dictionary = {}
-		for t: Transform3D in (pines if kind == 0 else leafy):
-			var key: Vector2i = Vector2i(floori(t.origin.x / TREE_CHUNK), floori(t.origin.z / TREE_CHUNK))
-			if not cells.has(key):
-				cells[key] = [] as Array[Transform3D]
-			(cells[key] as Array[Transform3D]).append(t)
-		for key: Vector2i in cells:
-			node.add_child(_tinted_multimesh("Pines" if kind == 0 else "Broadleaf", pine_mesh if kind == 0 else leaf_mesh,
-				cells[key] as Array[Transform3D], rng))
+	# Blender vegetation kit (art/blender/env/vegetation.py): detailed near, light far, per 100 m cell
+	EnvKit.scatter(node, "vegetation", "PineSnow" if th.snow else "Pine", pines, rng, EnvKit.foliage_material())
+	EnvKit.scatter(node, "vegetation", "Broadleaf", leafy, rng, EnvKit.foliage_material())
 
 
 static func _tinted_multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], rng: Rng) -> MultiMeshInstance3D:

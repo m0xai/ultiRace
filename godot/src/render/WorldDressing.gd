@@ -357,10 +357,16 @@ static func props(node: Node3D, field: TerrainField, tr: Track, style: String, r
 				plants.append(Transform3D(Basis(Vector3.UP, rng.next_float() * TAU).scaled(Vector3(ps, ps, ps)), Vector3(x, y, z)))
 		s += 9.0
 	var rock_c: Color = Color(0.56, 0.4, 0.3) if style == "roadside" else (Color(0.55, 0.57, 0.62) if style == "cabin" else Color(0.55, 0.53, 0.5))
-	_chunked(node, "Rocks", boulder_mesh(rock_c), rocks, rng)
+	# Blender kit rocks (three shapes) tinted per map, cacti (desert) or bushes
+	var by_shape: Array = [[] as Array[Transform3D], [] as Array[Transform3D], [] as Array[Transform3D]]
+	for i: int in rocks.size():
+		(by_shape[i % 3] as Array[Transform3D]).append(rocks[i])
+	var rmat: StandardMaterial3D = EnvKit.solid_material().duplicate() as StandardMaterial3D
+	rmat.albedo_color = rock_c.lightened(0.5) # the kit rocks are neutral grey: tint toward the map's rock colour
+	for k: int in 3:
+		EnvKit.scatter(node, "vegetation", "Rock%d" % k, by_shape[k] as Array[Transform3D], rng, rmat)
 	if not plants.is_empty():
-		var mesh: Mesh = cactus_mesh() if style == "roadside" else TrackBuilder._broadleaf_mesh()
-		_chunked(node, "Cacti" if style == "roadside" else "Bushes", mesh, plants, rng)
+		EnvKit.scatter(node, "vegetation", "Cactus" if style == "roadside" else "Bush", plants, rng, EnvKit.foliage_material())
 
 
 static func _chunked(node: Node3D, name: String, mesh: Mesh, xforms: Array[Transform3D], rng: Rng) -> void:

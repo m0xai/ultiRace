@@ -86,7 +86,11 @@ See the bottom of this file for the progress log of the current task.
        tighten car LOD distances (own car LOD0; others LOD1 beyond ~12 m) as part of this task.
   - B. Lighting/post: one consistent look per map (AgX, exposure, fog, glow, SSAO if the
        renderer allows), shadows quality.
-  - C. Vegetation kit in Blender (pine, snowy pine, broadleaf, bush, cactus/saguaro, grass
+  - [x] C. Vegetation kit: `art/blender/env/vegetation.py` → `godot/assets/env/vegetation.glb`
+       (Pine/PineSnow/Broadleaf with `_lod1`, Bush, Cactus, Rock0-2; vertex colours = sRGB in a
+       byte layer set as active/render colour), `godot/src/render/EnvKit.gd` (100 m cells,
+       detailed < 85 m, light beyond; small props hidden > 140 m), `foliage.gdshader` (sway).
+       Old: (was) C. Vegetation kit in Blender (pine, snowy pine, broadleaf, bush, cactus/saguaro, grass
        tufts) with LODs → MultiMesh, wind sway shader.
   - D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
   - E. Roadside props (lamps, billboards, barriers, cones, grandstands, fences, signs).
