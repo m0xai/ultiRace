@@ -45,6 +45,7 @@
   "race": {
     "defaultLaps": 3,
     "countdownS": 3,
+    "introS": 3,
     "finishWindowS": 20,
     "gridRowSpacing": 8,
     "gridColumnOffset": 3,

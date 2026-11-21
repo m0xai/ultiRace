@@ -30,6 +30,10 @@ var _history: Array[PackedInt32Array] = [] # [seq, steer, thr]
 var _off_s: float = 0.0
 var _off_d: float = 0.0
 var _off_yaw: float = 0.0
+## The server stopped applying our inputs (AFK autopilot): follow its snapshots and only dead-reckon
+## in between (no backlog: replaying 1 s of ignored inputs, then dropping it, made the camera pulse).
+var server_driven: bool = false
+var _last_ack: int = -1
 
 
 func _init(tr: Track, vehicle_id: String) -> void:
@@ -42,6 +46,11 @@ func _init(tr: Track, vehicle_id: String) -> void:
 ## Applies one local input tick (call at the input rate, after sending it to the server).
 func step_local(seq: int, steer: int, thr: int) -> void:
 	if not started:
+		return
+	if server_driven: # dead reckoning only, straight ahead on throttle
+		_prev = state.copy()
+		Physics.step_car(state, 0, 1, _params, _mods, _track, _ph, _dt)
+		_step_ms = float(Time.get_ticks_msec())
 		return
 	_history.append(PackedInt32Array([seq, steer, thr]))
 	if _history.size() > MAX_HISTORY:
@@ -74,9 +83,12 @@ func reconcile(car: Protocol.SnapCar, ack: int) -> void:
 	started = true
 	while _history.size() > 0 and _history[0][0] <= ack:
 		_history.remove_at(0)
+	if ack > _last_ack and _last_ack >= 0:
+		server_driven = false # our inputs count again
+	_last_ack = maxi(_last_ack, ack)
 	if _history.size() > STALE_INPUTS:
-		# the server stopped applying our inputs (AFK handover to a bot): replaying a growing
-		# backlog would run far ahead of the real car; show the server state instead
+		server_driven = true
+	if server_driven:
 		_history.clear()
 	for h: PackedInt32Array in _history:
 		_prev = state.copy()

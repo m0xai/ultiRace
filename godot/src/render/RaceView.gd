@@ -161,6 +161,15 @@ func finished(i: int) -> bool:
 	return false
 
 
+## Countdown length (s) shown as 3-2-1; before that the intro camera runs (balance race.introS).
+static func countdown_s() -> float:
+	return float((GameData.balance()["race"] as Dictionary).get("countdownS", 3.0))
+
+
+static func intro_s() -> float:
+	return float((GameData.balance()["race"] as Dictionary).get("introS", 0.0))
+
+
 ## Seconds since GO in server time (negative during the countdown).
 func race_time() -> float:
 	if interp == null or interp.render_tick < 0.0:
@@ -292,7 +301,7 @@ func _update_audio() -> void:
 		if _states[i] != null:
 			_engines[i].update(_states[i].speed)
 	var t: float = race_time()
-	if t > -4.0 and t < 0.0:
+	if t > -countdown_s() and t < 0.0:
 		var c: int = int(ceil(-t))
 		if c < _last_count:
 			_last_count = c
@@ -457,11 +466,49 @@ func _update_finish_camera(delta: float) -> void:
 	_cam.fov = lerpf(_cam.fov, 50.0, 1.0 - exp(-delta * 1.5))
 
 
+## Pre-countdown intro (graphics pass 5): three close shots of the own car on the grid — a low
+## orbit around the front, a low side dolly, then a rising sweep from behind that lands exactly
+## on the chase camera when the 3-2-1 starts. it = seconds into the intro (0 … intro_s()).
+func _update_intro_camera(delta: float, it: float) -> void:
+	var car: CarView = cars[follow]
+	var b: Basis = car.global_transform.basis
+	var fwd: Vector3 = Vector3(-b.z.x, 0.0, -b.z.z).normalized()
+	var right: Vector3 = Vector3(b.x.x, 0.0, b.x.z).normalized()
+	var c: Vector3 = car.global_position
+	var shot: float = intro_s() / 3.0
+	var u: float = clampf(fmod(it, shot) / shot, 0.0, 1.0)
+	var e: float = u * u * (3.0 - 2.0 * u) # smoothstep easing
+	var pos: Vector3
+	var look: Vector3 = c + Vector3.UP * 0.55
+	var fov: float = 48.0
+	if it < shot: # 1: low orbit around the front three-quarter
+		var a: float = lerpf(deg_to_rad(55.0), deg_to_rad(15.0), e)
+		pos = c + (fwd * cos(a) + right * sin(a)) * 4.2 + Vector3.UP * 0.65
+	elif it < 2.0 * shot: # 2: low side dolly from front to rear
+		pos = c - right * 3.4 + fwd * lerpf(1.8, -1.6, e) + Vector3.UP * 0.5
+		look = c + fwd * lerpf(0.6, -0.4, e) + Vector3.UP * 0.5
+		fov = 44.0
+	else: # 3: from low behind, rise into the chase camera
+		var start: Vector3 = c - fwd * 2.6 + right * 1.4 + Vector3.UP * 0.6
+		var chase: Vector3 = c - fwd * CAM_BACK + Vector3.UP * CAM_UP
+		pos = start.lerp(chase, e)
+		look = (c + Vector3.UP * 0.6).lerp(c + fwd * CAM_LOOK_AHEAD + Vector3.UP * 0.6, e)
+		fov = lerpf(50.0, 70.0, e)
+		_cam_fwd = fwd # the chase camera continues from here without a swing
+	_cam.global_position = pos
+	_cam.look_at(look, Vector3.UP)
+	_cam.fov = fov
+
+
 func _update_camera(delta: float) -> void:
 	if follow >= cars.size() or _states[follow] == null:
 		return
 	if _finish_cam:
 		_update_finish_camera(delta)
+		return
+	var rt: float = race_time()
+	if rt > -100.0 and rt < -countdown_s() and not reduce_motion:
+		_update_intro_camera(delta, rt + countdown_s() + intro_s())
 		return
 	var car: CarView = cars[follow]
 	var raw: Vector3 = -car.global_transform.basis.z

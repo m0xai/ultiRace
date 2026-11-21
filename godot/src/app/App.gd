@@ -349,6 +349,12 @@ func _on_event(m: Dictionary) -> void:
 func _process(delta: float) -> void:
 	if not _racing or _view.you < 0:
 		return
+	# intro camera before the 3-2-1: HUD and buttons fade out, then back in for the countdown
+	var rt: float = _view.race_time()
+	var intro: bool = rt > -100.0 and rt < -RaceView.countdown_s() and not _view.reduce_motion
+	var a: float = 0.0 if intro else 1.0
+	_hud.modulate.a = move_toward(_hud.modulate.a, a, delta * 4.0)
+	_touch.modulate.a = _hud.modulate.a
 	var flags: int = _view.flags_of(_view.you)
 	_touch.ult_progress = Protocol.charge_of(flags)
 	var ready_now: bool = _touch.ult_progress >= 0.999 and _view.race_time() >= 3.0

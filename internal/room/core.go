@@ -696,7 +696,8 @@ func (c *Core) startRace() {
 	}
 	c.world.Ults = abilities.New(c.data.Bal)
 	c.State = Countdown
-	c.goTick = c.tick + c.ticks(c.data.Bal.Race.CountdownS)
+	// camera intro on the grid, then 3-2-1 (the client also needs a moment to build the track)
+	c.goTick = c.tick + c.ticks(c.data.Bal.Race.IntroS+c.data.Bal.Race.CountdownS)
 	c.deadline = c.goTick
 	c.roomDirty, c.selectDirty = true, false
 	for _, p := range c.players {

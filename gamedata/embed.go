@@ -150,6 +150,7 @@ type Physics struct {
 type Race struct {
 	DefaultLaps      int     `json:"defaultLaps"`
 	CountdownS       float64 `json:"countdownS"`
+	IntroS           float64 `json:"introS"` // camera intro before the countdown (cars on the grid)
 	FinishWindowS    float64 `json:"finishWindowS"`
 	GridRowSpacing   float64 `json:"gridRowSpacing"`
 	GridColumnOffset float64 `json:"gridColumnOffset"`

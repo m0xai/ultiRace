@@ -58,3 +58,31 @@ func test_large_error_snaps_small_error_smooths() -> void:
 	st.s = 260.0 # 59 m: snap
 	pred.reconcile(_snap_car(st), 0)
 	assert_float(pred.visual(0.0).s).is_equal_approx(260.0, 1e-6)
+
+
+## AFK autopilot: the server keeps driving but stops acking our inputs. The prediction must follow
+## the server smoothly (small corrections every snapshot) instead of building up a 1 s backlog
+## and dropping it again (the camera pulsed with that cycle).
+func test_afk_autopilot_follows_the_server_without_pulsing() -> void:
+	var tr: Track = Track.load_map("sunny")
+	var p: Physics.CarParams = Physics.params_for_vehicle("bolt")
+	var ph: Physics.Constants = Physics.constants()
+	var dt: float = 1.0 / 30.0
+	var pred: Prediction = Prediction.new(tr, "bolt")
+	var server: Physics.CarState = Physics.CarState.new()
+	server.s = 50.0
+	server.speed = 30.0
+	pred.reconcile(_snap_car(server), 1)
+	var worst: float = 0.0
+	for tick: int in 300: # 10 s, snapshots every 3 ticks, ack frozen at 1
+		Physics.step_car(server, 0, 1, p, Physics.Mods.new(), tr, ph, dt)
+		pred.step_local(tick + 2, 1, 1) # the player's (ignored) input steers
+		if tick % 3 == 2:
+			pred.reconcile(_snap_car(server), 1)
+			if tick > 60:
+				worst = maxf(worst, pred.last_error)
+	assert_bool(pred.server_driven).is_true()
+	assert_float(worst).is_less(1.5) # was ~30 m once the backlog was dropped
+	# the server applies our inputs again → normal prediction resumes
+	pred.reconcile(_snap_car(server), 400)
+	assert_bool(pred.server_driven).is_false()

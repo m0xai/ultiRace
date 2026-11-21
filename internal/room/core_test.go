@@ -262,7 +262,7 @@ func TestDisconnectDuringRaceBotTakesOverAndReconnect(t *testing.T) {
 	c := newCore(t, protocol.Private)
 	join(c, "a")
 	toSelect(t, c)
-	steps(c, secs(c, 21)+secs(c, 3)+5)
+	steps(c, secs(c, 21)+secs(c, c.data.Bal.Race.IntroS+c.data.Bal.Race.CountdownS)+5) // select + intro + countdown
 	if c.State != Racing {
 		t.Fatalf("state %s", c.State)
 	}

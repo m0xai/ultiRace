@@ -177,17 +177,69 @@ func cable(from: Node3D, to: Node3D, seconds: float) -> void:
 	_cable_t = seconds
 
 
-## Boost flames (orange) or drafting wind lines (white) behind a car, from snapshot flags.
-func car_trail(i: int, car: Node3D, boost: bool, draft: bool) -> void:
-	var t: GPUParticles3D = _trails.get(i, null) as GPUParticles3D
+## Slipstream (drafting) behind another car, from snapshot flags: thin fast air streaks flowing
+## back along both sides and the roof (they read as wind, not smoke). Boost flames come from the
+## car's exhaust tips (ExhaustFx).
+func car_trail(i: int, car: Node3D, _boost: bool, draft: bool) -> void:
+	var raw: Variant = _trails.get(i, null)
+	var t: GPUParticles3D = null
+	if raw != null and is_instance_valid(raw) and (raw as GPUParticles3D).get_parent() == car:
+		t = raw as GPUParticles3D # (cars are rebuilt every race: stale entries are ignored)
 	if t == null:
-		t = _trail(Color(1.0, 0.55, 0.15, 0.9), 0.16)
-		add_child(t)
+		if not draft:
+			return
+		t = _streaks()
+		car.add_child(t)
 		_trails[i] = t
-	var pm: ParticleProcessMaterial = t.process_material as ParticleProcessMaterial
-	pm.color = Color(1.0, 0.55, 0.15, 0.9) if boost else Color(1, 1, 1, 0.5)
-	t.emitting = boost or draft
-	t.global_transform = car.global_transform.translated_local(Vector3(0, 0.1, 2.0))
+	t.emitting = draft
+	t.visible = draft or t.emitting
+
+
+## Air streaks in the car's frame: long thin quads (one flat, one upright, crossed) along Z, emitted
+## at the sides and the roof edges, moving backward (+Z is the car's rear).
+static func _streaks() -> GPUParticles3D:
+	var p: GPUParticles3D = GPUParticles3D.new()
+	p.amount = 24
+	p.lifetime = 0.28
+	p.local_coords = true
+	p.emitting = false
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var pm: ParticleProcessMaterial = ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_POINTS
+	var pts: PackedVector3Array = PackedVector3Array([Vector3(-1.12, 0.25, -0.6), Vector3(1.12, 0.25, -0.6),
+		Vector3(-0.6, 0.75, 0.0), Vector3(0.6, 0.75, 0.0), Vector3(-1.05, 0.0, 0.8), Vector3(1.05, 0.0, 0.8)])
+	var img: Image = Image.create(pts.size(), 1, false, Image.FORMAT_RGBF)
+	for k: int in pts.size():
+		img.set_pixel(k, 0, Color(pts[k].x, pts[k].y, pts[k].z))
+	pm.emission_point_texture = ImageTexture.create_from_image(img)
+	pm.emission_point_count = pts.size()
+	pm.direction = Vector3(0, 0, 1)
+	pm.spread = 2.0
+	pm.initial_velocity_min = 14.0
+	pm.initial_velocity_max = 18.0
+	pm.gravity = Vector3.ZERO
+	pm.color_ramp = _fade_ramp()
+	pm.color = Color(1, 1, 1, 0.35)
+	p.process_material = pm
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var L: float = 1.6
+	var w: float = 0.025
+	for q: Array in [[Vector3(-w, 0, -L / 2), Vector3(w, 0, -L / 2), Vector3(w, 0, L / 2), Vector3(-w, 0, L / 2)],
+			[Vector3(0, -w, -L / 2), Vector3(0, w, -L / 2), Vector3(0, w, L / 2), Vector3(0, -w, L / 2)]]:
+		for idx: int in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(Vector2(0.5, 0.5))
+			st.add_vertex(q[idx] as Vector3)
+	var mesh: ArrayMesh = st.commit()
+	var m: StandardMaterial3D = StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.vertex_color_use_as_albedo = true
+	mesh.surface_set_material(0, m)
+	p.draw_pass_1 = mesh
+	return p
 
 
 func _process(delta: float) -> void:

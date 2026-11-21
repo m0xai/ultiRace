@@ -74,6 +74,10 @@ See the bottom of this file for the progress log of the current task.
 
 ## Progress log (current task)
 
+- [x] 2026-11-21 (later): intro camera + countdown fix (`race.introS`), AFK prediction pulsing
+      (`Prediction.server_driven`), slipstream streaks (`Vfx.car_trail`). Restart the dev server
+      after pulling (server timing changed).
+
 - [x] 1. Engines fade out after the finish (own 2 s, others 4 s; results 1.5 s) — `5fa0f74`.
 - [x] 2. ULT bar starts empty (`balance.json effects.ultStartCharge = 0`) — `5fa0f74`.
 - [x] 3. Exhaust: tips modelled per car (`carkit4.exhausts()`, `ExhaustTip_<i>` empties in the

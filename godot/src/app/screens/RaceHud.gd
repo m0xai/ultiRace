@@ -126,7 +126,7 @@ func _process(delta: float) -> void:
 	if st != null:
 		_lap.text = "LAP %d/%d" % [clampi(st.lap + 1, 1, laps), laps]
 	var t: float = view.race_time()
-	if t < 0.0 and t > -10.0:
+	if t < 0.0 and t > -RaceView.countdown_s(): # (before that: the intro camera, no number)
 		var k: int = int(ceil(-t))
 		_set_center(str(k), COUNT_COLORS[clampi(k, 1, 3) - 1])
 		_go_flash = 0.8
