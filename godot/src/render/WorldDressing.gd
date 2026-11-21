@@ -114,6 +114,8 @@ static func terrain_mat(night: bool) -> StandardMaterial3D:
 ## neon), "farm" (Sunny), "cabin" (Frosty). ("adobe" is kept for reference.)
 ## Returns [body mesh instance, lit-window mesh instance].
 static func houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit: bool) -> Array[Node3D]:
+	if style != "roadside":
+		return _kit_houses(field, tr, style, rng, lit)
 	var body: SurfaceTool = SurfaceTool.new()
 	body.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var glow: SurfaceTool = SurfaceTool.new()
@@ -157,6 +159,52 @@ static func houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit:
 	gmi.material_override = gm
 	gmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	out.append(gmi)
+	return out
+
+
+## Blender buildings kit (art/blender/env/buildings.py): farmhouses and barns on Sunny, log
+## cabins on Frosty, placed like the old boxes (front toward the road), two detail levels, windows
+## glowing warm at night / in snow.
+static func _kit_houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit: bool) -> Array[Node3D]:
+	var by_kind: Dictionary = {}
+	var s: float = 40.0
+	var side: float = 1.0
+	var n: int = 0
+	while s < tr.length - 30.0:
+		var smp: Track.Sample = tr.at(s)
+		var dist: float = smp.half_width + 16.0 + rng.next_float() * 16.0
+		var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, 0.0, smp.pz + smp.nz * side * dist)
+		var near: Vector3 = field.nearest(p.x, p.z)
+		if near.x - near.z > 12.0:
+			var h0: float = field.height(p.x - 5.0, p.z - 5.0)
+			var h1: float = field.height(p.x + 5.0, p.z + 5.0)
+			if absf(h1 - h0) < 3.0:
+				p.y = minf(h0, h1) - 0.35
+				var yaw: float = atan2(-smp.nx * side, -smp.nz * side) # front (+Z) faces the road
+				var kind: String = "Cabin" if style == "cabin" else ("Barn" if n % 3 == 2 else "Farmhouse")
+				var k: float = 0.9 + rng.next_float() * 0.2
+				if not by_kind.has(kind):
+					by_kind[kind] = [] as Array[Transform3D]
+				(by_kind[kind] as Array[Transform3D]).append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(k, k, k)), p))
+				n += 1
+		s += 80.0 + rng.next_float() * 70.0
+		side = -side if rng.next_float() < 0.7 else side
+	var holder: Node3D = Node3D.new()
+	holder.name = "Buildings"
+	var glass: StandardMaterial3D = StandardMaterial3D.new()
+	if lit:
+		glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glass.albedo_color = Color(1.0, 0.78, 0.42)
+	else:
+		glass.albedo_color = Color(0.22, 0.28, 0.36)
+		glass.roughness = 0.12
+		glass.metallic = 0.3
+	for kind: String in by_kind:
+		var list: Array[Transform3D] = by_kind[kind] as Array[Transform3D]
+		EnvKit.scatter(holder, "buildings", kind, list, rng, EnvKit.solid_material())
+		EnvKit.scatter(holder, "buildings", kind + "Glow", list, rng, glass, false)
+	var out: Array[Node3D] = []
+	out.append(holder)
 	return out
 
 

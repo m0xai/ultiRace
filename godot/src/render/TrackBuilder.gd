@@ -305,18 +305,7 @@ static func build(tr: Track) -> Node3D:
 	var ramps: SurfaceTool = SurfaceTool.new()
 	ramps.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for r: Dictionary in tr.ramps:
-		var s0: float = float(r["s"])
-		var s1: float = s0 + float(r["length"])
-		var hw0: float = tr.half_width(s0) - 0.3
-		var h: float = float(r["height"])
-		var steps: int = 6
-		for k: int in steps:
-			var sa: float = lerpf(s0, s1, float(k) / steps)
-			var sb: float = lerpf(s0, s1, float(k + 1) / steps)
-			var ya: float = h * float(k) / steps + ROAD_LIFT + 0.01
-			var yb: float = h * float(k + 1) / steps + ROAD_LIFT + 0.01
-			_quad(ramps, tr.world(sa, -hw0, ya), tr.world(sb, -hw0, yb), tr.world(sa, hw0, ya), tr.world(sb, hw0, yb), Color(1, 0.75, 0.1))
-		_quad(ramps, tr.world(s1, -hw0, h + ROAD_LIFT + 0.01), tr.world(s1, hw0, h + ROAD_LIFT + 0.01), tr.world(s1, -hw0, 0.0), tr.world(s1, hw0, 0.0), Color(0.3, 0.3, 0.3))
+		_ramp(ramps, tr, r)
 	if tr.ramps.size() > 0:
 		root.add_child(_mesh_instance("Ramps", ramps, _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))))
 
@@ -1192,6 +1181,61 @@ static func _hazards(tr: Track) -> Array[Node3D]:
 		bm.roughness = 0.6
 		out.append(_mesh_instance("RoadBlocks", blocks, bm))
 	return out
+
+
+## Jump ramp (graphics pass 5): a kicker that curves up to the lip — dark grippy deck, yellow/black
+## hazard stripes along both edges, three yellow chevrons pointing at the lip, a steel lip edge,
+## concrete side walls and a striped back face. Visual only (physics launches from the lip).
+static func _ramp(st: SurfaceTool, tr: Track, r: Dictionary) -> void:
+	var s0: float = float(r["s"])
+	var s1: float = s0 + float(r["length"])
+	var hw: float = tr.half_width(s0) - 0.3
+	var h: float = float(r["height"])
+	var deck: Color = Color(0.2, 0.2, 0.22)
+	var yellow: Color = Color(1.0, 0.76, 0.08)
+	var black: Color = Color(0.06, 0.06, 0.07)
+	var concrete: Color = Color(0.6, 0.6, 0.62)
+	var steps: int = 12
+	var band: float = 0.9 # hazard stripe width at each edge
+	var y: Callable = func(t: float) -> float: return h * pow(t, 1.4) + ROAD_LIFT + 0.01
+	for k: int in steps:
+		var ta: float = float(k) / steps
+		var tb: float = float(k + 1) / steps
+		var sa: float = lerpf(s0, s1, ta)
+		var sb: float = lerpf(s0, s1, tb)
+		var ya: float = y.call(ta)
+		var yb: float = y.call(tb)
+		var stripe: Color = yellow if k % 2 == 0 else black
+		_quad(st, tr.world(sa, -hw, ya), tr.world(sb, -hw, yb), tr.world(sa, -hw + band, ya), tr.world(sb, -hw + band, yb), stripe)
+		_quad(st, tr.world(sa, hw - band, ya), tr.world(sb, hw - band, yb), tr.world(sa, hw, ya), tr.world(sb, hw, yb), stripe)
+		_quad(st, tr.world(sa, -hw + band, ya), tr.world(sb, -hw + band, yb), tr.world(sa, hw - band, ya), tr.world(sb, hw - band, yb),
+			deck.lightened(0.04 * float(k % 2)))
+		# side walls (concrete), from the road up to the deck edge
+		for sd: float in [-hw, hw]:
+			_quad(st, tr.world(sa, sd, 0.0), tr.world(sb, sd, 0.0), tr.world(sa, sd, ya), tr.world(sb, sd, yb), concrete.darkened(0.15))
+	# chevrons painted on the deck (slightly above it), pointing toward the lip
+	for c: int in 3:
+		var t0: float = 0.25 + 0.22 * float(c)
+		var sc: float = lerpf(s0, s1, t0)
+		var len: float = (s1 - s0) * 0.08
+		var w: float = (hw - band) * 0.55
+		for sgn: float in [-1.0, 1.0]:
+			var a0: Vector3 = tr.world(sc, sgn * w, y.call(t0) + 0.02)
+			var a1: Vector3 = tr.world(sc + len, 0.0, y.call(t0 + 0.08) + 0.02)
+			var b0: Vector3 = tr.world(sc + len * 0.6, sgn * w, y.call(t0 + 0.05) + 0.02)
+			var b1: Vector3 = tr.world(sc + len * 1.6, 0.0, y.call(t0 + 0.13) + 0.02)
+			if sgn < 0.0:
+				_quad(st, a0, b0, a1, b1, yellow)
+			else:
+				_quad(st, a1, b1, a0, b0, yellow)
+	# steel lip edge and the striped back face
+	var top: float = h + ROAD_LIFT + 0.01
+	_quad(st, tr.world(s1 - 0.25, -hw, top - 0.02), tr.world(s1, -hw, top + 0.03), tr.world(s1 - 0.25, hw, top - 0.02), tr.world(s1, hw, top + 0.03), Color(0.78, 0.8, 0.84))
+	var n: int = 10
+	for k: int in n:
+		var da: float = lerpf(-hw, hw, float(k) / n)
+		var db: float = lerpf(-hw, hw, float(k + 1) / n)
+		_quad(st, tr.world(s1, da, top), tr.world(s1, db, top), tr.world(s1, da, 0.0), tr.world(s1, db, 0.0), yellow if k % 2 == 0 else black)
 
 
 ## Patch hugging the road: a grid over the hazard's footprint (slightly larger: the shader cuts

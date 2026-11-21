@@ -92,7 +92,11 @@ See the bottom of this file for the progress log of the current task.
        detailed < 85 m, light beyond; small props hidden > 140 m), `foliage.gdshader` (sway).
        Old: (was) C. Vegetation kit in Blender (pine, snowy pine, broadleaf, bush, cactus/saguaro, grass
        tufts) with LODs → MultiMesh, wind sway shader.
-  - D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
+  - [x] D. Buildings kit: `art/blender/env/buildings.py` (+ shared `envlib.py`) → `assets/env/buildings.glb`
+       (Farmhouse, Barn, Cabin + `_lod1` + `<Name>Glow` windows), `WorldDressing._kit_houses`.
+       Desert keeps the code-built diners/gas stations (could move to the kit later).
+       Jump ramps rebuilt as kickers (`TrackBuilder._ramp`).
+       Old: (was) D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
   - E. Roadside props (lamps, billboards, barriers, cones, grandstands, fences, signs).
   - [x] F1. Horizon: ridged-noise mountain rings + cumulus clouds (`TrackBuilder._mountains`,
        `_clouds`) — `49a826a`. Water/ice/oil patches: smooth normals + depth pull toward the
