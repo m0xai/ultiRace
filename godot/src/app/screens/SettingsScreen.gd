@@ -47,6 +47,8 @@ func _ready() -> void:
 	a.add_child(Ui.card(_choice("Buttons", "button_size", ["S", "M", "L"], "M")))
 	a.add_child(Ui.card(_toggle("Tilt to steer", "tilt", false)))
 	a.add_child(Ui.card(_slider("Tilt", "tilt_sensitivity", 0.5, 1.5, 1.0)))
+	_tilt_read = Ui.label("", 18, Ui.MUTED)
+	a.add_child(_tilt_read)
 	var b: VBoxContainer = _column(cols, "Sound & feel")
 	b.add_child(Ui.card(_slider("Music", "vol_music", 0.0, 1.0, 0.8)))
 	b.add_child(Ui.card(_slider("Effects", "vol_sfx", 0.0, 1.0, 1.0)))
@@ -56,6 +58,22 @@ func _ready() -> void:
 	if SUPPORT_CONTACT != "":
 		outer.add_child(Ui.label("Report abuse or get help: " + SUPPORT_CONTACT, 20, Ui.MUTED))
 	_pass_mouse(cols)
+
+
+var _tilt_read: Label
+var _tilt_state: int = 0
+var _tilt_side: float = -1.0
+
+
+## Live tilt readout (what the race would steer right now) + the raw sensor, for checking.
+func _process(_delta: float) -> void:
+	if _tilt_read == null or not is_visible_in_tree():
+		return
+	var g: Vector3 = Input.get_gravity()
+	_tilt_side = TouchControls.tilt_side(g, _tilt_side)
+	_tilt_state = TouchControls.tilt_from_gravity(g, float(Profile.get_value("tilt_sensitivity", 1.0)), _tilt_state, _tilt_side)
+	_tilt_read.text = "Tilt now: %s  (roll %+.0f°, g %.1f %.1f %.1f)" % [
+		["◀ LEFT", "straight", "RIGHT ▶"][_tilt_state + 1], TouchControls.tilt_roll_deg(g, _tilt_side), g.x, g.y, g.z]
 
 
 func _column(parent: HBoxContainer, heading: String) -> VBoxContainer:

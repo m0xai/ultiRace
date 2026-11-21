@@ -31,21 +31,28 @@ func test_pause_menu_leave_needs_two_taps() -> void:
 	assert_int(left.size()).is_equal(1)
 
 
-func _g(roll_deg: float, pitch_deg: float) -> Vector3:
-	# gravity in screen axes for a phone rolled (steering wheel) and pitched back toward flat
+## Gravity in the phone's portrait axes for a landscape grip, rolled like a steering wheel
+## (right = positive) and pitched back toward flat. side −1: top of the phone points left
+## (gx < 0), +1: top points right.
+func _g(roll_deg: float, pitch_deg: float, side: float) -> Vector3:
 	var r: float = deg_to_rad(roll_deg)
 	var p: float = deg_to_rad(pitch_deg)
-	return Vector3(sin(r), -cos(r) * cos(p), -cos(r) * sin(p)) * 9.81
+	return Vector3(side * cos(r) * cos(p), side * sin(r), -cos(r) * sin(p)) * 9.81
 
 
-func test_tilt_steers_both_ways_at_any_pitch() -> void:
-	for pitch: float in [0.0, 45.0, 80.0, 95.0]:
-		assert_int(TouchControls.tilt_from_gravity(_g(12.0, pitch), 1.0, 0)).is_equal(1)
-		assert_int(TouchControls.tilt_from_gravity(_g(-12.0, pitch), 1.0, 0)).is_equal(-1)
-		assert_int(TouchControls.tilt_from_gravity(_g(1.5, pitch), 1.0, 0)).is_equal(0)
+func test_tilt_steers_both_ways_in_both_landscape_grips() -> void:
+	for side: float in [-1.0, 1.0]:
+		var latched: float = TouchControls.tilt_side(_g(0.0, 30.0, side), -side)
+		assert_float(latched).is_equal(side)
+		for pitch: float in [0.0, 45.0, 75.0]:
+			assert_int(TouchControls.tilt_from_gravity(_g(12.0, pitch, side), 1.0, 0, latched)).is_equal(1)
+			assert_int(TouchControls.tilt_from_gravity(_g(-12.0, pitch, side), 1.0, 0, latched)).is_equal(-1)
+			assert_int(TouchControls.tilt_from_gravity(_g(1.5, pitch, side), 1.0, 0, latched)).is_equal(0)
+	# nearly flat: the grip side stays latched
+	assert_float(TouchControls.tilt_side(_g(0.0, 85.0, 1.0), -1.0)).is_equal(-1.0)
 	# hysteresis: 3° keeps an active turn, but does not start one
-	assert_int(TouchControls.tilt_from_gravity(_g(3.0, 30.0), 1.0, 1)).is_equal(1)
-	assert_int(TouchControls.tilt_from_gravity(_g(3.0, 30.0), 1.0, 0)).is_equal(0)
+	assert_int(TouchControls.tilt_from_gravity(_g(3.0, 30.0, -1.0), 1.0, 1, -1.0)).is_equal(1)
+	assert_int(TouchControls.tilt_from_gravity(_g(3.0, 30.0, -1.0), 1.0, 0, -1.0)).is_equal(0)
 
 
 func test_tilt_mode_has_no_steer_buttons() -> void:

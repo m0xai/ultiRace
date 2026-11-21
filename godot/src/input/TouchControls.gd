@@ -40,6 +40,8 @@ func _ready() -> void:
 	_swap = Profile.swap_sides()
 	_tilt = bool(Profile.get_value("tilt", false))
 	_tilt_sens = float(Profile.get_value("tilt_sensitivity", 1.0))
+	if _log_tilt:
+		printerr("TILT controls ready: tilt=%s sens=%.2f" % [_tilt, _tilt_sens])
 	var k: float = {"S": 0.85, "M": 1.0, "L": 1.2}.get(str(Profile.get_value("button_size", "M")), 1.0) as float
 	STEER_SIZE = Vector2(BASE_SIZE, BASE_SIZE) * k
 	ULT_SIZE = BASE_SIZE * k
@@ -161,28 +163,44 @@ func _arrow(c: Vector2, dir: float) -> void:
 	draw_colored_polygon(pts, Color(1, 1, 1, 0.9))
 
 
-## Tilt maps device roll (steering-wheel style) to −1/0/1 steering. Gravity arrives already
-## rotated into screen axes by the engine (x right, y up, z out of the screen), so the roll is
-## the angle between gravity and the screen's y–z plane — the same whether the phone is held
-## upright or nearly flat. Dead zone 4° with hysteresis so it does not flicker at the edge.
+## Tilt maps device roll (steering-wheel style, phone held in landscape with both hands) to
+## −1/0/1 steering. On the device Godot reports gravity in the phone's *portrait* axes (x = short
+## edge, y = long edge toward the top, z = out of the screen; checked on an iPhone 15 Pro Max),
+## so in landscape "down" lies along ±x and a steering-wheel turn shows up on y. The sign of x
+## tells which way the phone is held (latched, so holding it nearly flat does not flip it):
+##   roll = atan2(side·gy, √(gx² + gz²)),  side = sign(gx)
+## Dead zone 4° with hysteresis so it does not flicker at the edge.
 func _tilt_steer() -> int:
 	var g: Vector3 = Input.get_gravity()
 	if g.length() < 0.1:
 		_tilt_state = 0
 		return 0
-	_tilt_state = tilt_from_gravity(g, _tilt_sens, _tilt_state)
+	_tilt_side = tilt_side(g, _tilt_side)
+	_tilt_state = tilt_from_gravity(g, _tilt_sens, _tilt_state, _tilt_side)
+	if _log_tilt and Engine.get_process_frames() % 15 == 0:
+		printerr("TILT g=(%.2f, %.2f, %.2f) side=%d roll=%+.1f steer=%d final=%d" % [g.x, g.y, g.z, _tilt_side, tilt_roll_deg(g, _tilt_side), _tilt_state, steer])
 	return _tilt_state
 
 
 var _tilt_state: int = 0
+var _tilt_side: float = -1.0
+var _log_tilt: bool = FileAccess.file_exists(Config.DEV_FILE) # dev builds: log tilt to the console
 
 
-static func tilt_roll_deg(g: Vector3) -> float:
-	return rad_to_deg(atan2(g.x, Vector2(g.y, g.z).length()))
+## Which landscape side is down: −1 home/charging port on the right (gx < 0), +1 on the left.
+## Only changes when the phone is clearly upright enough to tell.
+static func tilt_side(g: Vector3, prev: float) -> float:
+	if absf(g.x) > 3.0 and absf(g.x) > absf(g.y):
+		return signf(g.x)
+	return prev
 
 
-static func tilt_from_gravity(g: Vector3, sens: float, prev: int) -> int:
-	var roll: float = tilt_roll_deg(g) * maxf(sens, 0.1)
+static func tilt_roll_deg(g: Vector3, side: float) -> float:
+	return rad_to_deg(atan2(side * g.y, Vector2(g.x, g.z).length()))
+
+
+static func tilt_from_gravity(g: Vector3, sens: float, prev: int, side: float) -> int:
+	var roll: float = tilt_roll_deg(g, side) * maxf(sens, 0.1)
 	var enter: float = TILT_DEAD_DEG
 	var stay: float = TILT_DEAD_DEG * 0.6
 	if prev != 0 and signf(roll) == float(prev) and absf(roll) > stay:
