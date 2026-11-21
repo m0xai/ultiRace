@@ -142,6 +142,10 @@ func step(speed: float, dt: float) -> void:
 	load = lerpf(load, want, 1.0 - exp(-dt / LOAD_TAU))
 
 
+func top_speed() -> float:
+	return _top
+
+
 ## Fade the whole engine (and road/wind) to silence over `seconds` (finish, results).
 func fade_out(seconds: float) -> void:
 	_fade_rate = maxf(_fade_rate, 1.0 / maxf(seconds, 0.05))

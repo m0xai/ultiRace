@@ -483,6 +483,49 @@ def hi_extras(body_obj, P):
     return out
 
 
+# ---------- exhaust ----------
+
+def exhausts(P, tips):
+    """Exhaust tips. tips = [(tip xyz, direction xyz, radius, length, style)], style "round",
+    "oval" (flattened) or "stack" (tall truck pipe with a heat shield). Each tip is a chrome
+    pipe ending at `tip` with a rolled lip and a sooty inside; on the LOD0 pass an empty
+    "ExhaustTip_<i>" is added at the opening, its local +Y (Godot: −Z, forward) pointing out of
+    the pipe — the game emits exhaust smoke and boost flames there."""
+    from mathutils import Vector
+    soot = k2.material("Soot", srgb("#0b0b0c"), rough=0.95)
+    segs = 20 if DETAIL >= 2 else 12
+    out = []
+    for i, (tip, direction, r, length, style) in enumerate(tips):
+        d = Vector(direction).normalized()
+        t = Vector(tip)
+        # profile along X (radius, x): pipe body, flared rolled lip, then into the dark inside
+        prof = [(r * 0.92, -length), (r, -length * 0.85), (r, -0.03), (r * 1.13, -0.012), (r * 1.12, 0.0),
+                (r * 0.88, 0.0), (r * 0.86, -0.07)]
+        pipe = k2.lathe("exhaust", prof, [0, 0, 0, 0, 0, 1], [P["Chrome"], soot], segments=segs)
+        cap = k2.disc("exhaust_in", r * 0.86, 0.01, (-0.07, 0, 0), soot, axis="X", verts=segs)
+        k2.join(pipe, [cap])
+        if style == "oval":
+            pipe.scale = (1.0, 1.0, 0.62)
+        pipe.rotation_mode = "QUATERNION"
+        pipe.rotation_quaternion = Vector((1, 0, 0)).rotation_difference(d)
+        pipe.location = t
+        out.append(pipe)
+        if style == "stack":  # perforated-look heat shield around the lower part + a clamp
+            a = t - d * (length * 0.8)
+            b = t - d * (length * 0.35)
+            out.append(k2.tube("heat_shield", tuple(a), tuple(b), r * 1.3, P["Frame"], verts=segs))
+            out.append(k2.tube("clamp", tuple(t - d * (length * 0.3)), tuple(t - d * (length * 0.26)), r * 1.18,
+                               P["Chrome"], verts=segs))
+        if DETAIL >= 2:
+            e = bpy.data.objects.new("ExhaustTip_%d" % i, None)
+            e.empty_display_size = 0.1
+            e.location = t
+            e.rotation_mode = "QUATERNION"
+            e.rotation_quaternion = Vector((0, 1, 0)).rotation_difference(d)
+            bpy.context.collection.objects.link(e)
+    return out
+
+
 # ---------- LOD1 + export ----------
 
 def make_lod1(ratio=0.14):

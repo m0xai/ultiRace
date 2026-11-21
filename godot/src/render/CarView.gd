@@ -23,6 +23,7 @@ var _steer: float = 0.0
 var _wheel_r: float = 0.4
 var _last_s: float = -1.0
 var _last_yaw: float = 0.0
+var exhaust: ExhaustFx = null
 
 
 func configure(vehicle: String, display_name: String, is_you: bool) -> void:
@@ -92,6 +93,18 @@ func _load_model(vehicle: String) -> void:
 				_front.append(m)
 			_wheel_r = maxf(_wheel_r, m.get_aabb().size.y / 2.0)
 	_update_lod()
+	# exhaust tips (empties exported with the model) → smoke and boost flames there
+	var tips: Array[Transform3D] = []
+	for n: Node in _model.find_children("ExhaustTip*", "", true, false):
+		var t: Transform3D = (n as Node3D).transform
+		var p: Node = n.get_parent()
+		while p != null and p != self:
+			t = (p as Node3D).transform * t
+			p = p.get_parent()
+		tips.append(t)
+	exhaust = ExhaustFx.new()
+	add_child(exhaust)
+	exhaust.setup(vehicle, tips)
 
 
 var _paint: StandardMaterial3D = null

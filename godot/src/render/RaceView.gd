@@ -194,7 +194,12 @@ func _process(delta: float) -> void:
 			cars[i].show_state(st, track)
 			var fl: int = flags_of(i)
 			cars[i].show_effects(fl, delta)
-			vfx.car_trail(i, cars[i], (fl & Protocol.EFF_BOOST) != 0, (fl & Protocol.EFF_DRAFT) != 0)
+			var boosting: bool = (fl & Protocol.EFF_BOOST) != 0
+			vfx.car_trail(i, cars[i], false, (fl & Protocol.EFF_DRAFT) != 0) # drafting wind lines
+			if cars[i].exhaust != null:
+				cars[i].exhaust.update(st.speed, _engines[i].load if i < _engines.size() else 1.0,
+					_engines[i].top_speed() if i < _engines.size() else 40.0, boosting,
+					_cam.global_position.distance_to(cars[i].global_position))
 	_update_hazards()
 	_update_camera(delta)
 	_update_audio()

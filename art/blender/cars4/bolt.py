@@ -35,7 +35,7 @@ def build():
             k2.rounded_box("wing_l", (0.04, 0.42, 0.2), (0.93, -1.95, 1.18), P["Accent"], bevel=0.01, segs=1),
             k2.rounded_box("wing_r", (0.04, 0.42, 0.2), (-0.93, -1.95, 1.18), P["Accent"], bevel=0.01, segs=1)]
     wing += [k2.rounded_box("strut", (0.04, 0.18, 0.3), (sx * 0.55, -1.9, 1.02), P["Accent"], bevel=0.01, segs=1) for sx in (1, -1)]
-    pipes = [k2.disc("exhaust", 0.055, 0.2, (sx * 0.38, -2.24, 0.36), P["Chrome"], axis="Y", verts=16) for sx in (1, -1)]
+    pipes = k.exhausts(P, [((sx * 0.38, -2.25, 0.34), (0, -1, 0.02), 0.058, 0.3, "round") for sx in (1, -1)])
     inside = k.interior(P)
     wip = k.wipers(body, P)
     hi = k.hi_extras(body, P) if k.DETAIL >= 2 else []

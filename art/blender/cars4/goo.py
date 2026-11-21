@@ -43,7 +43,8 @@ def build():
              k2.rounded_box("walkway", (0.4, 1.8, 0.04), (0, -0.6, 2.56), T, bevel=0.01, segs=1)]
     drips = [k2.blob("drip", r, (x, y, z), P["Paint"], scale=(1, 1, 1.5), segs=14, rings=10)
              for (x, y, z, r) in ((0.6, -0.2, 2.22, 0.1), (-0.66, -1.2, 2.12, 0.08), (0.78, -1.5, 1.85, 0.06))]
-    k2.join(body, parts + frame + [tank] + bands + hatch + drips + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
+    exh = k.exhausts(P, [((sx * 0.96, 0.76, 2.62), (0, -0.1, 1), 0.065, 1.4, "stack") for sx in (1, -1)])
+    k2.join(body, exh + parts + frame + [tank] + bands + hatch + drips + k.interior(P) + k.wipers(body, P) + (k.hi_extras(body, P) if k.DETAIL >= 2 else []))
     k.four_wheels(0.94, 1.4, -1.25, 0.4, 0.42, 0.32, 0.36, P, spokes=8, twin=False, rim_mat="Rim")
 
 
