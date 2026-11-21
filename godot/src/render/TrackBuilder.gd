@@ -1090,17 +1090,33 @@ static func _multimesh(name: String, mesh: Mesh, xforms: Array[Transform3D], mat
 	return mmi
 
 
-## Street lamps behind the rails, alternating sides, arm reaching toward the road.
-static func _lamps(tr: Track, th: TrackTheme) -> MultiMeshInstance3D:
+## Street lamps (graphics pass 5): flanged foot, tapered 8-sided pole, an arm that curves out over
+## the road and a slim LED luminaire; the lens is a second MultiMesh that glows at night.
+## Behind the rails, alternating sides.
+static func _lamps(tr: Track, th: TrackTheme) -> Node3D:
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var pole: Color = Color(0.42, 0.44, 0.48)
-	var head: Color = Color(1.0, 0.95, 0.8)
-	_box(st, Vector3(0, 3.6, 0), Vector3(0.09, 3.6, 0.09), pole) # pole, 7.2 m
-	_box(st, Vector3(0.9, 7.15, 0), Vector3(0.9, 0.06, 0.06), pole) # arm along +X (toward road)
-	_box(st, Vector3(1.75, 7.05, 0), Vector3(0.32, 0.06, 0.14), head) # lamp head
+	var pole: Color = Color(0.5, 0.52, 0.56)
+	var dark: Color = Color(0.22, 0.23, 0.26)
+	_box(st, Vector3(0, 0.12, 0), Vector3(0.26, 0.12, 0.26), dark) # foot
+	_box(st, Vector3(0, 0.3, 0), Vector3(0.17, 0.08, 0.17), pole)
+	_taper_tube(st, Vector3(0, 0.3, 0), Vector3(0, 7.3, 0), 0.11, 0.065, 8, pole)
+	# arm: up-and-over arc toward +X (the road)
+	var prev: Vector3 = Vector3(0, 7.2, 0)
+	for k2: int in 6:
+		var t: float = float(k2 + 1) / 6.0
+		var p2: Vector3 = Vector3(1.9 * t, 7.2 + 0.55 * sin(t * PI * 0.5) - 0.1 * t * t, 0)
+		_taper_tube(st, prev, p2, 0.05, 0.045, 6, pole)
+		prev = p2
+	_box(st, prev + Vector3(0.35, -0.04, 0), Vector3(0.42, 0.06, 0.17), dark) # luminaire housing
+	_box(st, prev + Vector3(0.35, 0.03, 0), Vector3(0.38, 0.02, 0.14), pole)
 	st.generate_normals()
-	var mesh: ArrayMesh = st.commit()
+	var body: ArrayMesh = st.commit()
+	var lens_st: SurfaceTool = SurfaceTool.new()
+	lens_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_box(lens_st, prev + Vector3(0.35, -0.105, 0), Vector3(0.34, 0.01, 0.12), Color.WHITE)
+	lens_st.generate_normals()
+	var lens: ArrayMesh = lens_st.commit()
 	var xforms: Array[Transform3D] = []
 	var count: int = int(tr.length / LAMP_EVERY)
 	for i: int in count:
@@ -1112,13 +1128,38 @@ static func _lamps(tr: Track, th: TrackTheme) -> MultiMeshInstance3D:
 		var x: Vector3 = Vector3(q.x - p.x, 0.0, q.z - p.z).normalized()
 		var z: Vector3 = x.cross(Vector3.UP)
 		xforms.append(Transform3D(Basis(x, Vector3.UP, z), p))
-	var mat: StandardMaterial3D = _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))
-	if th.wall_emission != Color(0, 0, 0):
-		mat.emission_enabled = true
-		mat.emission = th.wall_emission * 0.25
-	var mmi: MultiMeshInstance3D = _multimesh("Lamps", mesh, xforms, mat)
+	var node: Node3D = Node3D.new()
+	node.name = "Lamps"
+	var mat: StandardMaterial3D = _mat(Color.WHITE, Color(0, 0, 0), true)
+	mat.metallic = 0.4
+	mat.roughness = 0.45
+	var mmi: MultiMeshInstance3D = _multimesh("LampPoles", body, xforms, mat)
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return mmi
+	node.add_child(mmi)
+	var lm: StandardMaterial3D = StandardMaterial3D.new()
+	if th.night:
+		lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		lm.albedo_color = Color(1.0, 0.93, 0.78)
+	else:
+		lm.albedo_color = Color(0.8, 0.82, 0.85)
+		lm.roughness = 0.2
+	var lmi: MultiMeshInstance3D = _multimesh("LampLenses", lens, xforms, lm)
+	lmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(lmi)
+	return node
+
+
+## Tapered tube a → b (radius ra → rb) into a vertex-coloured SurfaceTool.
+static func _taper_tube(st: SurfaceTool, a: Vector3, b: Vector3, ra: float, rb: float, segs: int, col: Color) -> void:
+	var d: Vector3 = (b - a).normalized()
+	var side: Vector3 = d.cross(Vector3.UP if absf(d.y) < 0.9 else Vector3.RIGHT).normalized()
+	var up: Vector3 = side.cross(d)
+	for k: int in segs:
+		var a0: float = TAU * float(k) / segs
+		var a1: float = TAU * float(k + 1) / segs
+		var o0: Vector3 = side * cos(a0) + up * sin(a0)
+		var o1: Vector3 = side * cos(a1) + up * sin(a1)
+		_quad(st, a + o0 * ra, b + o0 * rb, a + o1 * ra, b + o1 * rb, col)
 
 
 ## Axis-aligned box (centre c, half extents h) into a vertex-coloured SurfaceTool.
