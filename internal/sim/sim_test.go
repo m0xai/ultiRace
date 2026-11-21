@@ -435,3 +435,34 @@ func TestSideContactBouncesApart(t *testing.T) {
 		t.Fatalf("heavy rhino moved more than light bolt")
 	}
 }
+
+// Hitboxes follow the models (vehicles.json): wide cars touch earlier than the old 2 m box, an
+// angled car reaches further sideways, and after a contact the bodies no longer overlap.
+func TestHitboxesFollowTheModels(t *testing.T) {
+	f := load(t)
+	tr := f.tracks["sunny"]
+	w := NewWorld(tr, f.bal, []gamedata.Vehicle{f.vehicle(t, "rhino"), f.vehicle(t, "twister")}, 3)
+	a, b := w.Cars[0], w.Cars[1]
+	if a.HalfW != 1.2 || b.HalfL != 1.9 {
+		t.Fatalf("hitbox not loaded: %+v %+v", a.HalfW, b.HalfL)
+	}
+	// 2.2 m apart side by side: the old 2.0 m box missed this, the models (1.2 + 1.2) touch
+	a.State = CarState{S: 100, D: -1.1, Speed: 30}
+	b.State = CarState{S: 100, D: 1.1, Speed: 30}
+	w.collide()
+	if gap := b.State.D - a.State.D; gap < 2.4-1e-6 {
+		t.Fatalf("wide bodies still overlap: %.3f", gap)
+	}
+	// 2.6 m apart, straight: no contact; the same with one car turned 0.4 rad: contact
+	a.State = CarState{S: 100, D: -1.3, Speed: 30}
+	b.State = CarState{S: 100.5, D: 1.3, Speed: 30}
+	w.collide()
+	if a.State.D != -1.3 {
+		t.Fatalf("straight cars 2.6 m apart touched")
+	}
+	a.State.YawRel = 0.4
+	w.collide()
+	if a.State.D == -1.3 {
+		t.Fatalf("angled car did not reach the other one")
+	}
+}

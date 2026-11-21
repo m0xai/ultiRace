@@ -15,7 +15,6 @@ func (s *System) ram(w *sim.World, car int) bool {
 }
 
 func (s *System) tickRam(w *sim.World) {
-	reach := 2*w.Bal.Physics.CarHalfLength + 0.6
 	for car, until := range s.ramUntil {
 		if w.Tick > until {
 			delete(s.ramUntil, car)
@@ -26,7 +25,10 @@ func (s *System) tickRam(w *sim.World) {
 				continue
 			}
 			ds, dd := gap(w, car, o)
-			if ds > -0.5 && ds < reach && math.Abs(dd) < 2*w.Bal.Physics.CarHalfWidth+0.4 {
+			// contact = the two hitboxes (vehicles.json) plus a little margin
+			reach := w.Cars[car].HalfL + w.Cars[o].HalfL + 0.6
+			side := w.Cars[car].HalfW + w.Cars[o].HalfW + 0.4
+			if ds > -0.5 && ds < reach && math.Abs(dd) < side {
 				if w.Spinout(o, s.u("ram", "spinS")) {
 					st := &w.Cars[o].State
 					dir := 1.0

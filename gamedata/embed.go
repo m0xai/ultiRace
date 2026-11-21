@@ -176,6 +176,14 @@ type Vehicle struct {
 	Color string `json:"color"`
 	Ult   string `json:"ult"`
 	Stats Stats  `json:"stats"`
+	// Hitbox is the car's body for car–car contacts (from the model bounds; 0 = physics default).
+	Hitbox Hitbox `json:"hitbox"`
+}
+
+// Hitbox is a car body in track space before rotation (metres).
+type Hitbox struct {
+	HalfWidth  float64 `json:"halfWidth"`
+	HalfLength float64 `json:"halfLength"`
 }
 
 // Ramp launches cars upward when they leave its end (GAME_PLAN §2.5 step 6).

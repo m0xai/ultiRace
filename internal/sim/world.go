@@ -22,6 +22,8 @@ type Car struct {
 	Ult      string
 	Weight   int
 	Params   CarParams
+	HalfW    float64 // body half width / length for car–car contacts (vehicles.json hitbox)
+	HalfL    float64
 	State    CarState
 	Input    Input
 	Status   Status
@@ -120,6 +122,8 @@ func NewWorld(tr *track.Track, bal *gamedata.Balance, vehicles []gamedata.Vehicl
 			Ult:     v.Ult,
 			Weight:  v.Stats.Weight,
 			Params:  ParamsForVehicle(v, bal),
+			HalfW:   orDefault(v.Hitbox.HalfWidth, bal.Physics.CarHalfWidth),
+			HalfL:   orDefault(v.Hitbox.HalfLength, bal.Physics.CarHalfLength),
 			State:   CarState{S: s, D: d, Lap: -1},
 		})
 	}
@@ -310,15 +314,18 @@ func (w *World) contact(i, j int, emit bool) {
 	}
 	ds := mathx.WrapDelta(a.S, b.S, w.Track.Length) // + means b is ahead of a
 	dd := b.D - a.D
-	ox := 2*ph.CarHalfLength - math.Abs(ds) // penetration along the track
-	oy := 2*ph.CarHalfWidth - math.Abs(dd)  // penetration sideways
+	// each body's extent along s and d, rotated by its heading (an angled car is longer sideways)
+	asx, adx := ci.extents()
+	bsx, bdx := cj.extents()
+	ox := asx + bsx - math.Abs(ds) // penetration along the track
+	oy := adx + bdx - math.Abs(dd) // penetration sideways
 	if ox <= 0 || oy <= 0 {
 		return
 	}
 	ma, mb := ci.Params.Mass, cj.Params.Mass
 	wa, wb := mb/(ma+mb), ma/(ma+mb) // the lighter car moves more
 	impact := 0.0
-	if ox/(2*ph.CarHalfLength) < oy/(2*ph.CarHalfWidth) {
+	if ox/(asx+bsx) < oy/(adx+bdx) {
 		// rear-end: separate along s, 1D impact with restitution
 		dir := 1.0
 		if ds < 0 {
@@ -362,6 +369,19 @@ func (w *World) contact(i, j int, emit bool) {
 	}
 	w.fixup(a)
 	w.fixup(b)
+}
+
+// extents are the car's half extents along s and d: its hitbox rotated by yawRel.
+func (c *Car) extents() (float64, float64) {
+	cs, sn := math.Abs(math.Cos(c.State.YawRel)), math.Abs(math.Sin(c.State.YawRel))
+	return c.HalfL*cs + c.HalfW*sn, c.HalfL*sn + c.HalfW*cs
+}
+
+func orDefault(v, def float64) float64 {
+	if v > 0 {
+		return v
+	}
+	return def
 }
 
 // fixup re-wraps s (adjusting the lap) and clamps d to the walls after a push.
