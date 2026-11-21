@@ -78,3 +78,14 @@ func test_result_music() -> void:
 		var mus: AudioStreamOggVorbis = AudioDirector.load_music(m) as AudioStreamOggVorbis
 		assert_object(mus).override_failure_message("missing music " + m).is_not_null()
 		assert_bool(mus.loop).is_true()
+
+
+func test_engine_fades_out_after_the_finish() -> void:
+	var es: EngineSound = _engine("bolt")
+	es.fade_out(0.5)
+	for i: int in 60:
+		es._master = maxf(es._master - es._fade_rate / 60.0, 0.0) # what update() does per frame
+	assert_float(es._master).is_equal(0.0)
+	es._apply(20.0)
+	for p: Node in es._on:
+		assert_bool(p.get("stream_paused") as bool).is_true()

@@ -267,6 +267,7 @@ func _on_message(m: Dictionary) -> void:
 		Protocol.T_RESULTS:
 			_close_pause()
 			_view.start_finish_camera() # (also covers a race that ended before we crossed the line)
+			_view.fade_engines(1.5, 1.5)
 			_results.show_results(m)
 			_results.visible = true
 			_hud.visible = false # clean view of your car orbiting behind the results

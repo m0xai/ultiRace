@@ -125,6 +125,8 @@ func NewWorld(tr *track.Track, bal *gamedata.Balance, vehicles []gamedata.Vehicl
 			HalfW:   orDefault(v.Hitbox.HalfWidth, bal.Physics.CarHalfWidth),
 			HalfL:   orDefault(v.Hitbox.HalfLength, bal.Physics.CarHalfLength),
 			State:   CarState{S: s, D: d, Lap: -1},
+			// the ULT bar starts (mostly) empty and charges during the race
+			UltLeft: ultCooldown(bal, v.Ult) * (1 - mathx.Clamp(bal.Effects.UltStartCharge, 0, 1)),
 		})
 	}
 	w.lastLeader = -1
@@ -375,6 +377,13 @@ func (w *World) contact(i, j int, emit bool) {
 func (c *Car) extents() (float64, float64) {
 	cs, sn := math.Abs(math.Cos(c.State.YawRel)), math.Abs(math.Sin(c.State.YawRel))
 	return c.HalfL*cs + c.HalfW*sn, c.HalfL*sn + c.HalfW*cs
+}
+
+func ultCooldown(bal *gamedata.Balance, ult string) float64 {
+	if v, ok := bal.Ults[ult]["cooldownS"]; ok {
+		return v
+	}
+	return 0
 }
 
 func orDefault(v, def float64) float64 {

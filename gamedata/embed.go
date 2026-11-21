@@ -43,6 +43,7 @@ type Effects struct {
 	SlowCap            float64 `json:"slowCap"`
 	BoostCap           float64 `json:"boostCap"`
 	UltLockS           float64 `json:"ultLockS"`
+	UltStartCharge     float64 `json:"ultStartCharge"` // ULT charge at the start (0 = empty bar, 1 = ready)
 	RampKnockD         float64 `json:"rampKnockD"`
 }
 

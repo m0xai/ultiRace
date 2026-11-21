@@ -33,6 +33,7 @@ func world(t *testing.T, ids ...string) *sim.World {
 	for _, c := range w.Cars {
 		c.State = sim.CarState{S: 50, Speed: 30, Lap: 0}
 		c.PrevThrottle = 1
+		c.UltLeft = 0 // ULT tests start charged (races start with an empty bar, see sim tests)
 	}
 	return w
 }

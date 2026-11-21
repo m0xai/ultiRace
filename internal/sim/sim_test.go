@@ -466,3 +466,16 @@ func TestHitboxesFollowTheModels(t *testing.T) {
 		t.Fatalf("angled car did not reach the other one")
 	}
 }
+
+// Races start with an empty ULT bar (balance effects.ultStartCharge = 0): nobody can fire at the
+// start, and the bar charges during the race.
+func TestUltBarStartsEmpty(t *testing.T) {
+	f := load(t)
+	w := NewWorld(f.tracks["sunny"], f.bal, f.vehicles, 3)
+	for _, c := range w.Cars {
+		want := f.bal.Ults[c.Ult]["cooldownS"]
+		if want <= 0 || c.UltLeft != want {
+			t.Fatalf("%s starts with UltLeft %.1f, want the full cooldown %.1f", c.Vehicle, c.UltLeft, want)
+		}
+	}
+}

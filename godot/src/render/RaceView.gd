@@ -258,6 +258,12 @@ func _smooth_remote(i: int, target: Physics.CarState, delta: float) -> Physics.C
 	return out
 
 
+## Fade engine sounds out: own car over `own_s`, the others over `others_s`.
+func fade_engines(own_s: float, others_s: float) -> void:
+	for i: int in _engines.size():
+		_engines[i].fade_out(own_s if i == you else others_s)
+
+
 ## Engines (own + 4 nearest audible) and countdown beeps.
 func _update_audio() -> void:
 	var dists: Array = []
@@ -360,6 +366,7 @@ func on_event(m: Dictionary) -> void:
 		"finished":
 			if car == you:
 				AudioDirector.sfx("finish")
+				fade_engines(2.0, 4.0) # the race is over for you: engines die away under the fanfare
 				start_finish_camera()
 		"startBoost":
 			if car == you:

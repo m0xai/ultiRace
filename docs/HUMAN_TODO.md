@@ -27,7 +27,7 @@ Things only the human can do. Claude adds items with exact steps; tick them when
       Racing*.
 28. [x] (works, 2026-11-21) **Tilt check:** Settings → Tilt to steer. The steer buttons are gone in tilt mode (your thumb
     on the left button was the "always left"), and tilt now works held upright or nearly flat.
-29. [ ] **Delete the old audio** (Claude may not delete repo files): `git rm
+29. [x] (done by the human 2026-11-21) **Delete the old audio** (Claude may not delete repo files): `git rm
     godot/assets/audio/engine_*.wav* godot/assets/audio/music_*.wav*
     godot/assets/audio/music/sunny_final.ogg* godot/assets/audio/music/frosty_final.ogg*` — unused and
     already excluded from the export.

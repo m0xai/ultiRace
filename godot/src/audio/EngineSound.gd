@@ -20,6 +20,8 @@ const COAST_ACCEL: float = -2.5 # m/s² — slower than this reads as off-thrott
 static var _meta: Dictionary = {}
 
 var audible: bool = true
+var _master: float = 1.0 # fades to 0 after the finish (fade_out)
+var _fade_rate: float = 0.0
 var _own: bool = false
 var _ev: bool = false
 var _top: float = 40.0
@@ -140,10 +142,16 @@ func step(speed: float, dt: float) -> void:
 	load = lerpf(load, want, 1.0 - exp(-dt / LOAD_TAU))
 
 
+## Fade the whole engine (and road/wind) to silence over `seconds` (finish, results).
+func fade_out(seconds: float) -> void:
+	_fade_rate = maxf(_fade_rate, 1.0 / maxf(seconds, 0.05))
+
+
 func update(speed: float) -> void:
 	var dt: float = get_process_delta_time()
 	if _loops.is_empty():
 		return
+	_master = maxf(_master - _fade_rate * dt, 0.0)
 	step(speed, dt)
 	_apply(speed)
 
@@ -158,8 +166,8 @@ func _set_playing(on: bool) -> void:
 
 
 func _apply(speed: float) -> void:
-	_set_playing(audible)
-	if not audible:
+	_set_playing(audible and _master > 0.0)
+	if not audible or _master <= 0.0:
 		return
 	# position between the two nearest loops (log scale), equal-power cross-fade
 	var n: int = _loops.size()
@@ -168,7 +176,7 @@ func _apply(speed: float) -> void:
 		i += 1
 	var f: float = clampf(log(rpm / _loops[i]) / log(_loops[i + 1] / _loops[i]), 0.0, 1.0)
 	var x: float = clampf((rpm - _idle) / maxf(_redline - _idle, 1.0), 0.0, 1.0)
-	var level: float = (0.55 + 0.45 * x) * (0.7 if _cut > 0.0 else 1.0)
+	var level: float = (0.55 + 0.45 * x) * (0.7 if _cut > 0.0 else 1.0) * _master
 	var on_g: float = sqrt(clampf(load, 0.0, 1.0))
 	var off_g: float = sqrt(clampf(1.0 - load, 0.0, 1.0)) * 0.7
 	var base_db: float = -5.0 if _own else -1.0
@@ -184,8 +192,8 @@ func _apply(speed: float) -> void:
 			_mix(_off[k], w * level * off_g, pitch, base_db)
 	if _road != null:
 		var v: float = clampf(speed / maxf(_top, 1.0), 0.0, 1.3)
-		_mix(_road, minf(v * 1.6, 1.0) * 0.55, 0.6 + 0.6 * v, -6.0)
-		_mix(_wind, v * v * 0.6, 0.8 + 0.4 * v, -8.0)
+		_mix(_road, minf(v * 1.6, 1.0) * 0.55 * _master, 0.6 + 0.6 * v, -6.0)
+		_mix(_wind, v * v * 0.6 * _master, 0.8 + 0.4 * v, -8.0)
 
 
 func _mix(p: Node, gain: float, pitch: float, base_db: float) -> void:

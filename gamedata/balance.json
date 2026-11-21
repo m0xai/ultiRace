@@ -80,6 +80,7 @@
     "slowCap": 0.5,
     "boostCap": 0.5,
     "ultLockS": 3,
+    "ultStartCharge": 0,
     "rampKnockD": 4
   },
   "catchup": {
