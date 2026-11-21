@@ -8,7 +8,7 @@ RACES   ?= 2000
 SHOT    ?= docs/screenshots/boot.png
 
 .PHONY: help test test-go test-godot lint fixtures sync check-sync server balance assets e2e \
-        import iphone11 screenshot ios ios-export ios-device ios-run ios-check doctor preflight clean
+        import iphone11 screenshot ios ios-export ios-device ios-run ios-sim ios-check doctor preflight clean
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -68,6 +68,9 @@ ios-device: ## signed build for the connected iPhone
 
 ios-run: ## build, install and launch on the connected iPhone
 	./scripts/ios.sh run
+
+ios-sim: ## build and run in the iOS Simulator (Mac only; see docs/IPHONE11_SIM.md)
+	./scripts/ios.sh sim
 
 ios-check: ## unsigned generic-iOS compile (CI)
 	./scripts/ios.sh compile-check

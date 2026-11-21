@@ -14,10 +14,12 @@ var _timer: Label
 var _list: VBoxContainer
 var _ready_btn: Button
 var _start_btn: Button
-var _settings: HBoxContainer
-var _map_btn: OptionButton
-var _laps_btn: OptionButton
-var _vis_btn: OptionButton
+var _settings: VBoxContainer
+var _map_btn: Switcher
+var _laps_btn: Switcher
+var _vis_btn: Switcher
+const MAP_IDS: Array[String] = ["sunny", "neon", "frosty"]
+const MAP_LABELS: Array[String] = ["Sunny", "Canyon", "Frosty"]
 var _room: Dictionary = {}
 var _me_ready: bool = false
 
@@ -54,18 +56,18 @@ func _ready() -> void:
 	body.add_child(list_panel)
 
 	var side: VBoxContainer = Ui.vbox(14)
-	side.custom_minimum_size = Vector2(380, 0)
-	_settings = Ui.hbox(8)
-	_map_btn = _option(["sunny", "neon", "frosty"])
-	_laps_btn = _option(["2", "3"])
-	_vis_btn = _option([Protocol.PUBLIC, Protocol.PRIVATE])
-	for ob: OptionButton in [_map_btn, _laps_btn, _vis_btn]:
-		ob.item_selected.connect(func(_i: int) -> void: _send_settings())
-		_settings.add_child(ob)
-	side.add_child(Ui.label("Room (host)", 20, Ui.MUTED))
+	side.custom_minimum_size = Vector2(440, 0)
+	_settings = Ui.vbox(8)
+	_map_btn = Switcher.new(MAP_LABELS, 0, 24)
+	_laps_btn = Switcher.new(["2 laps", "3 laps"], 1, 24)
+	_vis_btn = Switcher.new(["Public", "Private"], 0, 24)
+	_settings.add_child(Ui.label("Room settings (host)", 20, Ui.MUTED))
+	for sw: Switcher in [_map_btn, _laps_btn, _vis_btn]:
+		sw.changed.connect(func(_i: int) -> void: _send_settings())
+		_settings.add_child(sw)
 	side.add_child(_settings)
 	_ready_btn = Ui.button("READY", true, 34)
-	_ready_btn.custom_minimum_size = Vector2(380, 110)
+	_ready_btn.custom_minimum_size = Vector2(440, 110)
 	_ready_btn.pressed.connect(func() -> void: send.emit(Protocol.ready(not _me_ready)))
 	side.add_child(_ready_btn)
 	_start_btn = Ui.button("Start race")
@@ -107,18 +109,9 @@ func _moderate(action: String, pid: String, b: Button) -> void:
 		send.emit(Protocol.kick(pid))
 
 
-func _option(items: Array) -> OptionButton:
-	var ob: OptionButton = OptionButton.new()
-	ob.custom_minimum_size = Vector2(120, Ui.MIN_TOUCH)
-	ob.add_theme_font_size_override("font_size", 22)
-	for it: Variant in items:
-		ob.add_item(str(it))
-	return ob
-
-
 func _send_settings() -> void:
-	send.emit(Protocol.settings(_map_btn.get_item_text(_map_btn.selected), int(_laps_btn.get_item_text(_laps_btn.selected)),
-		bool(_room.get("bots", true)), _vis_btn.get_item_text(_vis_btn.selected)))
+	send.emit(Protocol.settings(MAP_IDS[_map_btn.selected], 2 + _laps_btn.selected,
+		bool(_room.get("bots", true)), Protocol.PUBLIC if _vis_btn.selected == 0 else Protocol.PRIVATE))
 
 
 func update_room(m: Dictionary) -> void:
@@ -159,21 +152,13 @@ func update_room(m: Dictionary) -> void:
 	_settings.visible = is_host
 	_start_btn.visible = is_host
 	_start_btn.disabled = not all_ready
-	_select(_map_btn, str(m.get("map", "")))
-	_select(_laps_btn, str(int(m.get("laps", 3))))
-	_select(_vis_btn, str(m.get("visibility", Protocol.PUBLIC)))
+	_map_btn.set_selected(maxi(MAP_IDS.find(str(m.get("map", "sunny"))), 0))
+	_laps_btn.set_selected(clampi(int(m.get("laps", 3)) - 2, 0, 1))
+	_vis_btn.set_selected(1 if str(m.get("visibility", Protocol.PUBLIC)) == Protocol.PRIVATE else 0)
 	_deadline_ms = int(m.get("deadline", 0))
 
 
 var _deadline_ms: int = 0
-
-
-func _select(ob: OptionButton, text: String) -> void:
-	for i: int in ob.item_count:
-		if ob.get_item_text(i) == text and ob.selected != i:
-			ob.set_block_signals(true)
-			ob.select(i)
-			ob.set_block_signals(false)
 
 
 func _process(_delta: float) -> void:

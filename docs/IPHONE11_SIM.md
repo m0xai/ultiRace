@@ -48,3 +48,17 @@ make iphone11 SCALE=0.7 SECONDS=40
 - 3DMark Wild Life stress (iPhone 11 Pro 51.7 %): https://hothardware.com/news/ul-benchmarks-3dmark-wildlife-stress-test-benchmark-iphone-android
 - UL iPhone 11 (Wild Life stability 72 %): https://benchmarks.ul.com/hardware/phone/Apple+iPhone+11+review
 - Screen geometry (414 × 896 pt @2x): https://useyourloaf.com/blog/iphone-17-screen-sizes/
+
+## Xcode iOS Simulator (`make ios-sim`)
+
+- One-time: `build/tools/build_godot_sim.sh` (clones Godot 4.7.2 into `build/tools/godot-src`, builds the
+  iOS release template for the arm64 simulator, ~3 min on this Mac). The official export template's
+  simulator library is x86_64 only, which iOS 27 simulators on Apple silicon reject.
+- `SERVER_URL=ws://127.0.0.1:8090 make ios-sim`: export → swap in a fat (x86_64 + arm64) simulator
+  library → `xcodebuild -sdk iphonesimulator` → boot/create the "UltiRace iPhone" simulator
+  (iPhone 11 device type, `iPhone12,1`, 1792×828, so the game picks the low quality tier) → install → launch.
+- This Xcode install has no Simulator.app window, so the device runs headless:
+  `xcrun simctl io <udid> screenshot out.png`. To see and touch it, get the Simulator app
+  (Xcode → Settings → Components) and run `make ios-sim` again.
+- The simulator renders through the Mac's GPU: it checks layout, flow and crashes, **not** iPhone 11
+  performance (use `make iphone11` for the projection, a real device for the truth).

@@ -5,7 +5,7 @@ extends RefCounted
 ## on an iPhone 1 pt ≈ 1.67 units, so 44 pt ≈ 74 units: keep touch targets ≥ 80 units high.
 
 ## Style (docs/UI_STYLE.md): chunky "toy" buttons with a dark lip underneath, saturated colours,
-## heavy rounded display font (Lilita One) with dark outlines, bouncy press feedback.
+## racing display font (Racing Sans One, Lilita One as glyph fallback) with dark outlines, bouncy press feedback.
 const BG: Color = Color(0.07, 0.08, 0.16, 0.92)
 const PANEL: Color = Color(0.12, 0.16, 0.32, 0.95)
 const ACCENT: Color = Color(1.0, 0.76, 0.08)

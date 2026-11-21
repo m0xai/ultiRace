@@ -5,6 +5,9 @@
 #   run            device + devicectl install + launch
 #   archive        export + xcodebuild archive (TestFlight path, M13)
 #   compile-check  export + unsigned generic iOS build (CI)
+#   sim            export + Simulator build, boots an "UltiRace iPhone" simulator, installs, launches
+#                  (needs build/tools/build_godot_sim.sh once: the official template's simulator
+#                  library is x86_64 only, Apple-silicon simulators need arm64)
 # Env: GODOT, TEAM_ID (default: preset / Xcode personal team), DEVICE_UDID (default: first paired iPhone),
 #      CONFIG (Release|Debug, default Release),
 #      SERVER_URL (dev only, e.g. ws://192.168.178.32:8090): baked into res://dev_server.txt and adds
@@ -100,6 +103,44 @@ do_compile_check() {
   echo "unsigned iOS compile ok"
 }
 
+SIM_LIB="$REPO/build/tools/godot-src/bin/libgodot.ios.template_release.arm64.simulator.a"
+SIM_NAME="UltiRace iPhone"
+
+sim_udid() {  # existing or new simulator: iPhone 11 if this Xcode still has it, else the oldest available iPhone
+  local u; u=$(xcrun simctl list devices available | grep -F "$SIM_NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+  if [ -z "$u" ]; then
+    local rt; rt=$(xcrun simctl list runtimes | grep -E '^iOS' | tail -1 | sed -E 's/.* - (com\.apple\.CoreSimulator\.SimRuntime\.[^ ]+).*/\1/')
+    for t in iPhone-11 iPhone-12 iPhone-SE-3rd-generation iPhone-13; do
+      u=$(xcrun simctl create "$SIM_NAME" "com.apple.CoreSimulator.SimDeviceType.$t" "$rt" 2>/dev/null) && break
+    done
+  fi
+  echo "$u"
+}
+
+do_sim() {
+  [ -f "$SIM_LIB" ] || die "arm64 simulator library missing: run build/tools/build_godot_sim.sh first"
+  do_export
+  local slice; slice=$(find "$OUT/UltiRace.xcframework" -maxdepth 1 -type d -name '*simulator' | head -1)
+  [ -n "$slice" ] || die "no simulator slice in UltiRace.xcframework"
+  # fat simulator library: the template's x86_64 slice + our arm64 build
+  local x86="$OUT/libgodot_sim_x86_64.a"
+  lipo "$slice/libgodot.a" -thin x86_64 -output "$x86" 2>/dev/null || cp "$slice/libgodot.a" "$x86"
+  lipo -create "$x86" "$SIM_LIB" -output "$slice/libgodot.a"
+  rm -f "$x86"
+  local udid; udid=$(sim_udid); [ -n "$udid" ] || die "could not create a simulator (xcrun simctl list devicetypes)"
+  xcodebuild -project "$XPROJ" -scheme "$SCHEME" -configuration "$CONFIG" -sdk iphonesimulator \
+    -destination "id=$udid" -derivedDataPath "$REPO/build/dd-sim" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+    CODE_SIGNING_ALLOWED=NO PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" build >"$LOG/xcode_sim.txt" 2>&1 \
+    || { grep -E 'error:' "$LOG/xcode_sim.txt" | sort -u | head -5 >&2; die "simulator build failed, see $LOG/xcode_sim.txt"; }
+  local app; app=$(find "$REPO/build/dd-sim/Build/Products" -maxdepth 2 -name '*.app' | head -1)
+  xcrun simctl boot "$udid" 2>/dev/null || true
+  open -a Simulator --args -CurrentDeviceUDID "$udid" 2>/dev/null || echo "(no Simulator app: running headless; screenshot with xcrun simctl io $udid screenshot out.png)"
+  xcrun simctl bootstatus "$udid" -b >/dev/null
+  xcrun simctl install "$udid" "$app"
+  xcrun simctl launch --terminate-running-process "$udid" "$BUNDLE_ID" >/dev/null
+  echo "running on simulator $SIM_NAME ($udid)"
+}
+
 do_pull() {  # copy a file from the app's Documents (user://) to build/device/
   local ids dev; ids=$(device_ids); dev="${ids%% *}"
   mkdir -p "$REPO/build/device"
@@ -112,6 +153,7 @@ do_pull() {  # copy a file from the app's Documents (user://) to build/device/
 case "${1:-}" in
   export) do_export;; device) do_device;; run) do_run;; archive) do_archive;;
   compile-check) do_compile_check;;
+  sim) do_sim;;
   pull) do_pull "$@";;
-  *) die "usage: $0 <export|device|run|archive|compile-check|pull <file>>";;
+  *) die "usage: $0 <export|device|run|archive|compile-check|sim|pull <file>>";;
 esac

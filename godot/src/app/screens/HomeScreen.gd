@@ -1,17 +1,26 @@
 class_name HomeScreen
 extends Control
 
-## Home (GAME_PLAN §2.3): name, Quick Play with the online counter, Practice, Create Room,
-## join by code. Browse Rooms arrives in M11.
+## Home (GAME_PLAN §2.3), UI overhaul: logo + online count + name + settings on top, the car
+## showroom in the middle, and one mode switcher (Quick Play / Practice / Rooms) above a single
+## big action. Rooms mode shows Browse, Create (public; the host can switch to private in the
+## lobby) and join by code.
 
 signal play(opts: Dictionary)
 signal settings
 signal browse
 
+const MODES: Array[String] = ["Quick Play", "Practice", "Rooms"]
+const HINTS: Array[String] = ["Race players from around the world", "Race 7 bots, any time", "Race with friends"]
+
 var _name: LineEdit
 var _code: LineEdit
 var _online: Label
 var _status: Label
+var _hint: Label
+var _mode: Switcher
+var _go: Button
+var _rooms: HBoxContainer
 var _http: HTTPRequest
 var _poll: float = 0.0
 var _showroom: Showroom
@@ -29,78 +38,106 @@ func _cycle_car() -> void:
 func _ready() -> void:
 	var root: MarginContainer = Ui.safe_root(self)
 	Ui.background(self)
-	var row: HBoxContainer = Ui.hbox(40)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	root.add_child(row)
+	var col: VBoxContainer = Ui.vbox(8)
+	root.add_child(col)
 
-	var left: VBoxContainer = Ui.vbox(10)
-	left.alignment = BoxContainer.ALIGNMENT_CENTER
-	left.add_child(Ui.label("UltiRace", 96, Ui.ACCENT))
-	_showroom = Showroom.new()
-	_showroom.custom_minimum_size = Vector2(420, 220)
-	left.add_child(_showroom)
-	_cycle_car()
+	# top bar
+	var top: HBoxContainer = Ui.hbox(18)
+	var logo: Label = Ui.label("ULTIRACE", 72, Ui.ACCENT)
+	top.add_child(logo)
+	var info: VBoxContainer = Ui.vbox(0)
+	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	_online = Ui.label("", 22, Ui.MUTED)
-	left.add_child(_online)
-	left.add_child(Ui.label("Your name", 22, Ui.MUTED))
-	_name = Ui.line_edit("Guest", 16)
+	info.add_child(_online)
+	_status = Ui.label("", 20, Color(1, 0.5, 0.4))
+	info.add_child(_status)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(info)
+	_name = Ui.line_edit("Your name", 16)
+	_name.custom_minimum_size = Vector2(260, Ui.MIN_TOUCH)
 	_name.text = Profile.player_name()
 	_name.text_changed.connect(func(t: String) -> void: Profile.set_value("name", t))
-	left.add_child(_name)
-	_status = Ui.label("", 20, Color(1, 0.5, 0.4))
-	left.add_child(_status)
+	top.add_child(_name)
 	var set_btn: Button = Ui.button("Settings")
+	set_btn.custom_minimum_size = Vector2(170, Ui.MIN_TOUCH)
 	set_btn.pressed.connect(func() -> void: settings.emit())
-	left.add_child(set_btn)
-	row.add_child(left)
-	Ui.pop_in(left, 0.05)
+	top.add_child(set_btn)
+	col.add_child(top)
 
-	var right: VBoxContainer = Ui.vbox(16)
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.custom_minimum_size = Vector2(440, 0)
-	var quick: Button = Ui.button("QUICK PLAY", true, 40)
-	quick.custom_minimum_size = Vector2(440, 120)
-	quick.pressed.connect(func() -> void: play.emit({"quick": true}))
-	right.add_child(quick)
-	var browse_btn: Button = Ui.button("Browse rooms")
+	# showroom
+	_showroom = Showroom.new()
+	_showroom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_showroom.custom_minimum_size = Vector2(0, 200)
+	col.add_child(_showroom)
+	_cycle_car()
+
+	# mode switcher + action (fixed height: switching modes doesn't move anything)
+	var bottom: VBoxContainer = Ui.vbox(10)
+	bottom.custom_minimum_size = Vector2(0, 236)
+	var center: CenterContainer = CenterContainer.new()
+	var inner: VBoxContainer = Ui.vbox(10)
+	inner.custom_minimum_size = Vector2(760, 0)
+	center.add_child(inner)
+	bottom.add_child(center)
+	_mode = Switcher.new(MODES, clampi(int(Profile.get_value("home_mode", 0)), 0, 2), 30)
+	_mode.changed.connect(_on_mode)
+	inner.add_child(_mode)
+	_hint = Ui.label("", 22, Ui.MUTED)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inner.add_child(_hint)
+	_go = Ui.button("PLAY", true, 46)
+	_go.custom_minimum_size = Vector2(0, 112)
+	_go.pressed.connect(_on_go)
+	inner.add_child(_go)
+	_rooms = Ui.hbox(12)
+	_rooms.custom_minimum_size = Vector2(0, 112)
+	var browse_btn: Button = Ui.button("Browse", true, 30)
+	browse_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	browse_btn.size_flags_vertical = Control.SIZE_FILL
 	browse_btn.pressed.connect(func() -> void: browse.emit())
-	right.add_child(browse_btn)
-	var practice: Button = Ui.button("Practice vs bots")
-	practice.pressed.connect(func() -> void: play.emit({"practice": true}))
-	right.add_child(practice)
-	var create_row: HBoxContainer = Ui.hbox(12)
-	var pub: Button = Ui.button("New public room")
-	pub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pub.pressed.connect(func() -> void: play.emit({"create": Protocol.PUBLIC}))
-	var priv: Button = Ui.button("New private room")
-	priv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	priv.pressed.connect(func() -> void: play.emit({"create": Protocol.PRIVATE}))
-	create_row.add_child(pub)
-	create_row.add_child(priv)
-	right.add_child(create_row)
-	var join_row: HBoxContainer = Ui.hbox(12)
+	_rooms.add_child(browse_btn)
+	var create: Button = Ui.button("Create", false, 30)
+	create.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	create.size_flags_vertical = Control.SIZE_FILL
+	create.pressed.connect(func() -> void: play.emit({"create": Protocol.PUBLIC}))
+	_rooms.add_child(create)
 	_code = Ui.line_edit("CODE", 4)
-	_code.custom_minimum_size = Vector2(200, Ui.MIN_TOUCH)
+	_code.custom_minimum_size = Vector2(150, 0)
+	_code.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_code.text_changed.connect(func(t: String) -> void:
 		var up: String = t.to_upper()
 		if up != t:
 			_code.text = up
 			_code.caret_column = up.length())
-	var join: Button = Ui.button("Join")
-	join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rooms.add_child(_code)
+	var join: Button = Ui.button("Join", false, 30)
+	join.custom_minimum_size = Vector2(130, 0)
+	join.size_flags_vertical = Control.SIZE_FILL
 	join.pressed.connect(func() -> void:
 		if _code.text.length() == 4:
 			play.emit({"room": _code.text}))
-	join_row.add_child(_code)
-	join_row.add_child(join)
-	right.add_child(join_row)
-	row.add_child(right)
-	Ui.pop_in(right, 0.15)
+	_rooms.add_child(join)
+	inner.add_child(_rooms)
+	col.add_child(bottom)
+	_on_mode(_mode.selected)
+	Ui.pop_in(inner, 0.1)
 
 	_http = HTTPRequest.new()
 	add_child(_http)
 	_http.request_completed.connect(_on_stats)
 	_fetch_stats()
+
+
+func _on_mode(i: int) -> void:
+	Profile.set_value("home_mode", i)
+	_hint.text = HINTS[i]
+	_go.visible = i != 2
+	_rooms.visible = i == 2
+	_go.text = "RACE NOW" if i == 0 else "PRACTICE"
+
+
+func _on_go() -> void:
+	play.emit({"quick": true} if _mode.selected == 0 else {"practice": true})
 
 
 func show_error(text: String) -> void:

@@ -13,8 +13,9 @@ const MAP_NAMES: Dictionary = {"sunny": "Sunny Circuit", "neon": "Neon Canyon", 
 
 var _list: VBoxContainer
 var _header: Label
-var _map_f: OptionButton
-var _laps_f: OptionButton
+var _map_f: Switcher
+var _laps_f: Switcher
+const MAP_IDS: Array[String] = ["", "sunny", "neon", "frosty"]
 var _http: HTTPRequest
 var _etag: String = ""
 var _t: float = POLL_S
@@ -35,11 +36,15 @@ func _ready() -> void:
 	_header = Ui.label("Public rooms", 32, Ui.ACCENT)
 	_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(_header)
-	_map_f = _option(["All maps", "sunny", "neon", "frosty"])
-	_laps_f = _option(["Any laps", "2", "3"])
-	head.add_child(_map_f)
-	head.add_child(_laps_f)
 	col.add_child(head)
+	var filters: HBoxContainer = Ui.hbox(14)
+	_map_f = _option(["All maps", "Sunny", "Canyon", "Frosty"])
+	_map_f.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_laps_f = _option(["Any laps", "2", "3"])
+	_laps_f.custom_minimum_size = Vector2(330, 0)
+	filters.add_child(_map_f)
+	filters.add_child(_laps_f)
+	col.add_child(filters)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -52,13 +57,9 @@ func _ready() -> void:
 	_http.request_completed.connect(_on_list)
 
 
-func _option(items: Array) -> OptionButton:
-	var ob: OptionButton = OptionButton.new()
-	ob.custom_minimum_size = Vector2(170, Ui.MIN_TOUCH)
-	ob.add_theme_font_size_override("font_size", 22)
-	for it: Variant in items:
-		ob.add_item(str(it))
-	ob.item_selected.connect(func(_i: int) -> void:
+func _option(items: Array) -> Switcher:
+	var ob: Switcher = Switcher.new(items, 0, 24)
+	ob.changed.connect(func(_i: int) -> void:
 		_etag = ""
 		_t = POLL_S)
 	return ob
@@ -78,9 +79,9 @@ func _fetch() -> void:
 	var base: String = Config.server_url().replace("wss://", "https://").replace("ws://", "http://")
 	var q: PackedStringArray = []
 	if _map_f.selected > 0:
-		q.append("map=" + _map_f.get_item_text(_map_f.selected))
+		q.append("map=" + MAP_IDS[_map_f.selected])
 	if _laps_f.selected > 0:
-		q.append("laps=" + _laps_f.get_item_text(_laps_f.selected))
+		q.append("laps=" + _laps_f.text())
 	var headers: PackedStringArray = []
 	if _etag != "":
 		headers.append("If-None-Match: " + _etag)
