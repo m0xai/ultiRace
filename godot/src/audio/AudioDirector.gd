@@ -7,7 +7,11 @@ const BUSES: PackedStringArray = ["Music", "SFX", "Engine", "UI"]
 const SFX_POOL: int = 8
 const DUCK_DB: float = -8.0
 
+const MUSIC_FADE_S: float = 1.2
+
 var _music: AudioStreamPlayer
+var _music_old: AudioStreamPlayer # fading out during a cross-fade
+var _fade: float = 0.0
 var _music_name: String = ""
 var _pool: Array[AudioStreamPlayer] = []
 var _pool_i: int = 0
@@ -27,6 +31,9 @@ func _ready() -> void:
 	_music = AudioStreamPlayer.new()
 	_music.bus = "Music"
 	add_child(_music)
+	_music_old = AudioStreamPlayer.new()
+	_music_old.bus = "Music"
+	add_child(_music_old)
 	for i: int in SFX_POOL:
 		var p: AudioStreamPlayer = AudioStreamPlayer.new()
 		p.bus = "SFX"
@@ -52,12 +59,36 @@ static func load_stream(name: String, loop: bool = false) -> AudioStreamWAV:
 	return s
 
 
+## Music (CC0 tracks, see CREDITS.md): menu, one loop per map theme, "<theme>_final" for the
+## last lap, result_best/good/bad. Cross-fades from the current track.
+static func load_music(name: String) -> AudioStream:
+	var path: String = "res://assets/audio/music/%s.ogg" % name
+	if not ResourceLoader.exists(path):
+		return null
+	var s: AudioStreamOggVorbis = (load(path) as AudioStreamOggVorbis).duplicate() as AudioStreamOggVorbis
+	s.loop = true
+	return s
+
+
 func play_music(name: String) -> void:
 	if name == _music_name:
 		return
+	var s: AudioStream = load_music(name)
+	if s == null:
+		return
 	_music_name = name
-	_music.stream = load_stream("music_" + name, true)
+	if _music.playing:
+		var tmp: AudioStreamPlayer = _music_old
+		_music_old = _music
+		_music = tmp
+		_fade = MUSIC_FADE_S
+	_music.stream = s
+	_music.volume_db = -30.0 if _fade > 0.0 else 0.0
 	_music.play()
+
+
+func music_name() -> String:
+	return _music_name
 
 
 func sfx(name: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
@@ -79,4 +110,9 @@ func sfx(name: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 func _process(delta: float) -> void:
 	_duck = maxf(_duck - delta, 0.0)
 	var target: float = DUCK_DB if _duck > 0.0 else 0.0
-	_music.volume_db = lerpf(_music.volume_db, target, minf(1.0, delta * 8.0))
+	_music.volume_db = lerpf(_music.volume_db, target, minf(1.0, delta * (3.0 if _fade > 0.0 else 8.0)))
+	if _fade > 0.0:
+		_fade = maxf(_fade - delta, 0.0)
+		_music_old.volume_db = linear_to_db(maxf(_fade / MUSIC_FADE_S, 0.0001))
+		if _fade == 0.0:
+			_music_old.stop()

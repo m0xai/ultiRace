@@ -98,6 +98,7 @@ func show_results(m: Dictionary) -> void:
 		_list.add_child(row)
 		Ui.pop_in(row, 0.15 + 0.07 * float(i))
 		i += 1
+	AudioDirector.play_music(result_music(my_pos, i))
 	_title.text = "YOU WON!" if my_pos == 1 else ("P%d — PODIUM!" % my_pos if my_pos in [2, 3] else ("P%d" % my_pos if my_pos > 0 else "RESULTS"))
 	Ui.pop_in(_panel, 0.0)
 	if my_pos >= 1 and my_pos <= 3:
@@ -132,3 +133,12 @@ func _confetti() -> void:
 	add_child(c)
 	c.emitting = true
 	c.finished.connect(c.queue_free)
+
+
+## Podium → "best", upper half → "good", otherwise "bad" (also DNF / spectating).
+static func result_music(pos: int, total: int) -> String:
+	if pos >= 1 and pos <= 3:
+		return "result_best"
+	if pos >= 1 and pos <= int(ceil(float(total) / 2.0)):
+		return "result_good"
+	return "result_bad"

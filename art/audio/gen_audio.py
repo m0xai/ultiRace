@@ -1,7 +1,7 @@
 """Procedural, deterministic game audio (sfxr-style synthesis, CC0 by construction).
 
 Usage: python3 art/audio/gen_audio.py godot/assets/audio
-Writes 16-bit mono WAVs: sfx_*.wav, engine_<class>_<layer>.wav (seamless loops), music_*.wav.
+Writes 16-bit mono WAVs: sfx_*.wav. (Engines: gen_engines.py; music: CC0 tracks, encode_music.py.)
 Standard library only (wave, math, random with fixed seeds).
 """
 import math
@@ -160,13 +160,8 @@ def main(outdir):
     os.makedirs(outdir, exist_ok=True)
     for name, s in sfx().items():
         write(os.path.join(outdir, f"sfx_{name}.wav"), s)
-    seed = 10
-    for cls, k in ENGINE.items():
-        for layer, f in LAYERS.items():
-            write(os.path.join(outdir, f"engine_{cls}_{layer}.wav"), engine_loop(f, k, seed))
-            seed += 1
-    for name in SCALES:
-        write(os.path.join(outdir, f"music_{name}.wav"), music(name))
+    # engines: art/audio/gen_engines.py (per-car physical model); music: CC0 tracks
+    # (art/audio/encode_music.py). engine_loop()/music() are kept only for reference.
     print("audio written to", outdir)
 
 

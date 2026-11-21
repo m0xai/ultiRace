@@ -543,9 +543,9 @@ pill. All touch targets ≥ 44 pt; text readable on an iPhone SE.
 
 | Layer | Approach |
 |---|---|
-| Engine | 3 looped samples per car class (idle/mid/high), cross-faded and pitch-shifted by speed; own car 2D, others `AudioStreamPlayer3D` (max 4 nearest) |
+| Engine | one engine per car (physical model, `art/audio/gen_engines.py`): 5 RPM loops × on/off throttle, cross-faded and pitched by a simulated drivetrain (gears, shift cut, limiter); own car 2D + road/wind, others `AudioStreamPlayer3D` (on layer, max 5 nearest) |
 | SFX | designed sample bank (OGG, ≤ 1.5 MB): countdown, boost, wall hit, spin-out, ice, EMP, grapple, splat, tornado, lap chime, finish fanfare, UI |
-| Music | one loop per map + menu theme, ducked under SFX |
+| Music | CC0 tracks: menu theme, one loop per map + a faster climax mix on the final lap, result jingles (best/good/bad); cross-faded, ducked under SFX |
 | Mix | buses Master → Music / SFX / Engine / UI; limiter on Master; volume sliders |
 | iOS | "ambient" audio session by default (respects the silent switch and other apps' music) |
 

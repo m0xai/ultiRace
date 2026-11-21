@@ -232,6 +232,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] `make ios-sim`: arm64 simulator template built from source, iPhone 11 simulator (headless here).
 - [x] Graphics pass 4: asphalt shader, curbs, W-beam rails, hazard patch shader, road blocks, start
       gantry (`docs/screenshots/gfx4_*.png`); race ≤ 380k tris / 231 draws on high.
+- [x] Audio pass 2: per-car engines from a physical model (`art/audio/gen_engines.py`, 5 RPM
+      points × on/off throttle, gears/shift cut/limiter/crackle in `EngineSound.gd`, road + wind
+      for the own car); CC0 music by MintoDog with final-lap climax mixes and result jingles
+      (13 MB Vorbis). Tilt: no steer buttons in tilt mode, pitch-independent roll with hysteresis.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

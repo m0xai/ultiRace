@@ -19,6 +19,7 @@ var latest: Protocol.Snapshot = null
 var prediction: Prediction = null # own car (M7); other cars are interpolated
 var vfx: Vfx
 var reduce_motion: bool = false
+var laps: int = 3
 var _shake: float = 0.0
 var _engines: Array[EngineSound] = []
 var _smoothed: Dictionary = {} # car index → Physics.CarState shown last frame
@@ -62,6 +63,7 @@ func _ready() -> void:
 
 func start_race(m: Dictionary) -> void:
 	_finish_cam = false
+	laps = int(m.get("laps", 3))
 	you = int(m["you"])
 	follow = max(you, 0)
 	grid = m["grid"] as Array
@@ -353,6 +355,8 @@ func on_event(m: Dictionary) -> void:
 		"lap":
 			if car == you:
 				AudioDirector.sfx("lap")
+				if int(m.get("value", 0)) == laps - 1 and track != null:
+					AudioDirector.play_music(track.theme + "_final") # faster climax mix
 		"finished":
 			if car == you:
 				AudioDirector.sfx("finish")

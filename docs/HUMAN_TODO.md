@@ -6,11 +6,30 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ### Reviews (2026-11-21)
 
-24. [ ] **Review the UI overhaul** (on the phone or `docs/screenshots/ui2_*.png`): Racing Sans One
+24. [x] (approved 2026-11-21: "looks really nice") **Review the UI overhaul** (on the phone or `docs/screenshots/ui2_*.png`): Racing Sans One
     font, home with the Quick Play / Practice / Rooms switcher, settings in two columns (scrolling
     should no longer be needed), switchers instead of dropdowns in lobby and room browser.
-25. [ ] **Review graphics pass 4**: `docs/screenshots/gfx4_*.png` (asphalt, raised curbs, W-beam
+25. [x] (approved 2026-11-21) **Review graphics pass 4**: `docs/screenshots/gfx4_*.png` (asphalt, raised curbs, W-beam
     rails, ice/water/oil patches, new road blocks with chevron signs, start gantry).
+27. [ ] **Listen check, audio pass 2** (on the phone):
+    - Engines: every car has its own engine now (Bolt V10, Rhino V8, Glacier turbo I6, Volt
+      electric, Hook rally turbo I4 with pops, Goo boxer, Phantom V12, Twister rotary) with gears,
+      shift cuts, a rev limiter on boosts and over-run crackle when you lift/brake. Quick listen
+      on the Mac: `afplay build/engine_demo.mp3` (each car: idle → full throttle through the gears
+      → limiter → lift off; regenerate with `build/venv/bin/python art/audio/demo_engines.py
+      godot/assets/audio build/engine_demo.wav`). Say per car what to change ("Rhino too boomy",
+      "Bolt too thin"). If they still sound synthetic, Claude switches to the CC0 recordings of
+      muted.io's *Performance Cars* pack (needs a per-RPM loop edit).
+    - Music (CC0 by MintoDog, OpenGameArt): menu *Cool City*, Sunny *Pure Raceway*, Neon *Neon
+      Sign Circuit*, Frosty *Blossom Mountain*; each switches to its faster **climax** mix on the
+      final lap; results play *Racing Game Result* best/good/bad. Alternatives already checked as
+      CC0: *Racing Game Menu* (more energetic menu), *Darkness Road*, *City on Speed*, *Hyperflight
+      Racing*.
+28. [ ] **Tilt check:** Settings → Tilt to steer. The steer buttons are gone in tilt mode (your thumb
+    on the left button was the "always left"), and tilt now works held upright or nearly flat.
+29. [ ] **Delete the old generated audio** (Claude may not delete repo files): `git rm
+    godot/assets/audio/engine_*.wav* godot/assets/audio/music_*.wav*` — unused since audio pass 2
+    and already excluded from the export.
 26. [ ] **FYI, Simulator:** `make ios-sim` builds and launches on an iPhone 11 simulator, but the game
     freezes after the home screen (OpenGL ES fallback, see `docs/IPHONE11_SIM.md`); skipped as you
     said. `make iphone11` (Mac emulation) and the real phone remain the test paths.

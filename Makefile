@@ -8,7 +8,7 @@ RACES   ?= 2000
 SHOT    ?= docs/screenshots/boot.png
 
 .PHONY: help test test-go test-godot lint fixtures sync check-sync server balance assets e2e \
-        import iphone11 screenshot ios ios-export ios-device ios-run ios-sim ios-check doctor preflight clean
+        import iphone11 audio screenshot ios ios-export ios-device ios-run ios-sim ios-check doctor preflight clean
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -65,6 +65,11 @@ ios-export: ## Godot headless iOS export → build/ios/UltiRace.xcodeproj
 
 ios-device: ## signed build for the connected iPhone
 	./scripts/ios.sh device
+
+audio: ## regenerate engines (+ road/wind) and SFX; needs build/venv with numpy
+	[ -x build/venv/bin/python ] || (python3 -m venv build/venv && build/venv/bin/pip install -q numpy soundfile)
+	build/venv/bin/python art/audio/gen_engines.py godot/assets/audio
+	python3 art/audio/gen_audio.py godot/assets/audio
 
 ios-run: ## build, install and launch on the connected iPhone
 	./scripts/ios.sh run
