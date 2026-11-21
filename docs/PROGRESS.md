@@ -226,6 +226,12 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
       `docs/screenshots/a3_world3.png`, `a3_canyon.png`.
 - [x] Pause menu in races + finish orbit camera with results on the right
       (`docs/screenshots/ui_pause.png`, `ui_finish_camera.png`; dev flags `--auto-pause`, `--auto-finish`).
+- [x] Hazards act in the shared physics (no camera "zoom" on ice/oil/water), `ice_patch` fixture.
+- [x] UI overhaul: Racing Sans One, Switcher control (no dropdowns), simpler home, settings fit one
+      screen (scroll bug), lobby tidy (`docs/screenshots/ui2_*.png`).
+- [x] `make ios-sim`: arm64 simulator template built from source, iPhone 11 simulator (headless here).
+- [x] Graphics pass 4: asphalt shader, curbs, W-beam rails, hazard patch shader, road blocks, start
+      gantry (`docs/screenshots/gfx4_*.png`); race ≤ 380k tris / 231 draws on high.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

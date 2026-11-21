@@ -4,6 +4,17 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 
 ## Open
 
+### Reviews (2026-11-21)
+
+24. [ ] **Review the UI overhaul** (on the phone or `docs/screenshots/ui2_*.png`): Racing Sans One
+    font, home with the Quick Play / Practice / Rooms switcher, settings in two columns (scrolling
+    should no longer be needed), switchers instead of dropdowns in lobby and room browser.
+25. [ ] **Review graphics pass 4**: `docs/screenshots/gfx4_*.png` (asphalt, raised curbs, W-beam
+    rails, ice/water/oil patches, new road blocks with chevron signs, start gantry).
+26. [ ] **Optional, Simulator window:** this Xcode has no Simulator.app, so `make ios-sim` runs the
+    iPhone 11 simulator headless (Claude can screenshot it). To see and touch it yourself:
+    Xcode → Settings → Components → install the iOS Simulator, then `SERVER_URL=ws://127.0.0.1:8090 make ios-sim`.
+
 ### Blocking M11 (server live)
 
 17. [ ] **Deploy the server to flappus** following `docs/DEPLOY.md` (DNS record
