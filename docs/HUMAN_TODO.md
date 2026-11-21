@@ -25,11 +25,21 @@ Things only the human can do. Claude adds items with exact steps; tick them when
       final lap; results play *Racing Game Result* best/good/bad. Alternatives already checked as
       CC0: *Racing Game Menu* (more energetic menu), *Darkness Road*, *City on Speed*, *Hyperflight
       Racing*.
-28. [ ] **Tilt check:** Settings → Tilt to steer. The steer buttons are gone in tilt mode (your thumb
+28. [x] (works, 2026-11-21) **Tilt check:** Settings → Tilt to steer. The steer buttons are gone in tilt mode (your thumb
     on the left button was the "always left"), and tilt now works held upright or nearly flat.
-29. [ ] **Delete the old generated audio** (Claude may not delete repo files): `git rm
-    godot/assets/audio/engine_*.wav* godot/assets/audio/music_*.wav*` — unused since audio pass 2
-    and already excluded from the export.
+29. [ ] **Delete the old audio** (Claude may not delete repo files): `git rm
+    godot/assets/audio/engine_*.wav* godot/assets/audio/music_*.wav*
+    godot/assets/audio/music/sunny_final.ogg* godot/assets/audio/music/frosty_final.ogg*` — unused and
+    already excluded from the export.
+30. [ ] **Review the Desert Night map** (replaces Neon Canyon; same track): dunes, mesas on the
+    horizon, neon diners and gas stations, big moon and Milky Way. Say what to change.
+31. [ ] **Listen check, race music v2** (CC0): Sunny *Hyper Ultra-Racing* (drum and bass), Desert
+    *Darkness Road* (techno, climax mix on the final lap), Frosty *Black Diamond* (drum and bass).
+    Final lap on Sunny/Frosty speeds the track up 6 %. Volumes were reset once to music 60 %,
+    effects/engine 50 %.
+32. [ ] **Race UI check:** steer buttons sink/ripple when pressed; the ULT button is yellow with your
+    car's ULT icon (fills while charging, pulses when ready); minimap backing follows the track
+    shape. Car bodies now collide at their real size (per-car hitbox, angled cars reach further).
 26. [ ] **FYI, Simulator:** `make ios-sim` builds and launches on an iPhone 11 simulator, but the game
     freezes after the home screen (OpenGL ES fallback, see `docs/IPHONE11_SIM.md`); skipped as you
     said. `make iphone11` (Mac emulation) and the real phone remain the test paths.

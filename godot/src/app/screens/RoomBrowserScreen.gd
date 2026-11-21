@@ -9,7 +9,7 @@ signal play(opts: Dictionary)
 signal back
 
 const POLL_S: float = 3.0
-const MAP_NAMES: Dictionary = {"sunny": "Sunny Circuit", "neon": "Neon Canyon", "frosty": "Frosty Peaks"}
+const MAP_NAMES: Dictionary = {"sunny": "Sunny Circuit", "neon": "Desert Night", "frosty": "Frosty Peaks"}
 
 var _list: VBoxContainer
 var _header: Label
@@ -38,7 +38,7 @@ func _ready() -> void:
 	head.add_child(_header)
 	col.add_child(head)
 	var filters: HBoxContainer = Ui.hbox(14)
-	_map_f = _option(["All maps", "Sunny", "Canyon", "Frosty"])
+	_map_f = _option(["All maps", "Sunny", "Desert", "Frosty"])
 	_map_f.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_laps_f = _option(["Any laps", "2", "3"])
 	_laps_f.custom_minimum_size = Vector2(330, 0)

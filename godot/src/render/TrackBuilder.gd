@@ -46,7 +46,7 @@ class TrackTheme:
 	var prop_emission: Color
 	var night: bool = false
 	var snow: bool = false
-	var terrain: String = "hills" # TerrainField kind: hills | snow | canyon
+	var terrain: String = "hills" # TerrainField kind: hills | snow | desert
 
 
 static func theme_for(theme_id: String) -> TrackTheme:
@@ -58,11 +58,11 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.curb_b = Color(0.15, 0.85, 1.0)
 			t.wall = Color(0.12, 0.12, 0.18)
 			t.wall_emission = Color(0.2, 0.9, 1.0)
-			t.ground = Color(0.32, 0.24, 0.18) # canyon sand (moonlit)
+			t.ground = Color(0.42, 0.33, 0.25) # desert sand (moonlit)
 			t.skirt = Color(0.1, 0.1, 0.14)
 			t.sky_top = Color(0.015, 0.02, 0.07)
 			t.sky_horizon = Color(0.08, 0.1, 0.22)
-			t.sun_color = Color(0.78, 0.8, 1.0) # moonlight (only slightly blue: sandstone stays red)
+			t.sun_color = Color(0.74, 0.8, 1.0) # moonlight (cool, the sand stays warm)
 			t.sun_energy = 1.0 # bluish moonlight key: cars keep their shape at night
 			t.sun_rot = Vector3(-38, 30, 0)
 			t.ambient = 0.9
@@ -72,7 +72,7 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.prop_color = Color(0.1, 0.1, 0.16)
 			t.prop_emission = Color(1.0, 0.3, 0.8)
 			t.night = true
-			t.terrain = "canyon"
+			t.terrain = "desert"
 		"frosty":
 			t.road = Color(0.26, 0.28, 0.32)
 			t.curb_a = Color(0.85, 0.15, 0.15)
@@ -578,8 +578,8 @@ static func _scenery(tr: Track, th: TrackTheme, min_y: float, field: TerrainFiel
 	var node: Node3D = Node3D.new()
 	node.name = "Scenery"
 	var rng: Rng = Rng.new(hash(tr.id) & 0x7FFFFFFF)
-	var style: String = {"canyon": "adobe", "snow": "cabin"}.get(th.terrain, "farm")
-	if th.terrain != "canyon":
+	var style: String = {"desert": "roadside", "snow": "cabin"}.get(th.terrain, "farm")
+	if th.terrain != "desert":
 		_forest(node, tr, th, rng, min_y, field)
 	for h: Node3D in WorldDressing.houses(field, tr, style, rng, th.night or th.snow):
 		node.add_child(h)
@@ -846,19 +846,19 @@ static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> Mes
 		var hmax: float = 90.0 if ridge == 0 else 230.0
 		var ph: Array[float] = [rng.next_float() * TAU, rng.next_float() * TAU, rng.next_float() * TAU]
 		var low: Color = th.ground.darkened(0.2) if ridge == 0 else Color(0.3, 0.4, 0.5)
-		if th.terrain == "canyon": # moonlit sandstone mesas
+		if th.terrain == "desert": # moonlit sandstone mesas
 			low = Color(0.36, 0.2, 0.14) if ridge == 0 else Color(0.22, 0.14, 0.13)
 		if th.snow: # bluish rock flanks under the snow, so the peaks read against a pale sky
 			low = Color(0.4, 0.46, 0.56) if ridge == 0 else Color(0.28, 0.34, 0.46)
 		var rock: Color = Color(0.45, 0.47, 0.52) if ridge == 1 else th.ground.darkened(0.3)
-		if th.terrain == "canyon":
+		if th.terrain == "desert":
 			rock = Color(0.46, 0.26, 0.17) if ridge == 0 else Color(0.3, 0.18, 0.15)
 		var crest: Array[Vector3] = []
 		for i: int in n:
 			var a: float = TAU * float(i) / float(n)
 			var wave: float = 0.5 + 0.25 * sin(a * 3.0 + ph[0]) + 0.15 * sin(a * 7.0 + ph[1]) + 0.1 * sin(a * 13.0 + ph[2])
 			var h: float = lerpf(hmin, hmax, clampf(wave + (rng.next_float() - 0.5) * 0.25, 0.0, 1.0))
-			if th.terrain == "canyon": # flat-topped mesas and buttes
+			if th.terrain == "desert": # flat-topped mesas and buttes
 				h = hmin + roundf((h - hmin) / 35.0) * 35.0
 			crest.append(centre + Vector3(cos(a) * r, h, sin(a) * r))
 		for i: int in n:
@@ -870,7 +870,7 @@ static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> Mes
 			f0.y = centre.y
 			f1.y = centre.y
 			var top: float = maxf(a0.y, a1.y) - centre.y
-			var snowy: bool = th.snow or (ridge == 1 and top > 150.0 and th.terrain != "canyon")
+			var snowy: bool = th.snow or (ridge == 1 and top > 150.0 and th.terrain != "desert")
 			var cap: Color = Color(0.95, 0.96, 1.0) if snowy else rock
 			var haze: float = 0.12 if ridge == 0 else 0.3 # aerial perspective, baked (no scene fog)
 			# two bands: rock/grass up to the snow line, then a crisp cap (no washed-out gradient)

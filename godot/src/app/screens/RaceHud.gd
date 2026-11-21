@@ -22,6 +22,8 @@ var _pill: Label
 var _map_pts: PackedVector2Array = PackedVector2Array()
 var _map_rect: Rect2 = Rect2()
 var _map_xform: Transform2D = Transform2D.IDENTITY
+var _map_size: Vector2 = Vector2(MINIMAP_SIZE, MINIMAP_SIZE) # track bounds on screen (fits MINIMAP_SIZE)
+var _map_box: StyleBoxFlat
 var _go_flash: float = 0.0
 var _banner: Label
 var _banner_t: float = 0.0
@@ -99,6 +101,7 @@ func _build_minimap() -> void:
 		lo = lo.min(p)
 		hi = hi.max(p)
 	var k: float = MINIMAP_SIZE / maxf(hi.x - lo.x, hi.y - lo.y)
+	_map_size = (hi - lo) * k
 	_map_xform = Transform2D(0.0, Vector2(k, k), 0.0, -lo * k)
 	for p: Vector2 in raw:
 		_map_pts.append(_map_xform * p)
@@ -161,9 +164,13 @@ func _draw() -> void:
 		return
 	var vp: Vector2 = get_viewport_rect().size
 	var ins: Vector4 = Ui.safe_insets(self)
-	# minimap, top-right
-	var origin: Vector2 = Vector2(vp.x - ins.z - MINIMAP_SIZE - 30.0, ins.y + 24.0)
-	draw_rect(Rect2(origin - Vector2(12, 12), Vector2(MINIMAP_SIZE + 24, MINIMAP_SIZE + 24)), Color(0, 0, 0, 0.35))
+	# minimap, top-right; the backing follows the track's own shape (wide maps get a wide, low box)
+	var origin: Vector2 = Vector2(vp.x - ins.z - 30.0 - _map_size.x, ins.y + 24.0)
+	if _map_box == null:
+		_map_box = StyleBoxFlat.new()
+		_map_box.bg_color = Color(0.02, 0.03, 0.1, 0.38)
+		_map_box.set_corner_radius_all(14)
+	draw_style_box(_map_box, Rect2(origin - Vector2(14, 14), _map_size + Vector2(28, 28)))
 	if _map_pts.size() > 1:
 		var shifted: PackedVector2Array = PackedVector2Array()
 		for p: Vector2 in _map_pts:

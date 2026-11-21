@@ -128,35 +128,146 @@ func _update() -> void:
 	queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update() # keyboard / gamepad polling
+	# press animation: each button eases toward pressed (fast in, slower out); a ring ripples
+	# out on every new press
+	var held: Array = _touches.values()
+	for key: String in _rects:
+		var on: bool = held.has(key) or (key == "left" and steer < 0) or (key == "right" and steer > 0)
+		var p: float = float(_press.get(key, 0.0))
+		if on and p < 0.05 and not bool(_was.get(key, false)):
+			_ripple[key] = 1.0
+		_was[key] = on
+		_press[key] = move_toward(p, 1.0 if on else 0.0, delta * (14.0 if on else 6.0))
+		_ripple[key] = maxf(float(_ripple.get(key, 0.0)) - delta * 3.0, 0.0)
+	_pulse += delta
+	queue_redraw()
+
+
+var _press: Dictionary = {} # region → 0…1 eased press amount
+var _was: Dictionary = {}
+var _ripple: Dictionary = {} # region → 1…0 ring that expands after a press
+var _pulse: float = 0.0
+var ult_id: String = "" # own car's ULT (icon on the yellow button)
+
+const ICON_INK: Color = Color(0.1, 0.07, 0.2)
 
 
 func _draw() -> void:
-	var held: Array = _touches.values()
 	for key: String in _rects:
 		var r: Rect2 = _rects[key] as Rect2
-		var pressed: bool = held.has(key) or (key == "left" and steer < 0) or (key == "right" and steer > 0)
-		var c: Vector2 = r.get_center()
-		var rad: float = r.size.x / 2.0
-		draw_circle(c, rad, Color(0, 0, 0, 0.18)) # darken behind for contrast
-		draw_circle(c, rad, Color(1, 1, 1, 0.32 if pressed else 0.16))
-		draw_arc(c, rad, 0, TAU, 48, Color(1, 1, 1, 0.55), 3.0, true)
+		var p: float = float(_press.get(key, 0.0))
+		var c: Vector2 = r.get_center() + Vector2(0, 4.0 * p) # sinks a little when pressed
+		var rad: float = r.size.x / 2.0 * (1.0 - 0.08 * p)
+		var rip: float = float(_ripple.get(key, 0.0))
+		if rip > 0.0:
+			draw_arc(c, rad * (1.0 + 0.35 * (1.0 - rip)), 0, TAU, 48, Color(1, 1, 1, 0.5 * rip), 4.0, true)
 		match key:
-			"left":
-				_arrow(c, -1.0)
-			"right":
-				_arrow(c, 1.0)
+			"left", "right", "accel":
+				draw_circle(c, rad, Color(0, 0, 0, 0.18)) # darken behind for contrast
+				draw_circle(c, rad, Color(1, 1, 1, lerpf(0.16, 0.38, p)))
+				draw_arc(c, rad, 0, TAU, 48, Color(1, 1, 1, lerpf(0.55, 0.95, p)), 3.0 + 2.0 * p, true)
+				if key == "accel":
+					draw_string(ThemeDB.fallback_font, c + Vector2(-30, 12), "GO", HORIZONTAL_ALIGNMENT_CENTER, 60, 30, Color.WHITE)
+				else:
+					_arrow(c, -1.0 if key == "left" else 1.0, 1.0 + 0.12 * p)
 			"ult":
-				var ring: Color = Ui.ACCENT if ult_ready else Color(1, 1, 1, 0.5)
-				draw_arc(c, rad - 8.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(ult_progress, 0.0, 1.0), 48, ring, 8.0, true)
-				draw_string(ThemeDB.fallback_font, c + Vector2(-30, 12), "ULT", HORIZONTAL_ALIGNMENT_CENTER, 60, 30, ring)
-			"accel":
-				draw_string(ThemeDB.fallback_font, c + Vector2(-30, 12), "GO", HORIZONTAL_ALIGNMENT_CENTER, 60, 30, Color.WHITE)
+				_draw_ult(c, rad, p)
 
 
-func _arrow(c: Vector2, dir: float) -> void:
-	var pts: PackedVector2Array = PackedVector2Array([c + Vector2(dir * 34, 0), c + Vector2(-dir * 22, -34), c + Vector2(-dir * 22, 34)])
+## Yellow ULT button: dim while charging (a bright wedge fills clockwise), full yellow with a
+## soft pulse when ready; the car's ULT icon in the middle.
+func _draw_ult(c: Vector2, rad: float, p: float) -> void:
+	var prog: float = clampf(ult_progress, 0.0, 1.0)
+	draw_circle(c + Vector2(0, 6), rad, Color(0.55, 0.36, 0.0, 0.85)) # lip
+	if ult_ready:
+		var glow: float = 0.5 + 0.5 * sin(_pulse * 5.0)
+		draw_circle(c, rad + 6.0 + 6.0 * glow, Color(1.0, 0.8, 0.1, 0.25 * (1.0 - p)))
+		draw_circle(c, rad, Ui.ACCENT.lightened(0.15 * glow))
+	else:
+		draw_circle(c, rad, Color(0.45, 0.4, 0.3, 0.75))
+		if prog > 0.0:
+			var pts: PackedVector2Array = PackedVector2Array([c])
+			var n: int = maxi(int(48.0 * prog), 2)
+			for k: int in n + 1:
+				var a: float = -PI / 2.0 + TAU * prog * float(k) / float(n)
+				pts.append(c + Vector2(cos(a), sin(a)) * rad)
+			draw_colored_polygon(pts, Color(Ui.ACCENT, 0.75))
+	draw_arc(c, rad, 0, TAU, 48, Color(1, 1, 1, 0.85 if ult_ready else 0.45), 3.0, true)
+	var ink: Color = ICON_INK if ult_ready else Color(ICON_INK, 0.6)
+	draw_ult_icon(self, ult_id, c, rad * 0.52 * (1.0 + 0.1 * p), ink, Ui.ACCENT if ult_ready else Color(0.6, 0.55, 0.4))
+
+
+## Simple vector icons per ULT, drawn into a radius-s box around c (also used by other UI).
+static func draw_ult_icon(ci: CanvasItem, id: String, c: Vector2, s: float, ink: Color, bg: Color) -> void:
+	var w: float = maxf(s * 0.16, 3.0)
+	match id:
+		"nitro": # flame with three tongues and a hot core
+			var flame: Array[Vector2] = [Vector2(0, -1.0), Vector2(0.2, -0.5), Vector2(0.42, -0.78), Vector2(0.52, -0.25),
+				Vector2(0.62, 0.22), Vector2(0.48, 0.62), Vector2(0.22, 0.84), Vector2(0, 0.88), Vector2(-0.22, 0.84),
+				Vector2(-0.48, 0.62), Vector2(-0.62, 0.22), Vector2(-0.55, -0.2), Vector2(-0.4, -0.55), Vector2(-0.22, -0.32)]
+			var outer: PackedVector2Array = PackedVector2Array()
+			var inner: PackedVector2Array = PackedVector2Array()
+			for v: Vector2 in flame:
+				outer.append(c + v * s)
+				inner.append(c + (v * 0.45 + Vector2(0, 0.42)) * s)
+			ci.draw_colored_polygon(outer, ink)
+			ci.draw_colored_polygon(inner, bg)
+		"ram": # double chevron forward
+			for k: int in 2:
+				var y: float = 0.35 - 0.6 * float(k)
+				ci.draw_polyline(PackedVector2Array([c + Vector2(-0.7, y + 0.45) * s, c + Vector2(0, y - 0.25) * s,
+					c + Vector2(0.7, y + 0.45) * s]), ink, w * 1.4, true)
+		"ice": # snowflake
+			for k: int in 3:
+				var d: Vector2 = Vector2.from_angle(PI / 2.0 + float(k) * PI / 3.0)
+				ci.draw_line(c - d * s, c + d * s, ink, w, true)
+				for sg: float in [-1.0, 1.0]:
+					var tip: Vector2 = c + d * s * 0.62 * sg
+					ci.draw_line(tip, tip + (d * sg).rotated(0.8) * s * 0.3, ink, w * 0.8, true)
+					ci.draw_line(tip, tip + (d * sg).rotated(-0.8) * s * 0.3, ink, w * 0.8, true)
+		"emp": # lightning bolt
+			var bolt: PackedVector2Array = PackedVector2Array([Vector2(0.2, -1.0), Vector2(-0.55, 0.12), Vector2(-0.05, 0.12),
+				Vector2(-0.25, 1.0), Vector2(0.55, -0.15), Vector2(0.05, -0.15)])
+			for k: int in bolt.size():
+				bolt[k] = c + bolt[k] * s
+			ci.draw_colored_polygon(bolt, ink)
+		"grapple": # hook
+			ci.draw_line(c + Vector2(0.15, -1.0) * s, c + Vector2(0.15, 0.25) * s, ink, w * 1.4, true)
+			ci.draw_arc(c + Vector2(-0.2, 0.25) * s, 0.35 * s, 0.0, PI, 16, ink, w * 1.4, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-0.75, 0.25) * s, c + Vector2(-0.4, 0.0) * s,
+				c + Vector2(-0.4, 0.42) * s]), ink)
+			ci.draw_circle(c + Vector2(0.15, -0.95) * s, 0.16 * s, ink)
+		"goo": # blob with drips
+			ci.draw_circle(c + Vector2(0, -0.15) * s, 0.6 * s, ink)
+			ci.draw_circle(c + Vector2(-0.35, 0.55) * s, 0.2 * s, ink)
+			ci.draw_rect(Rect2(c + Vector2(-0.48, 0.0) * s, Vector2(0.26, 0.55) * s), ink)
+			ci.draw_circle(c + Vector2(0.3, 0.75) * s, 0.15 * s, ink)
+			ci.draw_rect(Rect2(c + Vector2(0.2, 0.2) * s, Vector2(0.2, 0.55) * s), ink)
+			ci.draw_circle(c + Vector2(-0.2, -0.35) * s, 0.14 * s, bg)
+		"phase": # ghost
+			var g: PackedVector2Array = PackedVector2Array()
+			for k: int in 17:
+				g.append(c + Vector2.from_angle(PI + PI * float(k) / 16.0) * 0.65 * s + Vector2(0, -0.2) * s)
+			for k: int in 7:
+				var x: float = 0.65 - 1.3 * float(k) / 6.0
+				g.append(c + Vector2(x, 0.8 - (0.2 if k % 2 == 1 else 0.0)) * s)
+			ci.draw_colored_polygon(g, ink)
+			ci.draw_circle(c + Vector2(-0.25, -0.2) * s, 0.13 * s, bg)
+			ci.draw_circle(c + Vector2(0.25, -0.2) * s, 0.13 * s, bg)
+		"tornado": # funnel of shrinking swirls
+			for k: int in 5:
+				var y: float = -0.8 + 0.4 * float(k)
+				var hw: float = 0.85 - 0.16 * float(k)
+				var x0: float = 0.12 * sin(float(k) * 1.7)
+				ci.draw_line(c + Vector2(x0 - hw, y) * s, c + Vector2(x0 + hw, y) * s, ink, w * 1.1, true)
+		_:
+			ci.draw_string(ThemeDB.fallback_font, c + Vector2(-s, s * 0.35), "ULT", HORIZONTAL_ALIGNMENT_CENTER, s * 2.0, int(s * 0.8), ink)
+
+
+func _arrow(c: Vector2, dir: float, k: float = 1.0) -> void:
+	var pts: PackedVector2Array = PackedVector2Array([c + Vector2(dir * 34, 0) * k, c + Vector2(-dir * 22, -34) * k, c + Vector2(-dir * 22, 34) * k])
 	var outline: PackedVector2Array = pts.duplicate()
 	outline.append(pts[0])
 	draw_polyline(outline, Color(0, 0, 0, 0.45), 6.0, true) # contrast on bright curbs/snow

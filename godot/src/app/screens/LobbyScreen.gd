@@ -19,7 +19,7 @@ var _map_btn: Switcher
 var _laps_btn: Switcher
 var _vis_btn: Switcher
 const MAP_IDS: Array[String] = ["sunny", "neon", "frosty"]
-const MAP_LABELS: Array[String] = ["Sunny", "Canyon", "Frosty"]
+const MAP_LABELS: Array[String] = ["Sunny", "Desert", "Frosty"]
 var _room: Dictionary = {}
 var _me_ready: bool = false
 

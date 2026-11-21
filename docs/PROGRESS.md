@@ -235,7 +235,10 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] Audio pass 2: per-car engines from a physical model (`art/audio/gen_engines.py`, 5 RPM
       points × on/off throttle, gears/shift cut/limiter/crackle in `EngineSound.gd`, road + wind
       for the own car); CC0 music by MintoDog with final-lap climax mixes and result jingles
-      (13 MB Vorbis). Tilt: no steer buttons in tilt mode, pitch-independent roll with hysteresis.
+      (13 MB Vorbis). Tilt: no steer buttons in tilt mode, roll read in the phone's portrait axes.
+- [x] Desert Night replaces Neon Canyon (dunes, mesas, neon roadside, moon + Milky Way); race music
+      v2 (CC0, faster); volumes 60/50/50; race UI: animated steer buttons, yellow ULT button with
+      per-ULT icons, minimap backing fits the track; per-car rotated hitboxes.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.

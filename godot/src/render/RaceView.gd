@@ -356,7 +356,7 @@ func on_event(m: Dictionary) -> void:
 			if car == you:
 				AudioDirector.sfx("lap")
 				if int(m.get("value", 0)) == laps - 1 and track != null:
-					AudioDirector.play_music(track.theme + "_final") # faster climax mix
+					AudioDirector.final_lap(track.theme) # climax mix or a faster tempo
 		"finished":
 			if car == you:
 				AudioDirector.sfx("finish")

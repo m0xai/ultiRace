@@ -97,7 +97,19 @@ func _rebuild_touch() -> void:
 	_ui.move_child(_touch, 1)
 	_touch.ability_pressed.connect(func() -> void: _ult_pending = 3)
 	_touch.visible = vis
+	_touch.ult_id = _own_ult()
 	_view.reduce_motion = bool(Profile.get_value("reduce_motion", false))
+
+
+## The own car's ULT id (icon on the ULT button).
+func _own_ult() -> String:
+	if _view == null or _view.you < 0:
+		return ""
+	for slot: Variant in _view.grid: # grid slots carry their car index; not ordered by it
+		var sd: Dictionary = slot as Dictionary
+		if int(sd.get("car", -1)) == _view.you:
+			return str(GameData.vehicle(str(sd.get("vehicle", ""))).get("ult", ""))
+	return ""
 
 
 func _show(s: Screen) -> void:
@@ -231,6 +243,7 @@ func _on_message(m: Dictionary) -> void:
 		Protocol.T_RACE_START:
 			_laps = int(m["laps"])
 			_view.start_race(m)
+			_touch.ult_id = _own_ult()
 			_hud.setup(_view, _laps)
 			_results.visible = false
 			_racing = true

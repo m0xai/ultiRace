@@ -3,7 +3,8 @@ extends RefCounted
 
 ## Procedural terrain around a track (A3 world pass 3). Height at (x, z) depends on the distance
 ## to the nearest road point, so the ground never rises through the road:
-##   "canyon": flat sand floor beside the road, then steep layered sandstone walls (two terraces)
+##   "desert": flat sand beside the road, then low dune ridges that build up gently further out
+##             (nothing tall near the road: the figure-8 crosses itself, steep walls hung over it)
 ##   "hills":  gentle rolling grass hills rising away from the road
 ##   "snow":   snowy slopes that follow the (climbing) road nearby and roll into hills further out
 ## Also gives a colour per point (strata, grass/rock, snow/rock by slope) for vertex colours.
@@ -77,12 +78,14 @@ func height(x: float, z: float) -> float:
 	var h: float = floor_y
 	var nv: float = _noise.get_noise_2d(x, z) * 0.5 + 0.5 # 0..1
 	match kind:
-		"canyon":
-			var w0: float = 14.0 + 16.0 * nv # wall foot distance varies along the canyon
-			var h1: float = 22.0 + 18.0 * _noise.get_noise_2d(x * 1.7 + 300.0, z * 1.7) * 0.5 + 9.0
-			var h2: float = 18.0 + 22.0 * nv
-			h = floor_y + h1 * smoothstep(w0, w0 + 9.0, e) + h2 * smoothstep(w0 + 22.0, w0 + 32.0, e)
-			h += _detail.get_noise_2d(x, z) * (0.4 + 1.6 * smoothstep(w0, w0 + 10.0, e))
+		"desert":
+			# dune ridges across the wind (sharp crests, wide troughs), bent by noise; height
+			# grows with the distance from the road and a slow swell further out
+			var warp: float = _noise.get_noise_2d(x * 0.7 + 90.0, z * 0.7) * 45.0
+			var ridge: float = pow(1.0 - absf(sin((x * 0.8 + z * 0.6 + warp) * 0.045)), 2.0)
+			var amp: float = (3.0 + 8.0 * nv) * smoothstep(12.0, 70.0, e)
+			h = floor_y + amp * ridge + smoothstep(60.0, 260.0, e) * 12.0 * nv
+			h += _detail.get_noise_2d(x, z) * 0.25
 		"snow":
 			var hills: float = floor_y + smoothstep(10.0, 140.0, e) * (8.0 + 26.0 * nv) + _detail.get_noise_2d(x, z) * 1.2
 			var near: float = road_y - 0.7
@@ -98,15 +101,14 @@ func height(x: float, z: float) -> float:
 func color_at(x: float, z: float, h: float, slope: float) -> Color:
 	var v: float = _detail.get_noise_2d(x * 2.0, z * 2.0) * 0.5 + 0.5
 	match kind:
-		"canyon":
-			var t: float = h - floor_y
-			if t < 1.2:
-				return Color(0.64, 0.48, 0.33).lerp(Color(0.58, 0.42, 0.29), v)
-			var strata: Array[Color] = [Color(0.72, 0.32, 0.17), Color(0.84, 0.46, 0.24), Color(0.62, 0.26, 0.15),
-				Color(0.9, 0.58, 0.33), Color(0.76, 0.36, 0.2)]
-			var band: int = int((t + _detail.get_noise_2d(x, z) * 1.5) / 3.2) % strata.size()
-			var c: Color = strata[band].lerp(strata[(band + 1) % strata.size()], v * 0.35)
-			return c.darkened(0.18 * slope) if slope > 0.4 else c.lightened(0.06)
+		"desert":
+			# warm sand; crests catch the moon, troughs and gravel patches are darker
+			var t: float = clampf((h - floor_y) / 9.0, 0.0, 1.0)
+			var sand: Color = Color(0.56, 0.4, 0.27).lerp(Color(0.5, 0.35, 0.23), v)
+			sand = sand.lerp(Color(0.72, 0.55, 0.38), t * 0.6)
+			var gravel: float = smoothstep(0.25, 0.45, _noise.get_noise_2d(x * 3.5 + 40.0, z * 3.5))
+			sand = sand.lerp(Color(0.33, 0.26, 0.21), gravel * 0.55)
+			return sand.darkened(0.25 * smoothstep(0.25, 0.6, slope))
 		"snow":
 			var snow: Color = Color(0.93, 0.95, 0.99).lerp(Color(0.86, 0.9, 0.97), v)
 			var rock: Color = Color(0.42, 0.44, 0.5).lerp(Color(0.5, 0.5, 0.55), v)

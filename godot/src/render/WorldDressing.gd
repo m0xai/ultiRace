@@ -2,7 +2,7 @@ class_name WorldDressing
 extends RefCounted
 
 ## World dressing around a track (A3 world pass 3): chunked terrain from TerrainField, houses
-## with lit windows (adobe in the canyon, farmhouses on Sunny, log cabins on Frosty), boulders,
+## with lit windows (neon diners and gas stations in the desert, farmhouses on Sunny, log cabins on Frosty), boulders,
 ## bushes and cacti. Everything is vertex-coloured and batched (one mesh / MultiMesh per kind
 ## and chunk) so off-screen chunks are culled; the low tier uses a coarser terrain grid.
 
@@ -104,13 +104,14 @@ static func terrain_mat(night: bool) -> StandardMaterial3D:
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3(0.08, 0.08, 0.08)
 	if night:
-		m.albedo_color = Color(0.85, 0.85, 0.95)
+		m.albedo_color = Color(0.9, 0.86, 0.86) # keep the desert sand warm under the cool moon
 	return m
 
 
 # ---------- houses ----------
 
-## Houses beside the road, facing it: style "adobe" (canyon), "farm" (Sunny), "cabin" (Frosty).
+## Houses beside the road, facing it: style "roadside" (desert night: diners and gas stations with
+## neon), "farm" (Sunny), "cabin" (Frosty). ("adobe" is kept for reference.)
 ## Returns [body mesh instance, lit-window mesh instance].
 static func houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit: bool) -> Array[Node3D]:
 	var body: SurfaceTool = SurfaceTool.new()
@@ -133,7 +134,7 @@ static func houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit:
 				var yaw: float = atan2(-smp.nx * side, -smp.nz * side) # front faces the road
 				_house(body, glow, p, yaw, style, rng, lit)
 				count += 1
-		s += (40.0 + rng.next_float() * 45.0) if style == "adobe" else (70.0 + rng.next_float() * 60.0)
+		s += (90.0 + rng.next_float() * 70.0) if style == "roadside" else (70.0 + rng.next_float() * 60.0)
 		side = -side if rng.next_float() < 0.7 else side
 	var out: Array[Node3D] = []
 	if count == 0:
@@ -161,6 +162,12 @@ static func houses(field: TerrainField, tr: Track, style: String, rng: Rng, lit:
 
 static func _house(st: SurfaceTool, glow: SurfaceTool, p: Vector3, yaw: float, style: String, rng: Rng, lit: bool) -> void:
 	var xf: Transform3D = Transform3D(Basis(Vector3.UP, yaw), p)
+	if style == "roadside":
+		if rng.next_float() < 0.55:
+			_diner(st, glow, xf, rng)
+		else:
+			_gas_station(st, glow, xf, rng)
+		return
 	var w: float = 3.5 + rng.next_float() * 2.5 # half width (along the road)
 	var dpt: float = 3.0 + rng.next_float() * 1.5 # half depth
 	var hgt: float = 3.0 if style != "farm" else 3.4
@@ -221,6 +228,58 @@ static func _house(st: SurfaceTool, glow: SurfaceTool, p: Vector3, yaw: float, s
 		TrackBuilder._box(glow, Vector3(-w * 0.45, 2.35, dpt + 0.1), Vector3(0.12, 0.12, 0.08), Color(1.0, 0.85, 0.55), xf)
 
 
+const NEON: Array[Color] = [Color(1.0, 0.25, 0.7), Color(0.2, 0.9, 1.0), Color(1.0, 0.6, 0.15), Color(0.55, 1.0, 0.35)]
+
+
+## Roadside diner: long low building, chrome-ish trim, a band of warm lit windows, a neon stripe
+## along the roof edge and a tall neon sign on a pole. Front (+z) faces the road.
+static func _diner(st: SurfaceTool, glow: SurfaceTool, xf: Transform3D, rng: Rng) -> void:
+	var w: float = 6.0 + rng.next_float() * 2.0
+	var dpt: float = 3.6
+	var hgt: float = 3.3
+	var wall: Color = [Color(0.86, 0.84, 0.78), Color(0.55, 0.78, 0.76), Color(0.9, 0.78, 0.62)][rng.next_int(3)]
+	var neon: Color = NEON[rng.next_int(NEON.size())]
+	TrackBuilder._box(st, Vector3(0, hgt / 2.0, 0), Vector3(w, hgt / 2.0, dpt), wall, xf)
+	TrackBuilder._box(st, Vector3(0, 0.15, 0), Vector3(w + 0.2, 0.2, dpt + 0.2), wall.darkened(0.4), xf)
+	TrackBuilder._box(st, Vector3(0, hgt + 0.2, 0.3), Vector3(w + 0.5, 0.22, dpt + 0.8), Color(0.75, 0.76, 0.8), xf) # roof slab
+	TrackBuilder._box(st, Vector3(0, 0.75, dpt + 0.03), Vector3(w - 0.2, 0.35, 0.04), Color(0.78, 0.8, 0.85), xf) # chrome skirt
+	TrackBuilder._box(glow, Vector3(0.6, 1.85, dpt + 0.05), Vector3(w - 1.4, 0.7, 0.04), Color(1.0, 0.82, 0.5), xf) # windows
+	TrackBuilder._box(st, Vector3(-w + 0.8, 1.2, dpt + 0.05), Vector3(0.5, 1.2, 0.04), Color(0.25, 0.2, 0.2), xf) # door
+	TrackBuilder._box(glow, Vector3(0, hgt + 0.48, dpt + 1.12), Vector3(w + 0.5, 0.06, 0.04), neon, xf) # roof edge neon
+	# sign on a pole at the road-side corner: frame + glowing panel + border tube
+	var sx: float = w + 2.5
+	TrackBuilder._box(st, Vector3(sx, 3.5, dpt + 1.5), Vector3(0.15, 3.5, 0.15), Color(0.3, 0.3, 0.34), xf)
+	TrackBuilder._box(st, Vector3(sx, 7.6, dpt + 1.5), Vector3(1.9, 1.0, 0.18), Color(0.12, 0.12, 0.16), xf)
+	TrackBuilder._box(glow, Vector3(sx, 7.6, dpt + 1.7), Vector3(1.6, 0.75, 0.03), neon, xf)
+	var other: Color = NEON[(NEON.find(neon) + 1) % NEON.size()]
+	TrackBuilder._box(glow, Vector3(sx, 8.68, dpt + 1.7), Vector3(1.95, 0.06, 0.04), other, xf)
+	TrackBuilder._box(glow, Vector3(sx, 6.52, dpt + 1.7), Vector3(1.95, 0.06, 0.04), other, xf)
+
+
+## Gas station: canopy on four posts with a bright underside and a neon edge, two pumps with
+## lit screens, a small shop behind. Front (+z) faces the road.
+static func _gas_station(st: SurfaceTool, glow: SurfaceTool, xf: Transform3D, rng: Rng) -> void:
+	var neon: Color = NEON[rng.next_int(NEON.size())]
+	var cw: float = 6.5
+	var cd: float = 3.5
+	var ch: float = 4.6
+	for px: float in [-cw + 0.8, cw - 0.8]:
+		for pz: float in [-cd + 0.8, cd - 0.8]:
+			TrackBuilder._box(st, Vector3(px, ch / 2.0, pz + 2.0), Vector3(0.22, ch / 2.0, 0.22), Color(0.85, 0.85, 0.88), xf)
+	TrackBuilder._box(st, Vector3(0, ch + 0.35, 2.0), Vector3(cw, 0.35, cd), Color(0.92, 0.92, 0.95), xf) # canopy
+	TrackBuilder._box(glow, Vector3(0, ch - 0.02, 2.0), Vector3(cw - 0.4, 0.03, cd - 0.4), Color(0.95, 0.97, 1.0), xf) # lights
+	TrackBuilder._box(glow, Vector3(0, ch + 0.35, 2.0 + cd + 0.03), Vector3(cw, 0.14, 0.04), neon, xf) # neon band
+	TrackBuilder._box(glow, Vector3(0, ch + 0.35, 2.0 - cd - 0.03), Vector3(cw, 0.14, 0.04), neon, xf)
+	for px2: float in [-2.2, 2.2]:
+		TrackBuilder._box(st, Vector3(px2, 0.2, 2.0), Vector3(0.9, 0.2, 0.5), Color(0.6, 0.6, 0.62), xf) # island
+		TrackBuilder._box(st, Vector3(px2, 1.1, 2.0), Vector3(0.35, 0.75, 0.3), Color(0.85, 0.15, 0.15), xf) # pump
+		TrackBuilder._box(glow, Vector3(px2, 1.45, 2.32), Vector3(0.22, 0.16, 0.02), Color(0.6, 1.0, 0.8), xf)
+	# shop behind the canopy
+	TrackBuilder._box(st, Vector3(0, 1.7, -4.2), Vector3(4.5, 1.7, 2.6), Color(0.82, 0.8, 0.76), xf)
+	TrackBuilder._box(glow, Vector3(0, 1.6, -4.2 + 2.63), Vector3(3.2, 0.8, 0.03), Color(1.0, 0.88, 0.62), xf)
+	TrackBuilder._box(glow, Vector3(0, 3.6, -4.2 + 2.65), Vector3(2.6, 0.32, 0.03), neon, xf) # shop sign
+
+
 # ---------- small props ----------
 
 static func boulder_mesh(c: Color) -> ArrayMesh:
@@ -271,7 +330,7 @@ static func cactus_mesh() -> ArrayMesh:
 	return st.commit()
 
 
-## Props on the terrain near the road: rocks everywhere, cacti (canyon) or bushes (Sunny).
+## Props on the terrain near the road: rocks everywhere, cacti (desert) or bushes (Sunny).
 static func props(node: Node3D, field: TerrainField, tr: Track, style: String, rng: Rng) -> void:
 	var rocks: Array[Transform3D] = []
 	var plants: Array[Transform3D] = []
@@ -294,14 +353,14 @@ static func props(node: Node3D, field: TerrainField, tr: Track, style: String, r
 			if rng.next_float() < 0.45:
 				rocks.append(Transform3D(b, Vector3(x, y - 0.15 * sc, z)))
 			elif style != "cabin":
-				var ps: float = (2.2 + rng.next_float() * 2.0) if style == "adobe" else (0.6 + rng.next_float() * 0.6)
+				var ps: float = (2.2 + rng.next_float() * 2.0) if style == "roadside" else (0.6 + rng.next_float() * 0.6)
 				plants.append(Transform3D(Basis(Vector3.UP, rng.next_float() * TAU).scaled(Vector3(ps, ps, ps)), Vector3(x, y, z)))
 		s += 9.0
-	var rock_c: Color = Color(0.62, 0.38, 0.26) if style == "adobe" else (Color(0.55, 0.57, 0.62) if style == "cabin" else Color(0.55, 0.53, 0.5))
+	var rock_c: Color = Color(0.56, 0.4, 0.3) if style == "roadside" else (Color(0.55, 0.57, 0.62) if style == "cabin" else Color(0.55, 0.53, 0.5))
 	_chunked(node, "Rocks", boulder_mesh(rock_c), rocks, rng)
 	if not plants.is_empty():
-		var mesh: Mesh = cactus_mesh() if style == "adobe" else TrackBuilder._broadleaf_mesh()
-		_chunked(node, "Cacti" if style == "adobe" else "Bushes", mesh, plants, rng)
+		var mesh: Mesh = cactus_mesh() if style == "roadside" else TrackBuilder._broadleaf_mesh()
+		_chunked(node, "Cacti" if style == "roadside" else "Bushes", mesh, plants, rng)
 
 
 static func _chunked(node: Node3D, name: String, mesh: Mesh, xforms: Array[Transform3D], rng: Rng) -> void:

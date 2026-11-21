@@ -279,7 +279,8 @@ placement, theme). Go and Godot read the same file.
 
 1. **Sunny Circuit** (beginner): wide (22 m) flat loop, 3 sweeping corners, one chicane;
    green hills, trees, grandstands; warm afternoon light.
-2. **Neon Canyon** (intermediate, was Neon Overpass): **figure-8 with a bridge** through a moonlit desert canyon, emissive edge
+2. **Desert Night** (intermediate, map id `neon`; was Neon Canyon / Neon Overpass): **figure-8 with a bridge** through a moonlit
+   desert (dunes, mesas on the horizon, neon diners and gas stations by the road, big moon, Milky Way), emissive edge
    strips with glow, wet-road reflections on the high tier, 2 tight hairpins, 20 m wide.
 3. **Frosty Peaks** (advanced): elevation changes, **2 jump ramps**, banked turns, snow, pines,
    narrow (18 m) sections where ULTs matter more; falling-snow particles.
