@@ -454,30 +454,123 @@ static func _quad(st: SurfaceTool, a0: Vector3, b0: Vector3, a1: Vector3, b1: Ve
 	st.add_vertex(b0)
 
 
+## Start/finish gantry (graphics pass 4): two lattice towers + a truss beam (one metal mesh),
+## a banner with the game name in the race font and checkered edges, five red start lights.
 static func _gate(tr: Track, th: TrackTheme) -> Node3D:
 	var gate: Node3D = Node3D.new()
 	gate.name = "StartGate"
-	var hw: float = tr.half_width(0.0) + WALL_GAP + 0.6
-	var post: BoxMesh = BoxMesh.new()
-	post.size = Vector3(0.8, 7.0, 0.8)
-	var mat: StandardMaterial3D = _mat(Color(0.15, 0.15, 0.18), th.wall_emission)
+	var hw: float = tr.half_width(0.0) + WALL_GAP + 0.9
+	var o: Vector3 = tr.world(0.0, 0.0, 0.0)
+	var lat: Vector3 = tr.lateral(0.0).normalized()
+	var fwd: Vector3 = (tr.world(1.0, 0.0, 0.0) - o).normalized()
+	var up: Vector3 = fwd.cross(lat).normalized()
+	if up.y < 0.0:
+		up = -up
+	var P: Callable = func(x: float, y: float, z: float) -> Vector3: return o + lat * x + up * y + fwd * z
+	var truss: SurfaceTool = SurfaceTool.new()
+	truss.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var H: float = 7.6 # beam top
+	var tw: float = 0.45 # tower half size
 	for side: float in [-1.0, 1.0]:
-		var p: Vector3 = tr.world(0.0, side * hw, 3.5)
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = post
-		mi.material_override = mat
-		mi.position = p
-		gate.add_child(mi)
-	var bar: BoxMesh = BoxMesh.new()
-	bar.size = Vector3(2.0 * hw + 0.8, 1.2, 0.8)
-	var mb: MeshInstance3D = MeshInstance3D.new()
-	mb.mesh = bar
-	mb.material_override = _mat(Color(0.95, 0.75, 0.1), th.wall_emission)
-	var center: Vector3 = tr.world(0.0, 0.0, 7.0)
-	var lat: Vector3 = tr.lateral(0.0)
-	mb.transform = Transform3D(Basis.looking_at(lat.cross(Vector3.UP).normalized(), Vector3.UP), center)
-	gate.add_child(mb)
+		var cx: float = side * hw
+		var corners: Array[Vector2] = [Vector2(-tw, -tw), Vector2(tw, -tw), Vector2(tw, tw), Vector2(-tw, tw)]
+		for c: Vector2 in corners:
+			_tube(truss, P.call(cx + c.x, 0.0, c.y), P.call(cx + c.x, H, c.y), 0.06)
+		var y: float = 0.0
+		var k: int = 0
+		while y < H - 0.1: # zig-zag bracing on all four faces
+			var y2: float = minf(y + 0.9, H)
+			for f: int in 4:
+				var a: Vector2 = corners[f]
+				var b: Vector2 = corners[(f + 1) % 4]
+				if k % 2 == 1:
+					var t: Vector2 = a
+					a = b
+					b = t
+				_tube(truss, P.call(cx + a.x, y, a.y), P.call(cx + b.x, y2, b.y), 0.035)
+			y = y2
+			k += 1
+		_tube(truss, P.call(cx - tw - 0.2, 0.0, 0.0), P.call(cx + tw + 0.2, 0.0, 0.0), 0.12) # foot
+	# beam: 4 chords + diagonals
+	var bh: float = 1.1
+	var bz: float = 0.45
+	for c2: Vector2 in [Vector2(H - bh, -bz), Vector2(H - bh, bz), Vector2(H, -bz), Vector2(H, bz)]:
+		_tube(truss, P.call(-hw, c2.x, c2.y), P.call(hw, c2.x, c2.y), 0.07)
+	var n: int = int(2.0 * hw / 1.1)
+	for i2: int in n:
+		var x0: float = lerpf(-hw, hw, float(i2) / n)
+		var x1: float = lerpf(-hw, hw, float(i2 + 1) / n)
+		for z: float in [-bz, bz]:
+			_tube(truss, P.call(x0, H - bh, z), P.call(x1, H, z), 0.035)
+		_tube(truss, P.call(x0, H, -bz), P.call(x1, H, bz), 0.03)
+	var metal: StandardMaterial3D = _mat(Color(0.78, 0.8, 0.84))
+	metal.metallic = 0.7
+	metal.roughness = 0.35
+	gate.add_child(_mesh_instance("Truss", truss, metal))
+	# banner hanging under the beam, checkered stripes top and bottom
+	var ban: SurfaceTool = SurfaceTool.new()
+	ban.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var bw: float = hw - tw - 0.3
+	var y0: float = H - bh - 1.9
+	var y1: float = H - bh - 0.05
+	var face: Color = Color(0.08, 0.1, 0.28)
+	for z3: float in [-0.08, 0.08]:
+		_quad(ban, P.call(-bw, y0, z3), P.call(bw, y0, z3), P.call(-bw, y1, z3), P.call(bw, y1, z3), face)
+	var cells: int = int(2.0 * bw / 0.35)
+	for row: int in 2:
+		for e: int in [0, 1]:
+			var ya: float = (y1 - 0.35 + 0.175 * row) if e == 0 else (y0 + 0.175 * row)
+			for k2: int in cells:
+				var xa: float = lerpf(-bw, bw, float(k2) / cells)
+				var xb: float = lerpf(-bw, bw, float(k2 + 1) / cells)
+				var cc: Color = Color.WHITE if (k2 + row) % 2 == 0 else Color(0.04, 0.04, 0.05)
+				for z4: float in [-0.09, 0.09]:
+					_quad(ban, P.call(xa, ya, z4), P.call(xb, ya, z4), P.call(xa, ya + 0.175, z4), P.call(xb, ya + 0.175, z4), cc)
+	var bm: StandardMaterial3D = _two_sided(_mat(Color.WHITE, Color(0, 0, 0), true))
+	bm.roughness = 0.6
+	gate.add_child(_mesh_instance("Banner", ban, bm))
+	# the game name on both faces
+	var font: Font = load("res://assets/fonts/ui_font.tres") as Font
+	for dir: float in [-1.0, 1.0]:
+		var lb: Label3D = Label3D.new()
+		lb.text = "ULTIRACE"
+		lb.font = font
+		lb.font_size = 160
+		lb.pixel_size = 0.0075
+		lb.outline_size = 24
+		lb.modulate = Color(1.0, 0.78, 0.1)
+		lb.outline_modulate = Color(0.02, 0.03, 0.1)
+		lb.shaded = false
+		lb.double_sided = false
+		lb.position = P.call(0.0, (y0 + y1) * 0.5, dir * 0.13)
+		var lz: Vector3 = fwd * dir # Label3D reads from its +Z side: point it at that side's drivers
+		lb.basis = Basis(up.cross(lz).normalized(), up, lz)
+		gate.add_child(lb)
+	# start lights under the banner
+	var lights: SurfaceTool = SurfaceTool.new()
+	lights.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for li: int in 5:
+		var lx: float = (float(li) - 2.0) * 0.75
+		_tube(lights, P.call(lx, y0 - 0.55, -0.15), P.call(lx, y0 - 0.15, -0.15), 0.17)
+	var lm: StandardMaterial3D = _mat(Color(0.25, 0.02, 0.02), Color(1.0, 0.1, 0.05))
+	gate.add_child(_mesh_instance("StartLights", lights, lm))
+	if th.wall_emission != Color(0, 0, 0): # neon: glowing banner frame
+		bm.emission_enabled = true
+		bm.emission = th.wall_emission * 0.25
 	return gate
+
+
+## Square tube (4 sides) from a to b with half-size r (truss members, lamps).
+static func _tube(st: SurfaceTool, a: Vector3, b: Vector3, r: float) -> void:
+	var axis: Vector3 = (b - a).normalized()
+	var ref: Vector3 = Vector3.UP if absf(axis.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT
+	var u: Vector3 = axis.cross(ref).normalized() * r
+	var v: Vector3 = axis.cross(u).normalized() * r
+	var ring: Array[Vector3] = [u + v, -u + v, -u - v, u - v]
+	for k: int in 4:
+		var p0: Vector3 = ring[k]
+		var p1: Vector3 = ring[(k + 1) % 4]
+		_quad(st, a + p0, b + p0, a + p1, b + p1, Color.WHITE)
 
 
 ## Deterministic placeholder scenery (trees / pines / towers) kept clear of the track.
