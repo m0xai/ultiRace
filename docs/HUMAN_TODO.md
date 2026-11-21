@@ -11,9 +11,9 @@ Things only the human can do. Claude adds items with exact steps; tick them when
     should no longer be needed), switchers instead of dropdowns in lobby and room browser.
 25. [ ] **Review graphics pass 4**: `docs/screenshots/gfx4_*.png` (asphalt, raised curbs, W-beam
     rails, ice/water/oil patches, new road blocks with chevron signs, start gantry).
-26. [ ] **Optional, Simulator window:** this Xcode has no Simulator.app, so `make ios-sim` runs the
-    iPhone 11 simulator headless (Claude can screenshot it). To see and touch it yourself:
-    Xcode → Settings → Components → install the iOS Simulator, then `SERVER_URL=ws://127.0.0.1:8090 make ios-sim`.
+26. [ ] **FYI, Simulator:** `make ios-sim` builds and launches on an iPhone 11 simulator, but the game
+    freezes after the home screen (OpenGL ES fallback, see `docs/IPHONE11_SIM.md`); skipped as you
+    said. `make iphone11` (Mac emulation) and the real phone remain the test paths.
 
 ### Blocking M11 (server live)
 

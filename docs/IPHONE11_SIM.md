@@ -62,3 +62,8 @@ make iphone11 SCALE=0.7 SECONDS=40
   (Xcode → Settings → Components) and run `make ios-sim` again.
 - The simulator renders through the Mac's GPU: it checks layout, flow and crashes, **not** iPhone 11
   performance (use `make iphone11` for the projection, a real device for the truth).
+- **Status 2026-11-21: boots, shows the home screen, then freezes.** Godot falls back to an OpenGL ES 3
+  context in the simulator ("Setting up an OpenGL ES 3.0 context") and stops presenting frames after
+  a few seconds (CPU ~0 %, the server connection times out: "Connection lost"). Not pursued further
+  (human: skip if it doesn't work). Next things to try if needed: a Godot build with
+  `metal=yes` for the simulator, or a debug template to get the engine log.
