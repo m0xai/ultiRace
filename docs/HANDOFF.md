@@ -94,6 +94,9 @@ See the bottom of this file for the progress log of the current task.
        tufts) with LODs → MultiMesh, wind sway shader.
   - D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
   - E. Roadside props (lamps, billboards, barriers, cones, grandstands, fences, signs).
+  - [x] F1. Horizon: ridged-noise mountain rings + cumulus clouds (`TrackBuilder._mountains`,
+       `_clouds`) — `49a826a`. Water/ice/oil patches: smooth normals + depth pull toward the
+       camera (z-fighting gave blocky, speckled edges).
   - F. Terrain splat shader (grass/dirt/rock/snow/sand with normal detail), real mountain
        silhouettes, sky with shader clouds.
   - G. VFX polish (sparks, rings, ULT effects) and in-race HUD details.

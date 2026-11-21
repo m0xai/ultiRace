@@ -1174,6 +1174,7 @@ static func _hazards(tr: Track) -> Array[Node3D]:
 		m.set_shader_parameter("kind", int(looks[kind]))
 		m.set_shader_parameter("noise", _noise_tex("blotch", 0.012, 256, false))
 		m.set_shader_parameter("ripple_normal", _noise_tex("ripple_n", 0.05, 256, true))
+		st.index() # shared vertices → smooth normals (flat per-cell normals made the mirror-like water look blocky)
 		st.generate_normals()
 		st.generate_tangents()
 		var mi: MeshInstance3D = MeshInstance3D.new()
@@ -1200,8 +1201,8 @@ static func _patch(st: SurfaceTool, tr: Track, h: Dictionary) -> void:
 	var L: float = float(h["len"])
 	var d: float = float(h["d"])
 	var hw: float = float(h["halfW"]) * 1.08
-	var rows: int = maxi(6, int(L / 2.0))
-	var cols: int = 4
+	var rows: int = maxi(8, int(L / 1.2))
+	var cols: int = 8
 	var lift: float = ROAD_LIFT + 0.035 # above the lane markings
 	for k: int in rows:
 		for c: int in cols:

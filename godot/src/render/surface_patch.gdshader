@@ -14,6 +14,11 @@ varying vec2 wm;
 void vertex() {
 	pu = UV;
 	wm = UV2;
+	// pull toward the camera by 0.3 % of the distance: the patch lies a few cm above the road and
+	// z-fought with it further away (speckled, blocky edges)
+	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	view.xyz *= 0.997;
+	POSITION = PROJECTION_MATRIX * view;
 }
 
 void fragment() {
@@ -23,8 +28,9 @@ void fragment() {
 	// rectangle) whose edge wobbles with two noise scales
 	vec2 q = abs(vec2(pu.x, (pu.y - 0.5) * 2.0));
 	float r = pow(pow(q.x, 4.0) + pow(q.y, 4.0), 0.25);
-	float wob = 0.3 * (texture(noise, wm * 0.45).r - 0.5) + 0.18 * (n2 - 0.5);
-	float shape = 1.0 - smoothstep(0.8 + wob, 0.95 + wob, r);
+	// coarse wobble only: fine noise in the outline broke the edge into speckled islands
+	float wob = 0.32 * (texture(noise, wm * 0.22).r - 0.5) + 0.07 * (texture(noise, wm * 0.55 + 0.3).r - 0.5);
+	float shape = 1.0 - smoothstep(0.8 + wob, 0.97 + wob, r);
 	float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 4.0);
 	if (kind == 0) {
 		// ice: milky blue-white, darker clear patches, crack lines, bright frosty rim
