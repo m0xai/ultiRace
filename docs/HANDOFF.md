@@ -105,10 +105,9 @@ See the bottom of this file for the progress log of the current task.
        `art/ads/make_ads.gd` → `godot/assets/env/ads/ad0-5.png`, `ADS_BY_THEME`) — `7c24148`.
   - [x] E2. Street lamps: tapered pole, curved arm, LED head, lens MultiMesh glowing at night
        (`TrackBuilder._lamps`, `_taper_tube`).
-  - [ ] NEXT E3. (lamps done) 
-       (model a proper lamp in a Blender "props" kit), guard-rail posts fine. Desert diners/gas
-       stations are still code-built boxes (`WorldDressing._diner/_gas_station`) → move into the
-       buildings kit with more detail.
+  - [ ] NEXT E3. Desert diners/gas stations are still code-built boxes
+       (`WorldDressing._diner/_gas_station`) → move into `art/blender/env/buildings.py` with more
+       detail (chrome trim, rounded corners, neon tubes as separate glow objects). Guard rails fine.
   - [ ] NEXT B. Lighting/post per map (mobile renderer: no SSAO/SSR; use baked vertex AO, sun
        angle, shadow distance/softness, AgX exposure, fog colour, glow on night). Compare all three
        maps side by side at the race camera.
