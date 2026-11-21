@@ -16,7 +16,7 @@ static func _low() -> bool:
 
 
 ## Terrain chunks covering the track's surroundings.
-static func terrain(field: TerrainField, tr: Track, ground_mat: StandardMaterial3D) -> Node3D:
+static func terrain(field: TerrainField, tr: Track, ground_mat: Material) -> Node3D:
 	var node: Node3D = Node3D.new()
 	node.name = "Terrain"
 	var lo: Vector2 = Vector2(INF, INF)
@@ -81,30 +81,15 @@ static func terrain(field: TerrainField, tr: Track, ground_mat: StandardMaterial
 	return node
 
 
-## Ground material for terrain: vertex colour × fine noise texture (close-up detail).
-static func terrain_mat(night: bool) -> StandardMaterial3D:
-	var m: StandardMaterial3D = StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.roughness = 0.95
-	var noise: FastNoiseLite = FastNoiseLite.new()
-	noise.seed = 21
-	noise.frequency = 0.09
-	noise.fractal_octaves = 4
-	var ramp: Gradient = Gradient.new()
-	ramp.set_color(0, Color(0.82, 0.82, 0.82))
-	ramp.set_color(1, Color(1.08, 1.08, 1.08))
-	var tex: NoiseTexture2D = NoiseTexture2D.new()
-	tex.width = 256
-	tex.height = 256
-	tex.seamless = true
-	tex.noise = noise
-	tex.color_ramp = ramp
-	m.albedo_texture = tex
-	m.uv1_triplanar = true
-	m.uv1_world_triplanar = true
-	m.uv1_scale = Vector3(0.08, 0.08, 0.08)
-	if night:
-		m.albedo_color = Color(0.9, 0.86, 0.86) # keep the desert sand warm under the cool moon
+## Ground material for terrain (graphics pass 5): terrain.gdshader — vertex colours × world-space
+## patch variation, speckle and bump; snow sparkles, sand ripples.
+static func terrain_mat(night: bool, kind: String = "hills") -> ShaderMaterial:
+	var m: ShaderMaterial = ShaderMaterial.new()
+	m.shader = preload("res://src/render/terrain.gdshader")
+	m.set_shader_parameter("kind", {"snow": 1, "desert": 2}.get(kind, 0))
+	m.set_shader_parameter("noise", TrackBuilder._noise_tex("terrain_v", 0.03, 256, false))
+	m.set_shader_parameter("noise_n", TrackBuilder._noise_tex("terrain_n", 0.06, 256, true))
+	m.set_shader_parameter("night", 1.0 if night else 0.0)
 	return m
 
 

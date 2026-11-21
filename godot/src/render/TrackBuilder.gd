@@ -338,7 +338,7 @@ static func build(tr: Track) -> Node3D:
 	ground.material_override = _ground_mat(th)
 	root.add_child(ground)
 	var field: TerrainField = TerrainField.new(tr, th.terrain, min_y - 0.5, hash(tr.id) & 0xFFFF)
-	root.add_child(WorldDressing.terrain(field, tr, WorldDressing.terrain_mat(th.night)))
+	root.add_child(WorldDressing.terrain(field, tr, WorldDressing.terrain_mat(th.night, th.terrain)))
 
 	root.add_child(_scenery(tr, th, min_y, field))
 	root.add_child(_environment(th))
