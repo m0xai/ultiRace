@@ -360,7 +360,7 @@ func TestRoomNameIsGenerated(t *testing.T) {
 	c := newCore(t, protocol.Public)
 	join(c, "a")
 	c.Handle("a", &protocol.Settings{Map: "neon", Laps: 2, Bots: true, Visibility: protocol.Public})
-	if c.Name[:len("Neon Overpass · 2 laps · #TEST ")] != "Neon Overpass · 2 laps · #TEST " {
+	if c.Name[:len("Neon Canyon · 2 laps · #TEST ")] != "Neon Canyon · 2 laps · #TEST " {
 		t.Fatalf("name %q", c.Name)
 	}
 	c.Handle("a", &protocol.Settings{Map: "nope", Laps: 2, Visibility: protocol.Public})

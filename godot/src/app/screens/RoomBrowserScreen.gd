@@ -9,7 +9,7 @@ signal play(opts: Dictionary)
 signal back
 
 const POLL_S: float = 3.0
-const MAP_NAMES: Dictionary = {"sunny": "Sunny Circuit", "neon": "Neon Overpass", "frosty": "Frosty Peaks"}
+const MAP_NAMES: Dictionary = {"sunny": "Sunny Circuit", "neon": "Neon Canyon", "frosty": "Frosty Peaks"}
 
 var _list: VBoxContainer
 var _header: Label

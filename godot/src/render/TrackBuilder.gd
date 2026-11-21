@@ -43,6 +43,7 @@ class TrackTheme:
 	var prop_emission: Color
 	var night: bool = false
 	var snow: bool = false
+	var terrain: String = "hills" # TerrainField kind: hills | snow | canyon
 
 
 static func theme_for(theme_id: String) -> TrackTheme:
@@ -54,20 +55,21 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.curb_b = Color(0.15, 0.85, 1.0)
 			t.wall = Color(0.12, 0.12, 0.18)
 			t.wall_emission = Color(0.2, 0.9, 1.0)
-			t.ground = Color(0.04, 0.04, 0.07)
+			t.ground = Color(0.32, 0.24, 0.18) # canyon sand (moonlit)
 			t.skirt = Color(0.1, 0.1, 0.14)
-			t.sky_top = Color(0.02, 0.02, 0.08)
-			t.sky_horizon = Color(0.25, 0.08, 0.35)
-			t.sun_color = Color(0.6, 0.6, 1.0)
+			t.sky_top = Color(0.015, 0.02, 0.07)
+			t.sky_horizon = Color(0.08, 0.1, 0.22)
+			t.sun_color = Color(0.78, 0.8, 1.0) # moonlight (only slightly blue: sandstone stays red)
 			t.sun_energy = 1.0 # bluish moonlight key: cars keep their shape at night
-			t.sun_rot = Vector3(-50, 30, 0)
-			t.ambient = 1.1
-			t.fog = Color(0.12, 0.05, 0.2)
-			t.fog_density = 0.0008
+			t.sun_rot = Vector3(-38, 30, 0)
+			t.ambient = 0.9
+			t.fog = Color(0.05, 0.06, 0.12)
+			t.fog_density = 0.0009
 			t.pillars = true
 			t.prop_color = Color(0.1, 0.1, 0.16)
 			t.prop_emission = Color(1.0, 0.3, 0.8)
 			t.night = true
+			t.terrain = "canyon"
 		"frosty":
 			t.road = Color(0.26, 0.28, 0.32)
 			t.curb_a = Color(0.85, 0.15, 0.15)
@@ -88,6 +90,7 @@ static func theme_for(theme_id: String) -> TrackTheme:
 			t.prop_color = Color(0.13, 0.3, 0.2)
 			t.prop_emission = Color(0, 0, 0)
 			t.snow = true
+			t.terrain = "snow"
 		_:
 			t.road = Color(0.24, 0.24, 0.26)
 			t.curb_a = Color(0.9, 0.15, 0.12)
@@ -322,11 +325,13 @@ static func build(tr: Track) -> Node3D:
 	var gs: float = 2.0 * (bounds.w + MOUNTAIN_FAR + 250.0) # reaches under the far mountains
 	plane.size = Vector2(gs, gs)
 	ground.mesh = plane
-	ground.position = Vector3(bounds.x, min_y - 0.5, bounds.z)
+	ground.position = Vector3(bounds.x, min_y - 3.0, bounds.z) # under the terrain (no z-fight)
 	ground.material_override = _ground_mat(th)
 	root.add_child(ground)
+	var field: TerrainField = TerrainField.new(tr, th.terrain, min_y - 0.5, hash(tr.id) & 0xFFFF)
+	root.add_child(WorldDressing.terrain(field, tr, WorldDressing.terrain_mat(th.night)))
 
-	root.add_child(_scenery(tr, th, min_y))
+	root.add_child(_scenery(tr, th, min_y, field))
 	root.add_child(_environment(th))
 	return root
 
@@ -442,15 +447,17 @@ static func _gate(tr: Track, th: TrackTheme) -> Node3D:
 
 
 ## Deterministic placeholder scenery (trees / pines / towers) kept clear of the track.
-static func _scenery(tr: Track, th: TrackTheme, min_y: float) -> Node3D:
+static func _scenery(tr: Track, th: TrackTheme, min_y: float, field: TerrainField) -> Node3D:
 	var node: Node3D = Node3D.new()
 	node.name = "Scenery"
 	var rng: Rng = Rng.new(hash(tr.id) & 0x7FFFFFFF)
-	if tr.theme == "neon":
-		node.add_child(_city(tr, rng, min_y))
-	else:
-		_forest(node, tr, th, rng, min_y)
-		node.add_child(_mountains(tr, th, rng, min_y))
+	var style: String = {"canyon": "adobe", "snow": "cabin"}.get(th.terrain, "farm")
+	if th.terrain != "canyon":
+		_forest(node, tr, th, rng, min_y, field)
+	for h: Node3D in WorldDressing.houses(field, tr, style, rng, th.night or th.snow):
+		node.add_child(h)
+	WorldDressing.props(node, field, tr, style, rng)
+	node.add_child(_mountains(tr, th, rng, min_y))
 	node.add_child(_lamps(tr, th))
 	if tr.theme != "neon":
 		node.add_child(_clouds(tr, rng))
@@ -554,7 +561,7 @@ static func _city(tr: Track, rng: Rng, min_y: float) -> MultiMeshInstance3D:
 
 ## Roadside trees: tiered conifers (snow caps on Frosty) and, on Sunny, round broadleaf trees.
 ## Two MultiMeshes of vertex-coloured low-poly meshes, slight per-tree colour variation.
-static func _forest(node: Node3D, tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> void:
+static func _forest(node: Node3D, tr: Track, th: TrackTheme, rng: Rng, min_y: float, field: TerrainField) -> void:
 	var pines: Array[Transform3D] = []
 	var leafy: Array[Transform3D] = []
 	var skip: float = 0.45 if _quality_tier() != "low" else 0.62 # low tier: a third fewer trees (triangle budget)
@@ -565,9 +572,11 @@ static func _forest(node: Node3D, tr: Track, th: TrackTheme, rng: Rng, min_y: fl
 			if rng.next_float() < skip:
 				continue
 			var dist: float = smp.half_width + 12.0 + rng.next_float() * 70.0
-			var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, min_y - 0.5, smp.pz + smp.nz * side * dist)
-			if _too_close(tr, p, 14.0):
+			var p: Vector3 = Vector3(smp.px + smp.nx * side * dist, 0.0, smp.pz + smp.nz * side * dist)
+			var near: Vector3 = field.nearest(p.x, p.z)
+			if near.x - near.z < 10.0:
 				continue
+			p.y = field.height(p.x, p.z) - 0.2 # stands on the terrain
 			var h: float = 6.0 + rng.next_float() * 8.0
 			var b: Basis = Basis(Vector3.UP, rng.next_float() * TAU).scaled(Vector3(h * (0.85 + rng.next_float() * 0.3), h, h * (0.85 + rng.next_float() * 0.3)))
 			if th.snow or rng.next_float() < 0.55:
@@ -710,14 +719,20 @@ static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> Mes
 		var hmax: float = 90.0 if ridge == 0 else 230.0
 		var ph: Array[float] = [rng.next_float() * TAU, rng.next_float() * TAU, rng.next_float() * TAU]
 		var low: Color = th.ground.darkened(0.2) if ridge == 0 else Color(0.3, 0.4, 0.5)
+		if th.terrain == "canyon": # moonlit sandstone mesas
+			low = Color(0.36, 0.2, 0.14) if ridge == 0 else Color(0.22, 0.14, 0.13)
 		if th.snow: # bluish rock flanks under the snow, so the peaks read against a pale sky
 			low = Color(0.4, 0.46, 0.56) if ridge == 0 else Color(0.28, 0.34, 0.46)
 		var rock: Color = Color(0.45, 0.47, 0.52) if ridge == 1 else th.ground.darkened(0.3)
+		if th.terrain == "canyon":
+			rock = Color(0.46, 0.26, 0.17) if ridge == 0 else Color(0.3, 0.18, 0.15)
 		var crest: Array[Vector3] = []
 		for i: int in n:
 			var a: float = TAU * float(i) / float(n)
 			var wave: float = 0.5 + 0.25 * sin(a * 3.0 + ph[0]) + 0.15 * sin(a * 7.0 + ph[1]) + 0.1 * sin(a * 13.0 + ph[2])
 			var h: float = lerpf(hmin, hmax, clampf(wave + (rng.next_float() - 0.5) * 0.25, 0.0, 1.0))
+			if th.terrain == "canyon": # flat-topped mesas and buttes
+				h = hmin + roundf((h - hmin) / 35.0) * 35.0
 			crest.append(centre + Vector3(cos(a) * r, h, sin(a) * r))
 		for i: int in n:
 			var j: int = (i + 1) % n
@@ -728,7 +743,7 @@ static func _mountains(tr: Track, th: TrackTheme, rng: Rng, min_y: float) -> Mes
 			f0.y = centre.y
 			f1.y = centre.y
 			var top: float = maxf(a0.y, a1.y) - centre.y
-			var snowy: bool = th.snow or (ridge == 1 and top > 150.0)
+			var snowy: bool = th.snow or (ridge == 1 and top > 150.0 and th.terrain != "canyon")
 			var cap: Color = Color(0.95, 0.96, 1.0) if snowy else rock
 			var haze: float = 0.12 if ridge == 0 else 0.3 # aerial perspective, baked (no scene fog)
 			# two bands: rock/grass up to the snow line, then a crisp cap (no washed-out gradient)

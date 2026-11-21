@@ -221,6 +221,9 @@ haptics, reduce motion, volumes). Dev arg `--settings` opens it.
 - [x] Cars v5 high-poly (human: > 95 k tris): 3 LODs per car (100–114 k / ≈ 40 k / ≈ 5 k),
       many small realistic details, LOD rules + test. Race peak high ≈ 391 k tris / 159 draws,
       low ≤ 104 k / 104. App +8.6 MB (car scenes 12.6 MB). `docs/screenshots/a1_v5*.png`.
+- [x] A3 world pass 3: Neon Canyon (canyon terrain, adobe houses with lit windows, cacti, moon),
+      terrain + houses + rocks/bushes on Sunny/Frosty. Race peak high ≈ 339 k tris / 210 draws.
+      `docs/screenshots/a3_world3.png`, `a3_canyon.png`.
 - [ ] A3: human
       review of the A3 look (`docs/screenshots/a3_*.png`).
 - [ ] Polish: boolean seam shading on Rhino/Hook rear, Phantom fins, trim ~6–6.8k tris → ≤ 6k.
