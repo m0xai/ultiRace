@@ -101,8 +101,9 @@ See the bottom of this file for the progress log of the current task.
        0.3 % toward the camera (z-fighting gave blocky, speckled edges).
   - [x] F2. Ground: `terrain.gdshader` (patch variation, speckle, world-space bump; snow sparkle,
        sand ripples) via `WorldDressing.terrain_mat(night, kind)`.
-  - [ ] NEXT E. Roadside props: billboards are still plain coloured boards on posts (make real ad
-       boards: frame, bracing, lamps, procedural ad graphics), street lamps are simple poles
+  - [x] E1. Billboards: steel structure + ad faces (`TrackBuilder._billboards`, ads from
+       `art/ads/make_ads.gd` → `godot/assets/env/ads/ad0-5.png`, `ADS_BY_THEME`) — `7c24148`.
+  - [ ] NEXT E2. Street lamps are simple poles
        (model a proper lamp in a Blender "props" kit), guard-rail posts fine. Desert diners/gas
        stations are still code-built boxes (`WorldDressing._diner/_gas_station`) → move into the
        buildings kit with more detail.
@@ -110,4 +111,5 @@ See the bottom of this file for the progress log of the current task.
        angle, shadow distance/softness, AgX exposure, fog colour, glow on night). Compare all three
        maps side by side at the race camera.
   - [ ] G. VFX polish (sparks, EMP/ice/goo rings, grapple cable, tornado) and HUD details.
-  - [ ] Install on the phone, ask the human to review gfx5 (HUMAN_TODO item), iterate.
+  - [x] Installed on the phone 2026-11-21 (after `7c24148`); review asked in HUMAN_TODO #33.
+  - [ ] Iterate on the human's feedback.

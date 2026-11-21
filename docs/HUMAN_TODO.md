@@ -40,6 +40,10 @@ Things only the human can do. Claude adds items with exact steps; tick them when
 32. [ ] **Race UI check:** steer buttons sink/ripple when pressed; the ULT button is yellow with your
     car's ULT icon (fills while charging, pulses when ready); minimap backing follows the track
     shape. Car bodies now collide at their real size (per-car hitbox, angled cars reach further).
+33. [ ] **Review exhaust + graphics pass 5** on the phone (or `docs/screenshots/exhaust_*.png`,
+    `gfx5_*.png`): per-car exhaust tips/smoke/boost flames; new trees, cacti, rocks, mountains,
+    clouds, farmhouses/barns/cabins, jump ramps, ground detail, billboards. Still to come in this
+    pass: street lamps, desert diners/gas stations as models, lighting per map, ULT effects.
 26. [ ] **FYI, Simulator:** `make ios-sim` builds and launches on an iPhone 11 simulator, but the game
     freezes after the home screen (OpenGL ES fallback, see `docs/IPHONE11_SIM.md`); skipped as you
     said. `make iphone11` (Mac emulation) and the real phone remain the test paths.
