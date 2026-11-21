@@ -79,30 +79,35 @@ See the bottom of this file for the progress log of the current task.
 - [x] 3. Exhaust: tips modelled per car (`carkit4.exhausts()`, `ExhaustTip_<i>` empties in the
       glb), `godot/src/render/ExhaustFx.gd` smoke + boost flames per car — `533b8f4`.
       Review images: `docs/screenshots/exhaust_*.png`.
-- [ ] 4. Unified graphics quality — plan (phases, commit each):
-  - A. Audit: race screenshots of all three maps (start, mid, corners), list every visual that
-       is below the cars' level. Perf baseline. NOTE: the race grid already peaks at ~420–490k
-       triangles because several 108k-tri LOD0 cars sit near the camera at the start →
-       tighten car LOD distances (own car LOD0; others LOD1 beyond ~12 m) as part of this task.
-  - B. Lighting/post: one consistent look per map (AgX, exposure, fog, glow, SSAO if the
-       renderer allows), shadows quality.
+- [ ] 4. Unified graphics quality (in progress; commits `8af9d4b` … `48a2348`). Screenshots for the
+      human: `docs/screenshots/gfx5_*.png`. Phases:
+  - [x] A. Audit done (2026-11-21): below the cars' level were horizon mountains (flat bands),
+       clouds (flat ellipsoids), trees (cones/blobs), houses (boxes), billboards (plain boards),
+       ground (flat colour), jump ramp (flat yellow plane), water puddle (blocky). Road, curbs,
+       rails, start gate were already fine.
+  - [x] Perf: race grid had 287 draws / 493k tris → `CarView.allow_mid` (only the 2 nearest other
+       cars use mid LOD; set in `RaceView._update_audio`), one rock shape per 100 m cell, no
+       shadows for small props → ≤ 219 draws / ≤ 371k tris (`48a2348`).
   - [x] C. Vegetation kit: `art/blender/env/vegetation.py` → `godot/assets/env/vegetation.glb`
-       (Pine/PineSnow/Broadleaf with `_lod1`, Bush, Cactus, Rock0-2; vertex colours = sRGB in a
-       byte layer set as active/render colour), `godot/src/render/EnvKit.gd` (100 m cells,
-       detailed < 85 m, light beyond; small props hidden > 140 m), `foliage.gdshader` (sway).
-       Old: (was) C. Vegetation kit in Blender (pine, snowy pine, broadleaf, bush, cactus/saguaro, grass
-       tufts) with LODs → MultiMesh, wind sway shader.
-  - [x] D. Buildings kit: `art/blender/env/buildings.py` (+ shared `envlib.py`) → `assets/env/buildings.glb`
-       (Farmhouse, Barn, Cabin + `_lod1` + `<Name>Glow` windows), `WorldDressing._kit_houses`.
-       Desert keeps the code-built diners/gas stations (could move to the kit later).
-       Jump ramps rebuilt as kickers (`TrackBuilder._ramp`).
-       Old: (was) D. Buildings kit in Blender (farmhouse, barn, cabin, diner, gas station) replacing boxes.
-  - E. Roadside props (lamps, billboards, barriers, cones, grandstands, fences, signs).
-  - [x] F1. Horizon: ridged-noise mountain rings + cumulus clouds (`TrackBuilder._mountains`,
-       `_clouds`) — `49a826a`. Water/ice/oil patches: smooth normals + depth pull toward the
-       camera (z-fighting gave blocky, speckled edges).
+       (Pine/PineSnow/Broadleaf with `_lod1`, Bush, Cactus(+_lod1), Rock0-2; vertex colours =
+       sRGB values in a byte layer that is set as active/render colour, else they export white),
+       `godot/src/render/EnvKit.gd` (100 m cells, detailed < 85 m, light beyond; props without
+       `_lod1` hidden > 140 m), `foliage.gdshader` (instance tint + wind sway).
+  - [x] D. Buildings kit: `art/blender/env/buildings.py` (+ shared `envlib.py` Builder) →
+       `assets/env/buildings.glb` (Farmhouse, Barn, Cabin + `_lod1` + `<Name>Glow` windows),
+       placed by `WorldDressing._kit_houses`. Jump ramps rebuilt as kickers (`TrackBuilder._ramp`).
+  - [x] F1. Horizon: ridged-noise mountain rings + cumulus cloud meshes (`TrackBuilder._mountains`,
+       `_mountain_color`, `_clouds`, `_cloud_mesh`). Hazard patches: smooth normals + vertex pulled
+       0.3 % toward the camera (z-fighting gave blocky, speckled edges).
   - [x] F2. Ground: `terrain.gdshader` (patch variation, speckle, world-space bump; snow sparkle,
        sand ripples) via `WorldDressing.terrain_mat(night, kind)`.
-  - F. (rest) Terrain splat shader (grass/dirt/rock/snow/sand with normal detail), real mountain
-       silhouettes, sky with shader clouds.
-  - G. VFX polish (sparks, rings, ULT effects) and in-race HUD details.
+  - [ ] NEXT E. Roadside props: billboards are still plain coloured boards on posts (make real ad
+       boards: frame, bracing, lamps, procedural ad graphics), street lamps are simple poles
+       (model a proper lamp in a Blender "props" kit), guard-rail posts fine. Desert diners/gas
+       stations are still code-built boxes (`WorldDressing._diner/_gas_station`) → move into the
+       buildings kit with more detail.
+  - [ ] NEXT B. Lighting/post per map (mobile renderer: no SSAO/SSR; use baked vertex AO, sun
+       angle, shadow distance/softness, AgX exposure, fog colour, glow on night). Compare all three
+       maps side by side at the race camera.
+  - [ ] G. VFX polish (sparks, EMP/ice/goo rings, grapple cable, tornado) and HUD details.
+  - [ ] Install on the phone, ask the human to review gfx5 (HUMAN_TODO item), iterate.
